@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import 'otp_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/api_config.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -16,7 +17,7 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _mrnController = TextEditingController();
-  late final EmrApiClient _api;
+  EmrApiClient? _api;
   bool _loading = false;
   String? _error;
 
@@ -310,15 +311,24 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     try {
+      // Ensure API client is initialized with fallback
+      if (_api == null) {
+        print('🔄 Initializing API client with fallback...');
+        // Test all URLs first for debugging
+        await testAllUrls();
+        _api = await EmrApiClient.create();
+      }
+
       // Test connection first
       print('🔍 Testing API connection...');
-      final isConnected = await _api.testConnection();
+      final isConnected = await _api!.testConnection();
       if (!isConnected) {
+        printNetworkInfo();
         throw Exception('Cannot connect to server. Please check your network connection.');
       }
 
       // Fetch patient data
-      final patient = await _api.fetchPatient(mrn);
+      final patient = await _api!.fetchPatient(mrn);
       
       // Proceed to placeholder OTP screen (bypass supported there)
       if (mounted) {
