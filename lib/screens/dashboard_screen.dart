@@ -30,6 +30,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   bool _showOverlay = false;
   String? _selectedSection;
   bool _isTabSectionExpanded = false;
+  
+  // Search controllers for each section
+  final TextEditingController _vitalsSearchController = TextEditingController();
+  final TextEditingController _medicationsSearchController = TextEditingController();
+  final TextEditingController _opdSearchController = TextEditingController();
+  final TextEditingController _ipdSearchController = TextEditingController();
+  final TextEditingController _labsSearchController = TextEditingController();
+  final TextEditingController _radiologySearchController = TextEditingController();
+  final TextEditingController _surgerySearchController = TextEditingController();
 
   @override
   void initState() {
@@ -47,6 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _vitalsSearchController.dispose();
+    _medicationsSearchController.dispose();
+    _opdSearchController.dispose();
+    _ipdSearchController.dispose();
+    _labsSearchController.dispose();
+    _radiologySearchController.dispose();
+    _surgerySearchController.dispose();
     super.dispose();
   }
 
@@ -531,6 +547,90 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     });
   }
 
+  // Search filtering helper methods
+  List<dynamic> _filterVitals(String query) {
+    if (query.isEmpty) return _vitals ?? [];
+    return (_vitals ?? []).where((vital) {
+      final searchText = query.toLowerCase();
+      return (vital['dateTime'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (vital['bloodPressure'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (vital['heartRate'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (vital['temperature'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (vital['location'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterMedications(String query) {
+    if (query.isEmpty) return _medications ?? [];
+    return (_medications ?? []).where((med) {
+      final searchText = query.toLowerCase();
+      return (med['medication'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['dosage'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['indication'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['prescriber'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterOPD(String query) {
+    if (query.isEmpty) return _opd ?? [];
+    return (_opd ?? []).where((record) {
+      final searchText = query.toLowerCase();
+      return (record['date'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['department'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['chiefComplaint'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['diagnosis'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['provider'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterIPD(String query) {
+    if (query.isEmpty) return _ipd ?? [];
+    return (_ipd ?? []).where((record) {
+      final searchText = query.toLowerCase();
+      return (record['admissionDate'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['dischargeDate'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['diagnosis'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['physician'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['reason'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterLabs(String query) {
+    if (query.isEmpty) return _labs ?? [];
+    return (_labs ?? []).where((lab) {
+      final searchText = query.toLowerCase();
+      return (lab['date'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['test'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['result'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['status'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['orderedBy'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterRadiology(String query) {
+    if (query.isEmpty) return _radiology ?? [];
+    return (_radiology ?? []).where((record) {
+      final searchText = query.toLowerCase();
+      return (record['date'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['procedure'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['findings'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['impression'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['radiologist'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
+  List<dynamic> _filterSurgery(String query) {
+    if (query.isEmpty) return _surgery ?? [];
+    return (_surgery ?? []).where((record) {
+      final searchText = query.toLowerCase();
+      return (record['date'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['procedure'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['surgeon'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['outcome'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['complications'] ?? '').toString().toLowerCase().contains(searchText);
+    }).toList();
+  }
+
   Widget _buildSectionOverlay() {
     return Container(
       color: Colors.black.withValues(alpha: 0.5),
@@ -656,7 +756,40 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: _buildSectionContent(_selectedSection!),
+                    child: Column(
+                      children: [
+                        // Search bar for modal
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          child: TextField(
+                            controller: _getSearchController(_selectedSection!),
+                            onChanged: (value) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: 'Search ${_getSectionTitle(_selectedSection!).toLowerCase()}...',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _getSearchController(_selectedSection!)?.text.isNotEmpty == true
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _getSearchController(_selectedSection!)?.clear();
+                                        setState(() {});
+                                      },
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        // Content area
+                        Expanded(
+                          child: _buildSectionContent(_selectedSection!),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -743,14 +876,35 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
+  TextEditingController? _getSearchController(String section) {
+    switch (section) {
+      case 'vitals':
+        return _vitalsSearchController;
+      case 'opd':
+        return _opdSearchController;
+      case 'ipd':
+        return _ipdSearchController;
+      case 'labs':
+        return _labsSearchController;
+      case 'radiology':
+        return _radiologySearchController;
+      case 'surgery':
+        return _surgerySearchController;
+      default:
+        return null;
+    }
+  }
+
   Widget _buildSectionContent(String section) {
     List<dynamic>? data;
     List<String> columns = [];
     List<DataColumn> dataColumns = [];
+    TextEditingController? searchController;
 
     switch (section) {
       case 'vitals':
         data = _vitals;
+        searchController = _vitalsSearchController;
         columns = ['Date/Time', 'Blood Pressure', 'Heart Rate', 'Temperature', 'Respiratory Rate', 'SpO2', 'Weight', 'BMI', 'Location'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -758,6 +912,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         break;
       case 'opd':
         data = _opd;
+        searchController = _opdSearchController;
         columns = ['Date', 'Department', 'Chief Complaint', 'Physician', 'Treatment'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -765,6 +920,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         break;
       case 'ipd':
         data = _ipd;
+        searchController = _ipdSearchController;
         columns = ['Admit Date', 'Discharge Date', 'Length of Stay', 'Diagnosis', 'Attending Physician', 'Outcome'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -772,6 +928,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         break;
       case 'labs':
         data = _labs;
+        searchController = _labsSearchController;
         columns = ['Date', 'Test Name', 'Result', 'Reference Range', 'Status', 'Ordered By'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -779,6 +936,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         break;
       case 'radiology':
         data = _radiology;
+        searchController = _radiologySearchController;
         columns = ['Date', 'Procedure', 'Findings', 'Impression', 'Radiologist'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -786,6 +944,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         break;
       case 'surgery':
         data = _surgery;
+        searchController = _surgerySearchController;
         columns = ['Date', 'Procedure', 'Surgeon', 'Outcome', 'Complications'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -797,7 +956,32 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (data.isEmpty) {
+    // Apply search filter if available
+    List<dynamic> filteredData = data;
+    if (searchController != null) {
+      switch (section) {
+        case 'vitals':
+          filteredData = _filterVitals(searchController.text);
+          break;
+        case 'opd':
+          filteredData = _filterOPD(searchController.text);
+          break;
+        case 'ipd':
+          filteredData = _filterIPD(searchController.text);
+          break;
+        case 'labs':
+          filteredData = _filterLabs(searchController.text);
+          break;
+        case 'radiology':
+          filteredData = _filterRadiology(searchController.text);
+          break;
+        case 'surgery':
+          filteredData = _filterSurgery(searchController.text);
+          break;
+      }
+    }
+
+    if (filteredData.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
@@ -818,7 +1002,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
               const Gap(24),
               Text(
-                'No ${_getSectionTitle(section).toLowerCase()} found',
+                searchController?.text.isNotEmpty == true
+                    ? 'No ${_getSectionTitle(section).toLowerCase()} found matching "${searchController!.text}"'
+                    : 'No ${_getSectionTitle(section).toLowerCase()} found',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
@@ -828,7 +1014,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
               const Gap(12),
               Text(
-                'There are currently no records available for this section.',
+                searchController?.text.isNotEmpty == true
+                    ? 'Try adjusting your search terms or clear the search to see all records.'
+                    : 'There are currently no records available for this section.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade500,
                   height: 1.4,
@@ -852,7 +1040,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           dataRowMaxHeight: 80,
           headingRowColor: MaterialStateProperty.all(Colors.white),
           columns: dataColumns,
-          rows: data.asMap().entries.map((entry) {
+          rows: filteredData.asMap().entries.map((entry) {
             int index = entry.key;
             dynamic item = entry.value;
             List<String> rowData = _getRowData(section, item);
@@ -1191,10 +1379,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 16),
             child: TextField(
-              controller: _searchController,
+              controller: _vitalsSearchController,
+              onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search vitals...',
+                hintText: 'Search vitals by date, BP, HR, temperature, or location...',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _vitalsSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _vitalsSearchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1335,17 +1533,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     ),
                                   ),
                                 ],
-                                rows: _vitals == null
-                                    ? [
-                                        _buildVitalRow('Loading vitals...', '-', '-', '-', '-', '-', '-', '-', '-',
-                                            [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
-                                      ]
-                                    : _vitals!.isEmpty
-                                        ? [
-                                            _buildVitalRow('No vitals data available', '-', '-', '-', '-', '-', '-', '-', '-',
-                                                [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
-                                          ]
-                                        : _vitals!.map((v) {
+                                rows: () {
+                                  final filteredVitals = _filterVitals(_vitalsSearchController.text);
+                                  if (_vitals == null) {
+                                    return [
+                                      _buildVitalRow('Loading vitals...', '-', '-', '-', '-', '-', '-', '-', '-',
+                                          [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
+                                    ];
+                                  } else if (filteredVitals.isEmpty) {
+                                    return [
+                                      _buildVitalRow(
+                                        _vitalsSearchController.text.isNotEmpty 
+                                            ? 'No vitals found matching "${_vitalsSearchController.text}"'
+                                            : 'No vitals data available', 
+                                        '-', '-', '-', '-', '-', '-', '-', '-',
+                                        [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
+                                    ];
+                                  } else {
+                                    return filteredVitals.map((v) {
                                         final dateTime = (v['dateTime'] ?? '').toString();
                                         final bp = (v['bloodPressure'] ?? '-').toString();
                                         final hr = (v['heartRate'] ?? '-').toString();
@@ -1378,7 +1583,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           Colors.green,
                                         ];
                                         return _buildVitalRow(dateTime, bp, hr, temp, rr, spo2, weight, bmi, location, colors);
-                                      }).toList(),
+                                      }).toList();
+                                  }
+                                }(),
                               ),
                             ),
                           );
@@ -1519,45 +1726,22 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     return _buildGenericTab(
       title: 'Medications',
       icon: Icons.medication,
-      heroColor: Colors.purple,
-      searchHint: 'Search medications...',
+      heroColor: Colors.green,
+      searchController: _medicationsSearchController,
+      searchHint: 'Search medications by name, dosage, indication, or prescriber...',
       approxMinColWidth: 100,
       columns: const [
-        DataColumn(label: Text('Start Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Medication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Dosage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Frequency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Indication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Prescriber', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Start Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Medication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Dosage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Frequency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Indication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Prescriber', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _medications == null
-          ? [
-              _dataRow(['Loading medications...', '-', '-', '-', '-', '-', '-']),
-            ]
-          : _medications!.isEmpty
-              ? [
-                  _dataRow(['No medications data available', '-', '-', '-', '-', '-', '-']),
-                ]
-              : _medications!.map((med) {
-                  final medication = (med['medication'] ?? '').toString();
-                  final dosage = (med['dosage'] ?? '').toString();
-                  final frequency = (med['frequency'] ?? '').toString();
-                  final status = (med['status'] ?? '').toString();
-                  final prescriber = (med['prescriber'] ?? '').toString();
-                  final startDate = (med['startDate'] ?? '').toString();
-                  final indication = (med['indication'] ?? '').toString();
-                  
-                  return _dataRow([
-                    startDate,
-                    medication,
-                    dosage,
-                    frequency,
-                    indication,
-                    status,
-                    prescriber,
-                  ]);
-                }).toList(),
+      data: _medications,
+      filterFunction: _filterMedications,
+      noDataMessage: 'No medications data available',
     );
   }
 
@@ -1566,38 +1750,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       title: 'OPD Visits',
       icon: Icons.meeting_room_outlined,
       heroColor: Colors.indigo,
-      searchHint: 'Search OPD visits...',
+      searchController: _opdSearchController,
+      searchHint: 'Search OPD visits by date, department, complaint, or physician...',
       approxMinColWidth: 120,
       columns: const [
-        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Reason', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Physician', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Chief Complaint', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Physician', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Treatment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _opd == null
-          ? [
-              _dataRow(['Loading OPD data...', '-', '-', '-', '-']),
-            ]
-          : _opd!.isEmpty
-              ? [
-                  _dataRow(['No OPD data available', '-', '-', '-', '-']),
-                ]
-              : _opd!.map((record) {
-                  final date = (record['date'] ?? '').toString();
-                  final department = (record['department'] ?? '').toString();
-                  final chiefComplaint = (record['chiefComplaint'] ?? '').toString();
-                  final provider = (record['provider'] ?? '').toString();
-                  final treatment = (record['treatment'] ?? '').toString();
-                  
-                  return _dataRow([
-                    date,
-                    department,
-                    chiefComplaint,
-                    provider,
-                    treatment,
-                  ]);
-                }).toList(),
+      data: _opd,
+      filterFunction: _filterOPD,
+      noDataMessage: 'No OPD data available',
     );
   }
 
@@ -1606,41 +1771,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       title: 'IPD Admissions',
       icon: Icons.local_hospital_outlined,
       heroColor: Colors.teal,
-      searchHint: 'Search IPD admissions...',
+      searchController: _ipdSearchController,
+      searchHint: 'Search IPD admissions by date, diagnosis, or physician...',
       approxMinColWidth: 120,
       columns: const [
-        DataColumn(label: Text('Admit Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Discharge Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Ward', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Attending', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Admit Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Discharge Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Length of Stay', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Attending Physician', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _ipd == null
-          ? [
-              _dataRow(['Loading IPD data...', '-', '-', '-', '-', '-']),
-            ]
-          : _ipd!.isEmpty
-              ? [
-                  _dataRow(['No IPD data available', '-', '-', '-', '-', '-']),
-                ]
-              : _ipd!.map((record) {
-                  final admissionDate = (record['admissionDate'] ?? '').toString();
-                  final dischargeDate = (record['dischargeDate'] ?? '').toString();
-                  final lengthOfStay = (record['lengthOfStay'] ?? '').toString();
-                  final diagnosis = (record['diagnosis'] ?? '').toString();
-                  final physician = (record['physician'] ?? '').toString();
-                  final outcome = (record['outcome'] ?? '').toString();
-                  
-                  return _dataRow([
-                    admissionDate,
-                    dischargeDate,
-                    lengthOfStay,
-                    diagnosis,
-                    physician,
-                    outcome,
-                  ]);
-                }).toList(),
+      data: _ipd,
+      filterFunction: _filterIPD,
+      noDataMessage: 'No IPD data available',
     );
   }
 
@@ -1649,41 +1793,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       title: 'Lab Results',
       icon: Icons.biotech_outlined,
       heroColor: Colors.orange,
-      searchHint: 'Search labs...',
+      searchController: _labsSearchController,
+      searchHint: 'Search labs by test name, result, status, or ordered by...',
       approxMinColWidth: 110,
       columns: const [
-        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Test', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Result', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Units', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Ref Range', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Test Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Result', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Reference Range', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Ordered By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _labs == null
-          ? [
-              _dataRow(['Loading lab data...', '-', '-', '-', '-', '-']),
-            ]
-          : _labs!.isEmpty
-              ? [
-                  _dataRow(['No lab data available', '-', '-', '-', '-', '-']),
-                ]
-              : _labs!.map((lab) {
-                  final date = (lab['date'] ?? '').toString();
-                  final test = (lab['test'] ?? '').toString();
-                  final result = (lab['result'] ?? '').toString();
-                  final normalRange = (lab['normalRange'] ?? '').toString();
-                  final status = (lab['status'] ?? '').toString();
-                  final orderedBy = (lab['orderedBy'] ?? '').toString();
-                  
-                  return _dataRow([
-                    date,
-                    test,
-                    result,
-                    normalRange,
-                    status,
-                    orderedBy,
-                  ]);
-                }).toList(),
+      data: _labs,
+      filterFunction: _filterLabs,
+      noDataMessage: 'No lab data available',
     );
   }
 
@@ -1692,38 +1815,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       title: 'Radiology',
       icon: Icons.image_search_outlined,
       heroColor: Colors.cyan,
-      searchHint: 'Search radiology...',
+      searchController: _radiologySearchController,
+      searchHint: 'Search radiology by procedure, findings, impression, or radiologist...',
       approxMinColWidth: 120,
       columns: const [
-        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Study', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Findings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Impression', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Procedure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Findings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Impression', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Radiologist', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _radiology == null
-          ? [
-              _dataRow(['Loading radiology data...', '-', '-', '-', '-']),
-            ]
-          : _radiology!.isEmpty
-              ? [
-                  _dataRow(['No radiology data available', '-', '-', '-', '-']),
-                ]
-              : _radiology!.map((record) {
-                  final date = (record['date'] ?? '').toString();
-                  final procedure = (record['procedure'] ?? '').toString();
-                  final findings = (record['findings'] ?? '').toString();
-                  final impression = (record['impression'] ?? '').toString();
-                  final radiologist = (record['radiologist'] ?? '').toString();
-                  
-                  return _dataRow([
-                    date,
-                    procedure,
-                    findings,
-                    impression,
-                    radiologist,
-                  ]);
-                }).toList(),
+      data: _radiology,
+      filterFunction: _filterRadiology,
+      noDataMessage: 'No radiology data available',
     );
   }
 
@@ -1732,38 +1836,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       title: 'Surgery',
       icon: Icons.health_and_safety_outlined,
       heroColor: Colors.red,
-      searchHint: 'Search surgeries...',
+      searchController: _surgerySearchController,
+      searchHint: 'Search surgeries by procedure, surgeon, outcome, or complications...',
       approxMinColWidth: 120,
       columns: const [
-        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Procedure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Surgeon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-        DataColumn(label: Text('Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Procedure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Surgeon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Complications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
-      rows: _surgery == null
-          ? [
-              _dataRow(['Loading surgery data...', '-', '-', '-', '-']),
-            ]
-          : _surgery!.isEmpty
-              ? [
-                  _dataRow(['No surgery data available', '-', '-', '-', '-']),
-                ]
-              : _surgery!.map((record) {
-                  final date = (record['date'] ?? '').toString();
-                  final procedure = (record['procedure'] ?? '').toString();
-                  final surgeon = (record['surgeon'] ?? '').toString();
-                  final outcome = (record['outcome'] ?? '').toString();
-                  final complications = (record['complications'] ?? '').toString();
-                  
-                  return _dataRow([
-                    date,
-                    procedure,
-                    surgeon,
-                    outcome,
-                    complications,
-                  ]);
-                }).toList(),
+      data: _surgery,
+      filterFunction: _filterSurgery,
+      noDataMessage: 'No surgery data available',
     );
   }
 
@@ -1776,6 +1861,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     required double approxMinColWidth,
     required List<DataColumn> columns,
     required List<DataRow> rows,
+    TextEditingController? searchController,
+    List<dynamic>? data,
+    List<dynamic> Function(String)? filterFunction,
+    String? noDataMessage,
   }) {
     return Container(
       color: Colors.grey.shade50,
@@ -1786,9 +1875,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             width: double.infinity,
             margin: const EdgeInsets.only(bottom: 16),
             child: TextField(
+              controller: searchController,
+              onChanged: (value) => setState(() {}),
               decoration: InputDecoration(
                 hintText: searchHint,
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: searchController != null && searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1835,7 +1935,119 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 columnSpacing: dynamicSpacing,
                                 horizontalMargin: 0,
                                 columns: columns,
-                                rows: rows,
+                                rows: () {
+                                  if (filterFunction != null && searchController != null && data != null) {
+                                    final filteredData = filterFunction(searchController.text);
+                                    if (data.isEmpty) {
+                                      return [
+                                        _dataRow([noDataMessage ?? 'No data available', '-', '-', '-', '-', '-', '-']),
+                                      ];
+                                    } else if (filteredData.isEmpty && searchController.text.isNotEmpty) {
+                                      return [
+                                        _dataRow(['No results found matching "${searchController.text}"', '-', '-', '-', '-', '-', '-']),
+                                      ];
+                                    } else {
+                                      return filteredData.map((item) {
+                                        // Extract data based on the section type
+                                        if (title == 'Medications') {
+                                          final medication = (item['medication'] ?? '').toString();
+                                          final dosage = (item['dosage'] ?? '').toString();
+                                          final frequency = (item['frequency'] ?? '').toString();
+                                          final status = (item['status'] ?? '').toString();
+                                          final prescriber = (item['prescriber'] ?? '').toString();
+                                          final startDate = (item['startDate'] ?? '').toString();
+                                          final indication = (item['indication'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            startDate,
+                                            medication,
+                                            dosage,
+                                            frequency,
+                                            indication,
+                                            status,
+                                            prescriber,
+                                          ]);
+                                        } else if (title == 'OPD Visits') {
+                                          final date = (item['date'] ?? '').toString();
+                                          final department = (item['department'] ?? '').toString();
+                                          final chiefComplaint = (item['chiefComplaint'] ?? '').toString();
+                                          final provider = (item['provider'] ?? '').toString();
+                                          final treatment = (item['treatment'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            date,
+                                            department,
+                                            chiefComplaint,
+                                            provider,
+                                            treatment,
+                                          ]);
+                                        } else if (title == 'IPD Admissions') {
+                                          final admissionDate = (item['admissionDate'] ?? '').toString();
+                                          final dischargeDate = (item['dischargeDate'] ?? '').toString();
+                                          final lengthOfStay = (item['lengthOfStay'] ?? '').toString();
+                                          final diagnosis = (item['diagnosis'] ?? '').toString();
+                                          final physician = (item['physician'] ?? '').toString();
+                                          final outcome = (item['outcome'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            admissionDate,
+                                            dischargeDate,
+                                            lengthOfStay,
+                                            diagnosis,
+                                            physician,
+                                            outcome,
+                                          ]);
+                                        } else if (title == 'Lab Results') {
+                                          final date = (item['date'] ?? '').toString();
+                                          final test = (item['test'] ?? '').toString();
+                                          final result = (item['result'] ?? '').toString();
+                                          final normalRange = (item['normalRange'] ?? '').toString();
+                                          final status = (item['status'] ?? '').toString();
+                                          final orderedBy = (item['orderedBy'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            date,
+                                            test,
+                                            result,
+                                            normalRange,
+                                            status,
+                                            orderedBy,
+                                          ]);
+                                        } else if (title == 'Radiology') {
+                                          final date = (item['date'] ?? '').toString();
+                                          final procedure = (item['procedure'] ?? '').toString();
+                                          final findings = (item['findings'] ?? '').toString();
+                                          final impression = (item['impression'] ?? '').toString();
+                                          final radiologist = (item['radiologist'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            date,
+                                            procedure,
+                                            findings,
+                                            impression,
+                                            radiologist,
+                                          ]);
+                                        } else if (title == 'Surgery') {
+                                          final date = (item['date'] ?? '').toString();
+                                          final procedure = (item['procedure'] ?? '').toString();
+                                          final surgeon = (item['surgeon'] ?? '').toString();
+                                          final outcome = (item['outcome'] ?? '').toString();
+                                          final complications = (item['complications'] ?? '').toString();
+                                          
+                                          return _dataRow([
+                                            date,
+                                            procedure,
+                                            surgeon,
+                                            outcome,
+                                            complications,
+                                          ]);
+                                        }
+                                        return _dataRow(['Unknown data type', '-', '-', '-', '-', '-', '-']);
+                                      }).toList();
+                                    }
+                                  }
+                                  return rows;
+                                }(),
                               ),
                             ),
                           );
