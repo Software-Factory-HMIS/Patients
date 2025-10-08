@@ -1860,7 +1860,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     required String searchHint,
     required double approxMinColWidth,
     required List<DataColumn> columns,
-    required List<DataRow> rows,
+    List<DataRow>? rows,
     TextEditingController? searchController,
     List<dynamic>? data,
     List<dynamic> Function(String)? filterFunction,
@@ -2046,7 +2046,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                       }).toList();
                                     }
                                   }
-                                  return rows;
+                                  return rows ?? [];
                                 }(),
                               ),
                             ),
