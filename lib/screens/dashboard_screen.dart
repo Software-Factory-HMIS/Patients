@@ -29,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   String? _error;
   bool _showOverlay = false;
   String? _selectedSection;
+  bool _isTabSectionExpanded = false;
 
   @override
   void initState() {
@@ -253,17 +254,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             // Patient Header Section
                             _buildPatientHeader(),
                             
-                            // Navigation Tabs
-                            _buildTabBar(),
-                            
-                            // Content Area
-                            _buildTabBarView(),
+                            // Collapsible Tab Section
+                            _buildCollapsibleTabSection(),
                           ],
                         ),
                       ),
                     ),
           // Overlay for section details
           if (_showOverlay) _buildSectionOverlay(),
+          
+          // Pinned toggle button (only when expanded)
+          if (_isTabSectionExpanded) _buildPinnedToggleButton(),
         ],
       ),
     );
@@ -521,6 +522,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     setState(() {
       _showOverlay = false;
       _selectedSection = null;
+    });
+  }
+
+  void _toggleTabSection() {
+    setState(() {
+      _isTabSectionExpanded = !_isTabSectionExpanded;
     });
   }
 
@@ -983,6 +990,115 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
+  Widget _buildCollapsibleTabSection() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.6 : 180,
+      child: Container(
+        color: Colors.white,
+        child: _isTabSectionExpanded 
+          ? Column(
+              children: [
+                // Navigation Tabs
+                _buildTabBar(),
+                // Content Area
+                Expanded(child: _buildTabBarView()),
+              ],
+            )
+          : Stack(
+              children: [
+                _buildSummaryCard(),
+                // Button positioned at bottom of collapsed section
+                Positioned(
+                  bottom: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: _buildToggleButton(),
+                  ),
+                ),
+              ],
+            ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.medical_services_rounded,
+                    color: Colors.purple.shade700,
+                    size: 28,
+                  ),
+                  const Gap(12),
+                  Expanded(
+                    child: Text(
+                      'Detailed Records',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple.shade800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(12),
+              Text(
+                'Access comprehensive medical records including vitals, medications, lab results, and more.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.purple.shade700,
+                  height: 1.4,
+                ),
+              ),
+              const Gap(12),
+              Row(
+                children: [
+                  _buildSummaryItem('Vitals', _vitals?.length ?? 0, Icons.favorite, Colors.red),
+                  const Gap(16),
+                  _buildSummaryItem('Labs', _labs?.length ?? 0, Icons.biotech_outlined, Colors.orange),
+                  const Gap(16),
+                  _buildSummaryItem('OPD', _opd?.length ?? 0, Icons.meeting_room_outlined, Colors.indigo),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String title, int count, IconData icon, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 14),
+        const Gap(4),
+        Text(
+          '$count $title',
+          style: TextStyle(
+            color: Colors.purple.shade700,
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
@@ -1006,19 +1122,60 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildTabBarView() {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.6,
-      child: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildVitalsTab(),
-          _buildMedicationsTab(),
-          _buildOPDTab(),
-          _buildIPDTab(),
-          _buildLabsTab(),
-          _buildRadiologyTab(),
-          _buildSurgeryTab(),
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildVitalsTab(),
+        _buildMedicationsTab(),
+        _buildOPDTab(),
+        _buildIPDTab(),
+        _buildLabsTab(),
+        _buildRadiologyTab(),
+        _buildSurgeryTab(),
+      ],
+    );
+  }
+
+  Widget _buildToggleButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.purple.shade600,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _toggleTabSection,
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Icon(
+              _isTabSectionExpanded 
+                  ? Icons.keyboard_arrow_up_rounded 
+                  : Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPinnedToggleButton() {
+    return Positioned(
+      bottom: 20,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: _buildToggleButton(),
       ),
     );
   }
