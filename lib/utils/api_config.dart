@@ -29,6 +29,7 @@ String resolveEmrBaseUrl() {
 // Primary and fallback IP addresses for physical devices
 const String _primaryIp = '192.168.56.200';  // Your development machine
 const String _fallbackIp = '192.168.56.122'; // Secondary machine
+const String _tertiaryIp = '10.152.206.21';  // Additional fallback machine
 const int _port = 5107;
 
 String getPrimaryBaseUrl() {
@@ -37,6 +38,10 @@ String getPrimaryBaseUrl() {
 
 String getFallbackBaseUrl() {
   return 'http://$_fallbackIp:$_port';
+}
+
+String getTertiaryBaseUrl() {
+  return 'http://$_tertiaryIp:$_port';
 }
 
 // Test connection to a URL and return true if successful
@@ -95,12 +100,23 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
     return fallbackUrl;
   }
 
+  // If secondary doesn't work, try the tertiary IP
+  final tertiaryUrl = getTertiaryBaseUrl();
+  print('🔍 Testing tertiary API URL: $tertiaryUrl');
+  final isTertiaryWorking = await testConnection(tertiaryUrl);
+  
+  if (isTertiaryWorking) {
+    print('✅ Using tertiary API URL: $tertiaryUrl');
+    return tertiaryUrl;
+  }
+
   // If all fail, return default (app will handle the error)
   print('⚠️ All API URLs failed, using default: $defaultUrl');
   print('💡 Make sure your EMR API server is running on one of these:');
   print('   - $defaultUrl');
   print('   - $primaryUrl (your development machine)');
   print('   - $fallbackUrl (secondary machine)');
+  print('   - $tertiaryUrl (tertiary machine)');
   return defaultUrl;
 }
 
@@ -116,6 +132,7 @@ Future<void> testAllUrls() async {
       urls = [
         getPrimaryBaseUrl(),    // Your development machine (192.168.56.200)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
+        getTertiaryBaseUrl(),   // Tertiary machine (10.152.206.21)
         'http://10.0.2.2:5107', // Android emulator host IP
         'http://localhost:5107', // Only works with USB debugging
       ];
@@ -125,6 +142,7 @@ Future<void> testAllUrls() async {
         'http://localhost:5107',
         getPrimaryBaseUrl(),    // Your development machine
         getFallbackBaseUrl(),   // Secondary machine
+        getTertiaryBaseUrl(),   // Tertiary machine
         'http://127.0.0.1:5107',
       ];
     }
@@ -134,6 +152,7 @@ Future<void> testAllUrls() async {
       'http://localhost:5107',
       getPrimaryBaseUrl(),      // Your development machine
       getFallbackBaseUrl(),     // Secondary machine
+      getTertiaryBaseUrl(),     // Tertiary machine
     ];
   }
   
@@ -151,15 +170,16 @@ void printNetworkInfo() {
   print('For physical devices, the app will try these IP addresses in order:');
   print('  1. ${getPrimaryBaseUrl()} (your development machine)');
   print('  2. ${getFallbackBaseUrl()} (secondary machine)');
+  print('  3. ${getTertiaryBaseUrl()} (tertiary machine)');
   print('');
   print('Make sure your EMR API server is running on one of these machines.');
-  print('Both machines should be accessible from the network.');
+  print('All machines should be accessible from the network.');
   print('');
   print('Troubleshooting:');
   print('  - Check if the API server is running on the target machine');
   print('  - Verify firewall allows connections on port 5107');
-  print('  - Ensure both devices are on the same network');
-  print('  - Test connectivity: ping 192.168.56.200 and ping 192.168.56.122');
+  print('  - Ensure all devices are on the same network');
+  print('  - Test connectivity: ping 192.168.56.200, ping 192.168.56.122, and ping 10.152.206.21');
 }
 
 

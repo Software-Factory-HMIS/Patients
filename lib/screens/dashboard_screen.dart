@@ -353,20 +353,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.medication, color: Colors.purple.shade600),
+                            Icon(Icons.medication, color: Colors.green.shade600),
                             const Gap(8),
                             Text(
                               'Current Medications',
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.purple.shade800,
+                                color: Colors.green.shade800,
                               ),
                             ),
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.purple.shade600,
+                                color: Colors.green.shade600,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -406,9 +406,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     
                                     return Chip(
                                       label: Text('$medication $dosage'),
-                                      backgroundColor: Colors.purple.shade50,
-                                      labelStyle: TextStyle(color: Colors.purple.shade800, fontWeight: FontWeight.w600),
-                                      side: BorderSide(color: Colors.purple.shade100),
+                                      backgroundColor: Colors.green.shade50,
+                                      labelStyle: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600),
+                                      side: BorderSide(color: Colors.green.shade100),
                                     );
                                   }).where((chip) => chip is! SizedBox).toList();
                                 })()
@@ -603,7 +603,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         children: [
                           Text(
                             _getSectionTitle(_selectedSection!),
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.grey.shade800,
                               letterSpacing: 0.5,
@@ -612,7 +612,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                           const Gap(4),
                           Text(
                             '${_getDataCount(_selectedSection!)} records found',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Colors.grey.shade600,
                               fontWeight: FontWeight.w500,
                             ),
@@ -753,42 +753,42 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         data = _vitals;
         columns = ['Date/Time', 'Blood Pressure', 'Heart Rate', 'Temperature', 'Respiratory Rate', 'SpO2', 'Weight', 'BMI', 'Location'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
       case 'opd':
         data = _opd;
         columns = ['Date', 'Department', 'Chief Complaint', 'Physician', 'Treatment'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
       case 'ipd':
         data = _ipd;
         columns = ['Admit Date', 'Discharge Date', 'Length of Stay', 'Diagnosis', 'Attending Physician', 'Outcome'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
       case 'labs':
         data = _labs;
         columns = ['Date', 'Test Name', 'Result', 'Reference Range', 'Status', 'Ordered By'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
       case 'radiology':
         data = _radiology;
         columns = ['Date', 'Procedure', 'Findings', 'Impression', 'Radiologist'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
       case 'surgery':
         data = _surgery;
         columns = ['Date', 'Procedure', 'Surgeon', 'Outcome', 'Complications'];
         dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
     }
@@ -819,17 +819,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               const Gap(24),
               Text(
                 'No ${_getSectionTitle(section).toLowerCase()} found',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const Gap(8),
+              const Gap(12),
               Text(
                 'There are currently no records available for this section.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade500,
                   height: 1.4,
                 ),
@@ -847,9 +847,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         child: DataTable(
           columnSpacing: 20,
           horizontalMargin: 16,
-          headingRowHeight: 56,
-          dataRowMinHeight: 48,
-          dataRowMaxHeight: 64,
+          headingRowHeight: 64,
+          dataRowMinHeight: 56,
+          dataRowMaxHeight: 80,
           headingRowColor: MaterialStateProperty.all(Colors.white),
           columns: dataColumns,
           rows: data.asMap().entries.map((entry) {
@@ -863,16 +863,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
               cells: rowData.map((cell) => DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: cell.isEmpty ? Colors.grey.shade400 : Colors.grey.shade700,
-                      fontWeight: cell.isEmpty ? FontWeight.normal : FontWeight.w500,
-                      height: 1.3,
+                      fontSize: 15,
+                      color: cell.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
+                      fontWeight: cell.isEmpty ? FontWeight.normal : FontWeight.w600,
+                      height: 1.4,
                     ),
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1040,7 +1040,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 children: [
                   Icon(
                     Icons.medical_services_rounded,
-                    color: Colors.purple.shade700,
+                    color: Colors.green.shade700,
                     size: 28,
                   ),
                   const Gap(12),
@@ -1049,7 +1049,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       'Detailed Records',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade800,
+                        color: Colors.green.shade800,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -1060,7 +1060,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               Text(
                 'Access comprehensive medical records including vitals, medications, lab results, and more.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.purple.shade700,
+                  color: Colors.green.shade700,
                   height: 1.4,
                 ),
               ),
@@ -1090,7 +1090,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         Text(
           '$count $title',
           style: TextStyle(
-            color: Colors.purple.shade700,
+            color: Colors.green.shade700,
             fontWeight: FontWeight.w600,
             fontSize: 11,
           ),
@@ -1105,9 +1105,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       child: TabBar(
         controller: _tabController,
         isScrollable: true,
-        labelColor: Colors.purple,
+        labelColor: Colors.green,
         unselectedLabelColor: Colors.grey.shade600,
-        indicatorColor: Colors.purple,
+        indicatorColor: Colors.green,
         tabs: const [
           Tab(text: 'Vitals'),
           Tab(text: 'Medications'),
@@ -1139,11 +1139,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Widget _buildToggleButton() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.purple.shade600,
+        color: Colors.black,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withValues(alpha: 0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
