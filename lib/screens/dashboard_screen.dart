@@ -32,7 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   String? _error;
   bool _showOverlay = false;
   String? _selectedSection;
-  bool _isTabSectionExpanded = false;
+  bool _isTabSectionExpanded = true;
   
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
@@ -295,181 +295,56 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       padding: EdgeInsets.all(MediaQuery.of(context).size.width < 768 ? 16 : 20),
       child: Column(
         children: [
-          // First Row - Patient Profile and Current Medications
-          Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Patient Profile - Bento Card
-          Expanded(
-            child: Card(
+          // Patient Profile - Full Width Card
+          Card(
               elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.blue.shade400, width: 2),
-                  ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.blue.shade400, width: 2),
+            ),
               child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
               children: [
-                    Row(
-                      children: [
-                        Icon(Icons.person, color: Colors.blue.shade600),
-                        const Gap(8),
-                Text(
-                  'Patient Profile',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Icon(
+                      Icons.person,
+                      size: 30,
+                      color: Colors.blue.shade600,
+                    ),
                   ),
-                        ),
-                      ],
-                ),
-                const Gap(12),
+                  const Gap(16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                 Text(
                       _patient?['name'] as String? ?? 'Loading...',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
+                            color: Colors.grey.shade800,
                   ),
                 ),
                 const Gap(8),
+                        // Single line with MRN and other fields
                 Text(
-                      'MRN: ${_patient?['mrn'] ?? 'Loading...'}',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Gap(4),
-                Text(
-                      _patient != null 
-                        ? '${_patient!['gender']}, ${_patient!['age']} years old • Blood Type: ${_patient!['bloodType']}'
-                        : 'Loading patient details...',
+                          'MRN: ${_patient?['mrn'] ?? 'N/A'} • ${_patient?['gender'] ?? 'N/A'} • ${_patient?['age'] ?? 'N/A'} years • ${_patient?['bloodType'] ?? 'N/A'} • Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.blue.shade700,
-                  ),
-                ),
-                const Gap(4),
-                Text(
-                      'Last Visit: ${_patient?['lastVisit'] ?? 'Loading...'}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.blue.shade700,
-                  ),
-                ),
-              ],
-                ),
-              ),
-            ),
-          ),
-          const Gap(16),
-          // Current Medications - Bento Card
-          Expanded(
-            child: Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                            Icon(Icons.medication, color: Colors.green.shade600),
-                        const Gap(8),
-                        Text(
-            'Current Medications',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                                color: Colors.green.shade800,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                                color: Colors.green.shade600,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _medications != null
-                                ? '${_medications!.where((med) => (med['status'] ?? '').toString().toLowerCase() == 'active').length} meds'
-                                : 'Loading...',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            color: Colors.grey.shade600,
                           ),
                         ),
                       ],
-                    ),
-                    const Gap(12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _medications != null
-                          ? (() {
-                              if (_medications!.isEmpty) {
-                                return [
-                                  Chip(
-                                    label: const Text('No current medications'),
-                                    backgroundColor: Colors.grey.shade100,
-                                    labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                                    side: BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                ];
-                              }
-                              return _medications!.map<Widget>((med) {
-                                final medication = (med['medication'] ?? '').toString();
-                                final dosage = (med['dosage'] ?? '').toString();
-                                final status = (med['status'] ?? '').toString();
-                                
-                                // Only show active medications
-                                if (status.toLowerCase() != 'active') {
-                                  return const SizedBox.shrink();
-                                }
-                                
-                                return Chip(
-                                  label: Text('$medication $dosage'),
-                                      backgroundColor: Colors.green.shade50,
-                                      labelStyle: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600),
-                                      side: BorderSide(color: Colors.green.shade100),
-                                );
-                              }).where((chip) => chip is! SizedBox).toList();
-                            })()
-                          : [
-                              Chip(
-                                label: const Text('Loading medications...'),
-                                backgroundColor: Colors.grey.shade100,
-                                labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                                side: BorderSide(color: Colors.grey.shade300),
-                              ),
-                            ],
-                    ),
-                  ],
+                  ),
                 ),
+              ],
               ),
             ),
-              ),
-            ],
-          ),
-          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
-          // Second Row - Other Medical Sections
-          Row(
-            children: [
-              Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
-            ],
-          ),
-          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
-          Row(
-            children: [
-              Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
-            ],
           ),
         ],
       ),
@@ -1292,9 +1167,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         child: DataTable(
           columnSpacing: 24,
           horizontalMargin: 20,
-          headingRowHeight: 72,
-          dataRowMinHeight: 64,
-          dataRowMaxHeight: 96,
+          headingRowHeight: 60,
+          dataRowMinHeight: 52,
+          dataRowMaxHeight: 72,
           headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
           columns: dataColumns,
           rows: filteredData.asMap().entries.map((entry) {
@@ -1308,16 +1183,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
               cells: rowData.map((cell) => DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            child: Text(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                  child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: cell.isEmpty ? Colors.grey.shade400 : Colors.grey.shade900,
                       fontWeight: cell.isEmpty ? FontWeight.normal : FontWeight.w500,
-                      height: 1.5,
+                      height: 1.4,
                     ),
-                    maxLines: 4,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1438,36 +1313,80 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Widget _buildCollapsibleTabSection() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 768 ? 16 : 20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.6 : 180,
-        child: Container(
-          color: Colors.white,
-        child: _isTabSectionExpanded 
-          ? Column(
-              children: [
-                // Navigation Tabs
-                _buildTabBar(),
-                // Content Area
-                Expanded(child: _buildTabBarView()),
-              ],
-            )
-          : Stack(
-              children: [
-                _buildSummaryCard(),
-                // Button positioned at bottom of collapsed section
-                Positioned(
-                  bottom: 10,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _buildToggleButton(),
+      child: Column(
+        children: [
+          // Collapsible Tab Section
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.7 : 180,
+            child: Container(
+              color: Colors.white,
+              child: _isTabSectionExpanded 
+                ? Column(
+                    children: [
+                      // Navigation Tabs
+                      _buildTabBar(),
+                      // Content Area
+                      Expanded(child: _buildTabBarView()),
+                      // Space for toggle button
+                      const SizedBox(height: 40),
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      _buildSummaryCard(),
+                      // Button positioned at bottom of collapsed section
+                      Positioned(
+                        bottom: 10,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _buildToggleButton(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
             ),
-        ),
+          ),
+          
+          // Medical Record Section Cards (shown only when collapsed)
+          if (!_isTabSectionExpanded) ...[
+            Gap(MediaQuery.of(context).size.width < 768 ? 12 : 16),
+            _buildMedicalRecordCards(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicalRecordCards() {
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 768 ? 16 : 20),
+      child: Column(
+        children: [
+          // Second Row - Other Medical Sections
+          Row(
+            children: [
+              Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
+              Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
+              Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
+            ],
+          ),
+          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
+          Row(
+            children: [
+              Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
+              Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
+              Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1800,12 +1719,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }) {
     return Container(
       color: Colors.grey.shade50,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 16),
+            margin: const EdgeInsets.only(bottom: 12),
             child: TextField(
               controller: searchController,
               onChanged: (value) => setState(() {}),
@@ -1866,9 +1785,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                               child: DataTable(
                                 columnSpacing: dynamicSpacing,
                                 horizontalMargin: 16,
-                                headingRowHeight: 64,
-                                dataRowMinHeight: 56,
-                                dataRowMaxHeight: 80,
+                                headingRowHeight: 56,
+                                dataRowMinHeight: 48,
+                                dataRowMaxHeight: 64,
                                 headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
                                 columns: columns,
                                 rows: () {
@@ -2046,16 +1965,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         for (final t in texts)
           DataCell(
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               child: Text(
                 t.isEmpty ? '-' : t,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: t.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
                   fontWeight: t.isEmpty ? FontWeight.normal : FontWeight.w500,
-                  height: 1.4,
+                  height: 1.3,
                 ),
-                maxLines: 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
