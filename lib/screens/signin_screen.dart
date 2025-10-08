@@ -208,12 +208,17 @@ class _SignInScreenState extends State<SignInScreen> {
                                 // MRN input field
                                 TextFormField(
                                   controller: _mrnController,
-                                  keyboardType: TextInputType.text,
+                                  keyboardType: TextInputType.number,
                                   textInputAction: TextInputAction.done,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(14),
+                                  ],
                                   decoration: const InputDecoration(
                                     labelText: 'MRN',
-                                    hintText: 'e.g., 2024-789456',
+                                    hintText: 'Enter 13 or 14 digit MRN (numbers only)',
                                     border: OutlineInputBorder(),
+                                    helperText: 'MRN must be 13 or 14 digits long',
                                   ),
                                   scrollPadding: EdgeInsets.only(
                                     bottom: MediaQuery.of(context).viewInsets.bottom + getResponsiveSize(120),
@@ -221,6 +226,17 @@ class _SignInScreenState extends State<SignInScreen> {
                                   validator: (value) {
                                     final String? requiredResult = _requiredValidator(value, fieldName: 'MRN');
                                     if (requiredResult != null) return requiredResult;
+                                    
+                                    // Validate MRN format (numbers only, 13 or 14 digits)
+                                    final mrn = value!.trim();
+                                    if (!RegExp(r'^\d+$').hasMatch(mrn)) {
+                                      return 'MRN must contain only numbers';
+                                    }
+                                    
+                                    if (mrn.length != 13 && mrn.length != 14) {
+                                      return 'MRN must be exactly 13 or 14 digits';
+                                    }
+                                    
                                     return null;
                                   },
                                 ),

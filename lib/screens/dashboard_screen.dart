@@ -1632,358 +1632,30 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildVitalsTab() {
-    return Container(
-      color: Colors.grey.shade50,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Search Bar
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 16),
-            child: TextField(
-              controller: _vitalsSearchController,
-              onChanged: (value) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Search vitals by date, BP, HR, temperature, or location...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _vitalsSearchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _vitalsSearchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
-          ),
-          
-          // Vitals Results Card
-          Expanded(
-            child: Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Card Header
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.favorite,
-                            color: Colors.red.shade600,
-                            size: 24,
-                          ),
-                          const Gap(8),
-                          Text(
-                            'Vital Signs',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
-                            ),
-                          ),
-                        ],
-            ),
-          ),
-          
-          // Vitals Table
-          Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          const int columnCount = 9;
-                          const double approxMinColWidth = 80; // px
-                          final double dynamicSpacing = ((constraints.maxWidth - (approxMinColWidth * columnCount)) / (columnCount - 1)).clamp(24, 96);
-                          return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: DataTable(
-                                columnSpacing: dynamicSpacing,
-                                horizontalMargin: 0,
-                  columns: const [
-                                  DataColumn(
-                                    label: Text(
-                                      'Date/Time',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'BP',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'HR',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Temp',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'RR',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'SpO2',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Weight',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'BMI',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Location',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                rows: () {
-                                  final filteredVitals = _filterVitals(_vitalsSearchController.text);
-                                  if (_vitals == null) {
-                                    return [
-                                      _buildVitalRow('Loading vitals...', '-', '-', '-', '-', '-', '-', '-', '-',
-                                          [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
-                                    ];
-                                  } else if (filteredVitals.isEmpty) {
-                                    return [
-                                      _buildVitalRow(
-                                        _vitalsSearchController.text.isNotEmpty 
-                                            ? 'No vitals found matching "${_vitalsSearchController.text}"'
-                                            : 'No vitals data available', 
-                                        '-', '-', '-', '-', '-', '-', '-', '-',
-                                        [Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey, Colors.grey])
-                                    ];
-                                  } else {
-                                    return filteredVitals.map((v) {
-                                        final dateTime = (v['dateTime'] ?? '').toString();
-                                        final bp = (v['bloodPressure'] ?? '-').toString();
-                                        final hr = (v['heartRate'] ?? '-').toString();
-                                        final temp = (v['temperature'] ?? '-').toString();
-                                        final rr = (v['respiratoryRate'] ?? '-').toString();
-                                        final spo2 = (v['spO2'] ?? '-').toString();
-                                        final weight = (v['weight'] ?? '-').toString();
-                                        final bmi = (v['bmi'] ?? '-').toString();
-                                        final location = (v['location'] ?? '-').toString();
-                                        // Simple color mapping
-                                        Color _status(String? s) {
-                                          switch (s) {
-                                            case 'warning':
-                                              return Colors.orange;
-                                            case 'danger':
-                                              return Colors.red;
-                                            default:
-                                              return Colors.green;
-                                          }
-                                        }
-                                        final status = v['status'] as Map<String, dynamic>?;
-                                        final colors = [
-                                          _status(status?['bp'] as String?),
-                                          _status(status?['hr'] as String?),
-                                          _status(status?['temp'] as String?),
-                                          _status(status?['rr'] as String?),
-                                          _status(status?['spO2'] as String?),
-                                          _status(status?['bmi'] as String?),
-                                          Colors.green,
-                                          Colors.green,
-                                        ];
-                                        return _buildVitalRow(dateTime, bp, hr, temp, rr, spo2, weight, bmi, location, colors);
-                                      }).toList();
-                                  }
-                                }(),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return _buildGenericTab(
+      title: 'Vital Signs',
+      icon: Icons.favorite,
+      heroColor: Colors.red,
+      searchController: _vitalsSearchController,
+      searchHint: 'Search vitals by date, BP, HR, temperature, or location...',
+      approxMinColWidth: 100,
+      columns: const [
+        DataColumn(label: Text('Date/Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Blood Pressure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Heart Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Temperature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Respiratory Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('SpO2', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Weight', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('BMI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+      ],
+      data: _vitals,
+      filterFunction: _filterVitals,
+      noDataMessage: 'No vitals data available',
     );
   }
 
-  DataRow _buildVitalRow(String dateTime, String bp, String hr, String temp, String rr, String spo2, String weight, String bmi, String location, List<Color> colors) {
-    return DataRow(
-      cells: [
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              dateTime,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              bp,
-              style: TextStyle(
-                color: colors[0],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              hr,
-              style: TextStyle(
-                color: colors[1],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              temp,
-              style: TextStyle(
-                color: colors[2],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              rr,
-              style: TextStyle(
-                color: colors[3],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              spo2,
-              style: TextStyle(
-                color: colors[4],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              weight,
-              style: TextStyle(
-                color: colors[5],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              bmi,
-              style: TextStyle(
-                color: colors[6],
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        DataCell(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              location,
-              style: TextStyle(
-                color: colors[7],
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildMedicationsTab() {
     return _buildGenericTab(
@@ -2216,7 +1888,29 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     } else {
                                       return filteredData.map((item) {
                                         // Extract data based on the section type
-                                        if (title == 'Medications') {
+                                        if (title == 'Vital Signs') {
+                                          final dateTime = (item['dateTime'] ?? '').toString();
+                                          final bp = (item['bloodPressure'] ?? '').toString();
+                                          final hr = (item['heartRate'] ?? '').toString();
+                                          final temp = (item['temperature'] ?? '').toString();
+                                          final rr = (item['respiratoryRate'] ?? '').toString();
+                                          final spo2 = (item['spO2'] ?? '').toString();
+                                          final weight = (item['weight'] ?? '').toString();
+                                          final bmi = (item['bmi'] ?? '').toString();
+                                          final location = (item['location'] ?? '').toString();
+                                          
+                                          return _buildEnhancedDataRow([
+                                            dateTime,
+                                            bp,
+                                            hr,
+                                            temp,
+                                            rr,
+                                            spo2,
+                                            weight,
+                                            bmi,
+                                            location,
+                                          ]);
+                                        } else if (title == 'Medications') {
                                           final medication = (item['medication'] ?? '').toString();
                                           final dosage = (item['dosage'] ?? '').toString();
                                           final frequency = (item['frequency'] ?? '').toString();
