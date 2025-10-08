@@ -225,15 +225,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.bug_report),
             onPressed: _showDebugDialog,
             tooltip: 'Debug API Data',
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -246,41 +243,41 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       body: Stack(
         children: [
           _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                          const Gap(16),
-                          Text('Error loading patient data', style: Theme.of(context).textTheme.headlineSmall),
-                          const Gap(8),
-                          Text(_error!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-                          const Gap(16),
-                          ElevatedButton(
-                            onPressed: _loadData,
-                            child: const Text('Retry'),
-                          ),
-                        ],
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                      const Gap(16),
+                      Text('Error loading patient data', style: Theme.of(context).textTheme.headlineSmall),
+                      const Gap(8),
+                      Text(_error!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+                      const Gap(16),
+                      ElevatedButton(
+                        onPressed: _loadData,
+                        child: const Text('Retry'),
                       ),
-                    )
-                  : KeyboardInsetPadding(
-                      child: SingleChildScrollView(
-                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                        child: Column(
-                          children: [
-                            // Patient Header Section
-                            _buildPatientHeader(),
-                            
-                            // Vertical spacing between sections
-                            const Gap(24),
-                            
+                    ],
+                  ),
+                )
+              : KeyboardInsetPadding(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Column(
+            children: [
+            // Patient Header Section
+            _buildPatientHeader(),
+            
+                            // Vertical spacing between sections (responsive)
+                            Gap(MediaQuery.of(context).size.width < 768 ? 16 : 24),
+            
                             // Collapsible Tab Section
                             _buildCollapsibleTabSection(),
-                          ],
-                        ),
-                      ),
+          ],
+        ),
+      ),
                     ),
           // Overlay for section details
           if (_showOverlay) _buildSectionOverlay(),
@@ -288,189 +285,189 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           // Pinned toggle button (only when expanded)
           if (_isTabSectionExpanded) _buildPinnedToggleButton(),
         ],
-      ),
+    ),
     );
   }
 
   Widget _buildPatientHeader() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 768 ? 16 : 20),
       child: Column(
         children: [
           // First Row - Patient Profile and Current Medications
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Patient Profile - Bento Card
-              Expanded(
-                child: Card(
-                  elevation: 3,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Patient Profile - Bento Card
+          Expanded(
+            child: Card(
+              elevation: 3,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(color: Colors.blue.shade400, width: 2),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.person, color: Colors.blue.shade600),
-                            const Gap(8),
-                            Text(
-                              'Patient Profile',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade800,
-                              ),
-                            ),
-                          ],
+                        Icon(Icons.person, color: Colors.blue.shade600),
+                        const Gap(8),
+                Text(
+                  'Patient Profile',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade800,
+                  ),
                         ),
-                        const Gap(12),
-                        Text(
-                          _patient?['name'] as String? ?? 'Loading...',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
-                          ),
-                        ),
+                      ],
+                ),
+                const Gap(12),
+                Text(
+                      _patient?['name'] as String? ?? 'Loading...',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                  ),
+                ),
+                const Gap(8),
+                Text(
+                      'MRN: ${_patient?['mrn'] ?? 'Loading...'}',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Gap(4),
+                Text(
+                      _patient != null 
+                        ? '${_patient!['gender']}, ${_patient!['age']} years old • Blood Type: ${_patient!['bloodType']}'
+                        : 'Loading patient details...',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.blue.shade700,
+                  ),
+                ),
+                const Gap(4),
+                Text(
+                      'Last Visit: ${_patient?['lastVisit'] ?? 'Loading...'}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.blue.shade700,
+                  ),
+                ),
+              ],
+                ),
+              ),
+            ),
+          ),
+          const Gap(16),
+          // Current Medications - Bento Card
+          Expanded(
+            child: Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                            Icon(Icons.medication, color: Colors.green.shade600),
                         const Gap(8),
                         Text(
-                          'MRN: ${_patient?['mrn'] ?? 'Loading...'}',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w600,
+            'Current Medications',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800,
                           ),
                         ),
-                        const Gap(4),
-                        Text(
-                          _patient != null 
-                            ? '${_patient!['gender']}, ${_patient!['age']} years old • Blood Type: ${_patient!['bloodType']}'
-                            : 'Loading patient details...',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue.shade700,
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                                color: Colors.green.shade600,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                        const Gap(4),
-                        Text(
-                          'Last Visit: ${_patient?['lastVisit'] ?? 'Loading...'}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue.shade700,
+                          child: Text(
+                            _medications != null
+                                ? '${_medications!.where((med) => (med['status'] ?? '').toString().toLowerCase() == 'active').length} meds'
+                                : 'Loading...',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-              const Gap(16),
-              // Current Medications - Bento Card
-              Expanded(
-                child: Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.medication, color: Colors.green.shade600),
-                            const Gap(8),
-                            Text(
-                              'Current Medications',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade800,
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade600,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _medications != null
-                                    ? '${_medications!.where((med) => (med['status'] ?? '').toString().toLowerCase() == 'active').length} meds'
-                                    : 'Loading...',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Gap(12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _medications != null
-                              ? (() {
-                                  if (_medications!.isEmpty) {
-                                    return [
-                                      Chip(
-                                        label: const Text('No current medications'),
-                                        backgroundColor: Colors.grey.shade100,
-                                        labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                                        side: BorderSide(color: Colors.grey.shade300),
-                                      ),
-                                    ];
-                                  }
-                                  return _medications!.map<Widget>((med) {
-                                    final medication = (med['medication'] ?? '').toString();
-                                    final dosage = (med['dosage'] ?? '').toString();
-                                    final status = (med['status'] ?? '').toString();
-                                    
-                                    // Only show active medications
-                                    if (status.toLowerCase() != 'active') {
-                                      return const SizedBox.shrink();
-                                    }
-                                    
-                                    return Chip(
-                                      label: Text('$medication $dosage'),
-                                      backgroundColor: Colors.green.shade50,
-                                      labelStyle: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600),
-                                      side: BorderSide(color: Colors.green.shade100),
-                                    );
-                                  }).where((chip) => chip is! SizedBox).toList();
-                                })()
-                              : [
+                    const Gap(12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _medications != null
+                          ? (() {
+                              if (_medications!.isEmpty) {
+                                return [
                                   Chip(
-                                    label: const Text('Loading medications...'),
+                                    label: const Text('No current medications'),
                                     backgroundColor: Colors.grey.shade100,
                                     labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                                     side: BorderSide(color: Colors.grey.shade300),
                                   ),
-                                ],
-                        ),
-                      ],
+                                ];
+                              }
+                              return _medications!.map<Widget>((med) {
+                                final medication = (med['medication'] ?? '').toString();
+                                final dosage = (med['dosage'] ?? '').toString();
+                                final status = (med['status'] ?? '').toString();
+                                
+                                // Only show active medications
+                                if (status.toLowerCase() != 'active') {
+                                  return const SizedBox.shrink();
+                                }
+                                
+                                return Chip(
+                                  label: Text('$medication $dosage'),
+                                      backgroundColor: Colors.green.shade50,
+                                      labelStyle: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600),
+                                      side: BorderSide(color: Colors.green.shade100),
+                                );
+                              }).where((chip) => chip is! SizedBox).toList();
+                            })()
+                          : [
+                              Chip(
+                                label: const Text('Loading medications...'),
+                                backgroundColor: Colors.grey.shade100,
+                                labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                                side: BorderSide(color: Colors.grey.shade300),
+                              ),
+                            ],
                     ),
-                  ),
+                  ],
                 ),
+              ),
+            ),
               ),
             ],
           ),
-          const Gap(20),
+          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
           // Second Row - Other Medical Sections
           Row(
             children: [
               Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
-              const Gap(16),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
               Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
-              const Gap(16),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
               Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
             ],
           ),
-          const Gap(20),
+          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
           Row(
             children: [
               Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
-              const Gap(16),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
               Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
-              const Gap(16),
+              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
               Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
             ],
           ),
@@ -488,9 +485,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Row(
                 children: [
                   Icon(icon, color: color, size: 24),
@@ -502,24 +499,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         fontWeight: FontWeight.bold,
                         color: color,
                       ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
                       count.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
                         fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
+              ),
+            ),
+          ),
+        ],
               ),
               const Gap(8),
               Text(
@@ -631,7 +628,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   pw.Widget _buildPDFHeader() {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
+        children: [
         pw.Text(
           'PATIENT MEDICAL RECORD',
           style: pw.TextStyle(
@@ -885,10 +882,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
             ],
           ),
-          child: Column(
-            children: [
+      child: Column(
+        children: [
               // Header
-              Container(
+          Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -910,8 +907,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                     ),
                   ),
                 ),
-                child: Row(
-                  children: [
+                      child: Row(
+                        children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -928,8 +925,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       child: Icon(
                         _getSectionIcon(_selectedSection!),
                         color: Colors.white,
-                        size: 24,
-                      ),
+                            size: 24,
+                          ),
                     ),
                     const Gap(16),
                     Expanded(
@@ -1050,13 +1047,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
+                                      ),
+                                    ),
+                                  ),
             ],
-          ),
-        ),
-      ),
+                                      ),
+                                    ),
+                                  ),
     );
   }
 
@@ -1088,12 +1085,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       case 'ipd':
         return Colors.teal;
       case 'labs':
-        return Colors.orange;
+                                              return Colors.orange;
       case 'radiology':
         return Colors.cyan;
       case 'surgery':
-        return Colors.red;
-      default:
+                                              return Colors.red;
+                                            default:
         return Colors.blue;
     }
   }
@@ -1285,9 +1282,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
             ],
           ),
-        ),
-      );
-    }
+      ),
+    );
+  }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1305,14 +1302,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             dynamic item = entry.value;
             List<String> rowData = _getRowData(section, item);
             
-            return DataRow(
+    return DataRow(
               color: MaterialStateProperty.all(
                 index % 2 == 0 ? Colors.white : Colors.grey.shade50,
               ),
               cells: rowData.map((cell) => DataCell(
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Text(
+            child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
                       fontSize: 16,
@@ -1440,7 +1437,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Widget _buildCollapsibleTabSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 768 ? 16 : 20),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -1496,15 +1493,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                   const Gap(12),
                   Expanded(
-                    child: Text(
+            child: Text(
                       'Detailed Records',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.bold,
                         color: Colors.green.shade800,
                         letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
+              ),
+            ),
+          ),
                 ],
               ),
               const Gap(12),
@@ -1540,7 +1537,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         const Gap(4),
         Text(
           '$count $title',
-          style: TextStyle(
+              style: TextStyle(
             color: Colors.green.shade700,
             fontWeight: FontWeight.w600,
             fontSize: 11,
@@ -1879,11 +1876,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                     final filteredData = filterFunction(searchController.text);
                                     if (data.isEmpty) {
                                       return [
-                                        _dataRow([noDataMessage ?? 'No data available', '-', '-', '-', '-', '-', '-']),
+                                        _buildEnhancedDataRow([noDataMessage ?? 'No data available', '-', '-', '-', '-', '-', '-', '-', '-']),
                                       ];
                                     } else if (filteredData.isEmpty && searchController.text.isNotEmpty) {
                                       return [
-                                        _dataRow(['No results found matching "${searchController.text}"', '-', '-', '-', '-', '-', '-']),
+                                        _buildEnhancedDataRow(['No results found matching "${searchController.text}"', '-', '-', '-', '-', '-', '-', '-', '-']),
                                       ];
                                     } else {
                                       return filteredData.map((item) {
@@ -1899,6 +1896,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final bmi = (item['bmi'] ?? '').toString();
                                           final location = (item['location'] ?? '').toString();
                                           
+                                          // Ensure exactly 9 cells to match the 9 header columns
                                           return _buildEnhancedDataRow([
                                             dateTime,
                                             bp,
@@ -2003,7 +2001,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                             complications,
                                           ]);
                                         }
-                                        return _buildEnhancedDataRow(['Unknown data type', '-', '-', '-', '-', '-', '-']);
+                                        return _buildEnhancedDataRow(['Unknown data type', '-', '-', '-', '-', '-', '-', '-', '-']);
                                       }).toList();
                                     }
                                   }
