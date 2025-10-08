@@ -1299,20 +1299,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           dataRowMinHeight: 64,
           dataRowMaxHeight: 96,
           headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
-          columns: dataColumns.map((column) => DataColumn(
-            label: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-              child: Text(
-                column.label.data!,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.grey.shade800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          )).toList(),
+          columns: dataColumns,
           rows: filteredData.asMap().entries.map((entry) {
             int index = entry.key;
             dynamic item = entry.value;
@@ -1320,7 +1307,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             
             return DataRow(
               color: MaterialStateProperty.all(
-                index % 2 == 0 ? Colors.white : Colors.grey.shade25,
+                index % 2 == 0 ? Colors.white : Colors.grey.shade50,
               ),
               cells: rowData.map((cell) => DataCell(
                 Container(
@@ -2214,20 +2201,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 dataRowMinHeight: 56,
                                 dataRowMaxHeight: 80,
                                 headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
-                                columns: columns.map((column) => DataColumn(
-                                  label: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                                    child: Text(
-                                      column.label.data!,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                        color: Colors.grey.shade800,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ),
-                                )).toList(),
+                                columns: columns,
                                 rows: () {
                                   if (filterFunction != null && searchController != null && data != null) {
                                     final filteredData = filterFunction(searchController.text);
