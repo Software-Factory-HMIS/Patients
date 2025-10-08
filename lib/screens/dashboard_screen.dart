@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 
@@ -270,6 +273,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             // Patient Header Section
                             _buildPatientHeader(),
                             
+                            // Vertical spacing between sections
+                            const Gap(24),
+                            
                             // Collapsible Tab Section
                             _buildCollapsibleTabSection(),
                           ],
@@ -289,7 +295,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   Widget _buildPatientHeader() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           // First Row - Patient Profile and Current Medications
@@ -300,7 +306,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               Expanded(
                 child: Card(
                   elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.blue.shade400, width: 2),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -444,24 +453,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               ),
             ],
           ),
-          const Gap(16),
+          const Gap(20),
           // Second Row - Other Medical Sections
           Row(
             children: [
               Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
-              const Gap(12),
+              const Gap(16),
               Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
-              const Gap(12),
+              const Gap(16),
               Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
             ],
           ),
-          const Gap(12),
+          const Gap(20),
           Row(
             children: [
               Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
-              const Gap(12),
+              const Gap(16),
               Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
-              const Gap(12),
+              const Gap(16),
               Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
             ],
           ),
@@ -545,6 +554,232 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     setState(() {
       _isTabSectionExpanded = !_isTabSectionExpanded;
     });
+  }
+
+  Future<void> _generateAndPrintPDF(String section) async {
+    try {
+      final pdf = pw.Document();
+      
+      // Get filtered data for the section
+      List<dynamic> sectionData = [];
+      switch (section) {
+        case 'vitals':
+          sectionData = _filterVitals(_vitalsSearchController.text);
+          break;
+        case 'opd':
+          sectionData = _filterOPD(_opdSearchController.text);
+          break;
+        case 'ipd':
+          sectionData = _filterIPD(_ipdSearchController.text);
+          break;
+        case 'labs':
+          sectionData = _filterLabs(_labsSearchController.text);
+          break;
+        case 'radiology':
+          sectionData = _filterRadiology(_radiologySearchController.text);
+          break;
+        case 'surgery':
+          sectionData = _filterSurgery(_surgerySearchController.text);
+          break;
+      }
+
+      // Build PDF content
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [
+              // Header with patient details
+              _buildPDFHeader(),
+              pw.SizedBox(height: 20),
+              
+              // Section title
+              pw.Text(
+                _getSectionTitle(section),
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+              
+              // Section data table
+              _buildPDFTable(section, sectionData),
+            ];
+          },
+        ),
+      );
+
+      // Print the PDF
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: '${_patient?['name'] ?? 'Patient'}_${_getSectionTitle(section)}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  pw.Widget _buildPDFHeader() {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'PATIENT MEDICAL RECORD',
+          style: pw.TextStyle(
+            fontSize: 24,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+        pw.SizedBox(height: 10),
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Patient Name: ${_patient?['name'] ?? 'N/A'}'),
+                  pw.Text('MRN: ${_patient?['mrn'] ?? 'N/A'}'),
+                  pw.Text('Gender: ${_patient?['gender'] ?? 'N/A'}'),
+                  pw.Text('Age: ${_patient?['age'] ?? 'N/A'} years'),
+                ],
+              ),
+            ),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('Blood Type: ${_patient?['bloodType'] ?? 'N/A'}'),
+                  pw.Text('Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}'),
+                  pw.Text('Generated: ${DateTime.now().toString().split('.')[0]}'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        pw.Divider(),
+      ],
+    );
+  }
+
+  pw.Widget _buildPDFTable(String section, List<dynamic> data) {
+    if (data.isEmpty) {
+      return pw.Text('No data available for this section.');
+    }
+
+    // Define columns based on section
+    List<String> columns = [];
+    switch (section) {
+      case 'vitals':
+        columns = ['Date/Time', 'Blood Pressure', 'Heart Rate', 'Temperature', 'Location'];
+        break;
+      case 'opd':
+        columns = ['Date', 'Department', 'Chief Complaint', 'Physician', 'Treatment'];
+        break;
+      case 'ipd':
+        columns = ['Admit Date', 'Discharge Date', 'Diagnosis', 'Physician', 'Outcome'];
+        break;
+      case 'labs':
+        columns = ['Date', 'Test Name', 'Result', 'Status', 'Ordered By'];
+        break;
+      case 'radiology':
+        columns = ['Date', 'Procedure', 'Findings', 'Impression', 'Radiologist'];
+        break;
+      case 'surgery':
+        columns = ['Date', 'Procedure', 'Surgeon', 'Outcome', 'Complications'];
+        break;
+    }
+
+    return pw.Table(
+      border: pw.TableBorder.all(),
+      columnWidths: {
+        for (int i = 0; i < columns.length; i++)
+          i: const pw.FlexColumnWidth(1),
+      },
+      children: [
+        // Header row
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          children: columns.map((col) => pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text(
+              col,
+              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          )).toList(),
+        ),
+        // Data rows
+        ...data.map((item) => pw.TableRow(
+          children: _getPDFRowData(section, item).map((cell) => pw.Padding(
+            padding: const pw.EdgeInsets.all(8),
+            child: pw.Text(cell, style: const pw.TextStyle(fontSize: 10)),
+          )).toList(),
+        )).toList(),
+      ],
+    );
+  }
+
+  List<String> _getPDFRowData(String section, dynamic item) {
+    switch (section) {
+      case 'vitals':
+        return [
+          (item['dateTime'] ?? '').toString(),
+          (item['bloodPressure'] ?? '').toString(),
+          (item['heartRate'] ?? '').toString(),
+          (item['temperature'] ?? '').toString(),
+          (item['location'] ?? '').toString(),
+        ];
+      case 'opd':
+        return [
+          (item['date'] ?? '').toString(),
+          (item['department'] ?? '').toString(),
+          (item['chiefComplaint'] ?? '').toString(),
+          (item['provider'] ?? '').toString(),
+          (item['treatment'] ?? '').toString(),
+        ];
+      case 'ipd':
+        return [
+          (item['admissionDate'] ?? '').toString(),
+          (item['dischargeDate'] ?? '').toString(),
+          (item['diagnosis'] ?? '').toString(),
+          (item['physician'] ?? '').toString(),
+          (item['outcome'] ?? '').toString(),
+        ];
+      case 'labs':
+        return [
+          (item['date'] ?? '').toString(),
+          (item['test'] ?? '').toString(),
+          (item['result'] ?? '').toString(),
+          (item['status'] ?? '').toString(),
+          (item['orderedBy'] ?? '').toString(),
+        ];
+      case 'radiology':
+        return [
+          (item['date'] ?? '').toString(),
+          (item['procedure'] ?? '').toString(),
+          (item['findings'] ?? '').toString(),
+          (item['impression'] ?? '').toString(),
+          (item['radiologist'] ?? '').toString(),
+        ];
+      case 'surgery':
+        return [
+          (item['date'] ?? '').toString(),
+          (item['procedure'] ?? '').toString(),
+          (item['surgeon'] ?? '').toString(),
+          (item['outcome'] ?? '').toString(),
+          (item['complications'] ?? '').toString(),
+        ];
+      default:
+        return ['Unknown', 'Unknown', 'Unknown', 'Unknown', 'Unknown'];
+    }
   }
 
   // Search filtering helper methods
@@ -720,24 +955,49 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         ],
                       ),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade600,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.green.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: _hideOverlay,
-                        icon: const Icon(Icons.close_rounded),
-                        tooltip: 'Close',
-                        color: Colors.grey.shade600,
-                      ),
+                          child: IconButton(
+                            onPressed: () => _generateAndPrintPDF(_selectedSection!),
+                            icon: const Icon(Icons.print_rounded),
+                            tooltip: 'Print PDF',
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Gap(8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: _hideOverlay,
+                            icon: const Icon(Icons.close_rounded),
+                            tooltip: 'Close',
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1033,13 +1293,26 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          columnSpacing: 20,
-          horizontalMargin: 16,
-          headingRowHeight: 64,
-          dataRowMinHeight: 56,
-          dataRowMaxHeight: 80,
-          headingRowColor: MaterialStateProperty.all(Colors.white),
-          columns: dataColumns,
+          columnSpacing: 24,
+          horizontalMargin: 20,
+          headingRowHeight: 72,
+          dataRowMinHeight: 64,
+          dataRowMaxHeight: 96,
+          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          columns: dataColumns.map((column) => DataColumn(
+            label: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              child: Text(
+                column.label.data!,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.grey.shade800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          )).toList(),
           rows: filteredData.asMap().entries.map((entry) {
             int index = entry.key;
             dynamic item = entry.value;
@@ -1047,20 +1320,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             
             return DataRow(
               color: MaterialStateProperty.all(
-                index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                index % 2 == 0 ? Colors.white : Colors.grey.shade25,
               ),
               cells: rowData.map((cell) => DataCell(
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                   child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
-                      fontSize: 15,
-                      color: cell.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
-                      fontWeight: cell.isEmpty ? FontWeight.normal : FontWeight.w600,
-                      height: 1.4,
+                      fontSize: 16,
+                      color: cell.isEmpty ? Colors.grey.shade400 : Colors.grey.shade900,
+                      fontWeight: cell.isEmpty ? FontWeight.normal : FontWeight.w500,
+                      height: 1.5,
                     ),
-                    maxLines: 3,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1179,12 +1452,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildCollapsibleTabSection() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.6 : 180,
-      child: Container(
-        color: Colors.white,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.6 : 180,
+        child: Container(
+          color: Colors.white,
         child: _isTabSectionExpanded 
           ? Column(
               children: [
@@ -1208,6 +1483,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
               ],
             ),
+        ),
       ),
     );
   }
@@ -1933,8 +2209,25 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                             child: SingleChildScrollView(
                               child: DataTable(
                                 columnSpacing: dynamicSpacing,
-                                horizontalMargin: 0,
-                                columns: columns,
+                                horizontalMargin: 16,
+                                headingRowHeight: 64,
+                                dataRowMinHeight: 56,
+                                dataRowMaxHeight: 80,
+                                headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                                columns: columns.map((column) => DataColumn(
+                                  label: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                    child: Text(
+                                      column.label.data!,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: Colors.grey.shade800,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                )).toList(),
                                 rows: () {
                                   if (filterFunction != null && searchController != null && data != null) {
                                     final filteredData = filterFunction(searchController.text);
@@ -1958,15 +2251,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final startDate = (item['startDate'] ?? '').toString();
                                           final indication = (item['indication'] ?? '').toString();
                                           
-                                          return _dataRow([
-                                            startDate,
-                                            medication,
-                                            dosage,
-                                            frequency,
-                                            indication,
-                                            status,
-                                            prescriber,
-                                          ]);
+                                        return _buildEnhancedDataRow([
+                                          startDate,
+                                          medication,
+                                          dosage,
+                                          frequency,
+                                          indication,
+                                          status,
+                                          prescriber,
+                                        ]);
                                         } else if (title == 'OPD Visits') {
                                           final date = (item['date'] ?? '').toString();
                                           final department = (item['department'] ?? '').toString();
@@ -1974,7 +2267,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final provider = (item['provider'] ?? '').toString();
                                           final treatment = (item['treatment'] ?? '').toString();
                                           
-                                          return _dataRow([
+                                          return _buildEnhancedDataRow([
                                             date,
                                             department,
                                             chiefComplaint,
@@ -1989,7 +2282,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final physician = (item['physician'] ?? '').toString();
                                           final outcome = (item['outcome'] ?? '').toString();
                                           
-                                          return _dataRow([
+                                          return _buildEnhancedDataRow([
                                             admissionDate,
                                             dischargeDate,
                                             lengthOfStay,
@@ -2005,7 +2298,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final status = (item['status'] ?? '').toString();
                                           final orderedBy = (item['orderedBy'] ?? '').toString();
                                           
-                                          return _dataRow([
+                                          return _buildEnhancedDataRow([
                                             date,
                                             test,
                                             result,
@@ -2020,7 +2313,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final impression = (item['impression'] ?? '').toString();
                                           final radiologist = (item['radiologist'] ?? '').toString();
                                           
-                                          return _dataRow([
+                                          return _buildEnhancedDataRow([
                                             date,
                                             procedure,
                                             findings,
@@ -2034,7 +2327,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           final outcome = (item['outcome'] ?? '').toString();
                                           final complications = (item['complications'] ?? '').toString();
                                           
-                                          return _dataRow([
+                                          return _buildEnhancedDataRow([
                                             date,
                                             procedure,
                                             surgeon,
@@ -2042,7 +2335,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                             complications,
                                           ]);
                                         }
-                                        return _dataRow(['Unknown data type', '-', '-', '-', '-', '-', '-']);
+                                        return _buildEnhancedDataRow(['Unknown data type', '-', '-', '-', '-', '-', '-']);
                                       }).toList();
                                     }
                                   }
@@ -2074,6 +2367,30 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               child: Text(
                 t,
                 style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  DataRow _buildEnhancedDataRow(List<String> texts) {
+    return DataRow(
+      cells: [
+        for (final t in texts)
+          DataCell(
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              child: Text(
+                t.isEmpty ? '-' : t,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: t.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
+                  fontWeight: t.isEmpty ? FontWeight.normal : FontWeight.w500,
+                  height: 1.4,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
