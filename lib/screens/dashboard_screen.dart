@@ -267,12 +267,18 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             children: [
-            // Patient Header Section
-            _buildPatientHeader(),
-            
+                            // Patient Header Section
+                            _buildPatientHeader(),
+                            
                             // Vertical spacing between sections (responsive)
-                            Gap(MediaQuery.of(context).size.width < 768 ? 16 : 24),
-            
+                            Gap(MediaQuery.of(context).size.width < 768 ? 4 : 6),
+                            
+                            // Chronic Conditions Section
+                            _buildChronicConditionsSection(),
+                            
+                            // Vertical spacing between sections (responsive)
+                            Gap(MediaQuery.of(context).size.width < 768 ? 8 : 12),
+                            
                             // Collapsible Tab Section
                             _buildCollapsibleTabSection(),
           ],
@@ -343,10 +349,84 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                 ),
               ],
+                ),
               ),
             ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChronicConditionsSection() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 768 ? 16 : 20),
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Colors.red.shade300, width: 1),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              // Icon
+              Icon(
+                Icons.health_and_safety,
+                size: 20,
+                color: Colors.red.shade600,
+              ),
+              const Gap(8),
+              // Title
+              Text(
+                'Chronic Conditions:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red.shade800,
+                  fontSize: 15,
+                ),
+              ),
+              const Gap(8),
+              // Conditions
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
+                    const Gap(6),
+                    _buildSimpleConditionChip('Hypertension', 'I10'),
+                    const Gap(6),
+                    _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
+                  ],
+                ),
+              ),
+            ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimpleConditionChip(String condition, String code) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200, width: 1),
+      ),
+      child: Text(
+        '$condition ($code)',
+        style: TextStyle(
+          color: Colors.red.shade800,
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -1184,7 +1264,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               cells: rowData.map((cell) => DataCell(
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                  child: Text(
+            child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
                       fontSize: 14,
@@ -1316,9 +1396,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       child: Column(
         children: [
           // Collapsible Tab Section
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
+          Container(
             height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.7 : 180,
             child: Container(
               color: Colors.white,
@@ -1432,13 +1510,33 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
               ),
               const Gap(12),
+              // First row of summary items
               Row(
                 children: [
                   _buildSummaryItem('Vitals', _vitals?.length ?? 0, Icons.favorite, Colors.red),
-                  const Gap(16),
-                  _buildSummaryItem('Labs', _labs?.length ?? 0, Icons.biotech_outlined, Colors.orange),
-                  const Gap(16),
+                  const Gap(12),
+                  _buildSummaryItem('Medications', _medications?.length ?? 0, Icons.medication, Colors.green),
+                  const Gap(12),
                   _buildSummaryItem('OPD', _opd?.length ?? 0, Icons.meeting_room_outlined, Colors.indigo),
+                ],
+              ),
+              const Gap(8),
+              // Second row of summary items
+              Row(
+                children: [
+                  _buildSummaryItem('IPD', _ipd?.length ?? 0, Icons.local_hospital_outlined, Colors.teal),
+                  const Gap(12),
+                  _buildSummaryItem('Labs', _labs?.length ?? 0, Icons.biotech_outlined, Colors.orange),
+                  const Gap(12),
+                  _buildSummaryItem('Radiology', _radiology?.length ?? 0, Icons.image_search_outlined, Colors.cyan),
+                ],
+              ),
+              const Gap(8),
+              // Third row of summary items
+              Row(
+                children: [
+                  _buildSummaryItem('Surgery', _surgery?.length ?? 0, Icons.health_and_safety_outlined, Colors.red),
+                  const Spacer(),
                 ],
               ),
             ],
@@ -1488,6 +1586,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
+
   Widget _buildTabBarView() {
     return TabBarView(
       controller: _tabController,
@@ -1507,12 +1606,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     return Container(
       decoration: BoxDecoration(
         color: Colors.black,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1520,15 +1619,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         color: Colors.transparent,
         child: InkWell(
           onTap: _toggleTabSection,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Icon(
               _isTabSectionExpanded 
                   ? Icons.keyboard_arrow_up_rounded 
                   : Icons.keyboard_arrow_down_rounded,
               color: Colors.white,
-              size: 28,
+              size: 20,
             ),
           ),
         ),
