@@ -120,6 +120,15 @@ class EmrApiClient {
     }
     throw Exception('Failed to load surgery records (${res.statusCode})');
   }
+
+  Future<List<dynamic>> fetchPregnancy(String mrn) async {
+    final uri = Uri.parse('$baseUrl/api/patient/$mrn/pregnancy');
+    final res = await _client.get(uri);
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return json.decode(res.body) as List<dynamic>;
+    }
+    throw Exception('Failed to load pregnancy records (${res.statusCode})');
+  }
 }
 
 

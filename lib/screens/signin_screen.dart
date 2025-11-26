@@ -53,7 +53,14 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _initializeApi() async {
-    _api = await EmrApiClient.create();
+    print('🚀 Initializing API client for physical device...');
+    try {
+      _api = await EmrApiClient.create();
+      print('✅ API client initialized successfully');
+    } catch (e) {
+      print('❌ API client initialization failed: $e');
+      // Don't throw here, let _handleSignIn handle the fallback
+    }
   }
 
   String? _requiredValidator(String? value, {String fieldName = 'This field'}) {
@@ -329,19 +336,24 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       // Ensure API client is initialized with fallback
       if (_api == null) {
-        print('🔄 Initializing API client with fallback...');
-        // Test all URLs first for debugging
+        print('🔄 Initializing API client with fallback for physical device...');
+        // Detect device network configuration first
+        await detectDeviceNetwork();
+        // Test all URLs for debugging
         await testAllUrls();
         _api = await EmrApiClient.create();
       }
 
       // Test connection first
-      print('🔍 Testing API connection...');
+      print('🔍 Testing API connection on physical device...');
       final isConnected = await _api!.testConnection();
       if (!isConnected) {
+        print('❌ Connection failed on physical device');
         printNetworkInfo();
         throw Exception('Cannot connect to server. Please check your network connection.');
       }
+      
+      print('✅ Successfully connected to API server');
 
       // Fetch patient data
       final patient = await _api!.fetchPatient(mrn);
