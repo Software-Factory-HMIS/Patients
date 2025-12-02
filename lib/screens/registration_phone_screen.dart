@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
-import 'otp_screen.dart';
-import 'registration_phone_screen.dart';
+import 'registration_otp_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 
-class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+class RegistrationPhoneScreen extends StatefulWidget {
+  const RegistrationPhoneScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  State<RegistrationPhoneScreen> createState() => _RegistrationPhoneScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _mrnController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
 
   @override
   void dispose() {
-    _mrnController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -35,6 +34,12 @@ class _SignInScreenState extends State<SignInScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text('Phone Verification'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 1,
+      ),
       body: SafeArea(
         child: KeyboardInsetPadding(
           child: SingleChildScrollView(
@@ -48,31 +53,29 @@ class _SignInScreenState extends State<SignInScreen> {
                   children: <Widget>[
                     const Gap(40),
                     
-                    // Logo area
+                    // Icon
                     Center(
-                      child: SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: Image.asset(
-                          'assets/images/punjab.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.local_hospital,
-                              size: 60,
-                              color: Colors.blue.shade600,
-                            );
-                          },
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.phone_android,
+                          size: 40,
+                          color: Colors.blue.shade700,
                         ),
                       ),
                     ),
                     
                     const Gap(32),
                     
-                    // Welcome text
+                    // Title
                     Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      'Enter your mobile number',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.grey.shade900,
                       ),
@@ -82,7 +85,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     const Gap(8),
                     
                     Text(
-                      'Enter your mobile number to continue',
+                      'We will send you an OTP to verify your number',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.grey.shade600,
                       ),
@@ -91,9 +94,9 @@ class _SignInScreenState extends State<SignInScreen> {
                     
                     const Gap(48),
                     
-                    // Mobile number input field - larger and more touch-friendly
+                    // Phone number input field
                     TextFormField(
-                      controller: _mrnController,
+                      controller: _phoneController,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
                       inputFormatters: [
@@ -142,45 +145,13 @@ class _SignInScreenState extends State<SignInScreen> {
                       },
                     ),
                     
-                    const Gap(16),
+                    const Gap(32),
                     
-                    // Registration option for new users
-                    Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'New user? ',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _handleRegister,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Register',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const Gap(16),
-                    
-                    // Continue button - larger and more touch-friendly
+                    // Continue button
                     SizedBox(
                       height: 56,
                       child: FilledButton(
-                        onPressed: _loading ? null : _handleSignIn,
+                        onPressed: _loading ? null : _handleContinue,
                         style: FilledButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -208,15 +179,16 @@ class _SignInScreenState extends State<SignInScreen> {
                     
                     const Gap(24),
                     
-                    // Terms and Privacy
+                    // Back button
                     Center(
-                      child: Text(
-                        'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                          height: 1.4,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Back',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                     
@@ -231,10 +203,10 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  void _handleSignIn() {
+  void _handleContinue() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
-    final mrn = _mrnController.text.trim();
+    final phoneNumber = _phoneController.text.trim();
     
     setState(() {
       _loading = true;
@@ -248,20 +220,11 @@ class _SignInScreenState extends State<SignInScreen> {
         });
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => OtpScreen(cnic: mrn),
+            builder: (context) => RegistrationOtpScreen(phoneNumber: phoneNumber),
           ),
         );
       }
     });
   }
-
-  void _handleRegister() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const RegistrationPhoneScreen(),
-      ),
-    );
-  }
 }
 
- 

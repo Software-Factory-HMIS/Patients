@@ -54,10 +54,16 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: Row(
-        children: <Widget>[
-              Expanded(
-                child: Container(
+      backgroundColor: Colors.grey.shade50,
+      body: SafeArea(
+        child: KeyboardInsetPadding(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              children: <Widget>[
+                // Row 1: Logo & Info Section
+                Container(
+                  width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -69,64 +75,51 @@ class _OtpScreenState extends State<OtpScreen> {
                       ],
                     ),
                   ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: Padding(
-                        padding: EdgeInsets.all(getResponsiveSize(32)),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                        // Logo & heading
-                        Align(
-                          alignment: Alignment.center,
-                          child: SizedBox(
-                            height: getResponsiveHeight(kIsWeb ? 315 * 0.7 : 315),
-                            child: Image.asset(
-                              'assets/images/punjab.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  Icons.local_hospital,
-                                  size: getResponsiveSize(kIsWeb ? 189 * 0.7 : 189),
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                );
-                              },
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        // Logo
+                        SizedBox(
+                          height: 120,
+                          child: Image.asset(
+                            'assets/images/punjab.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.local_hospital,
+                                size: 80,
+                                color: Colors.white.withValues(alpha: 0.85),
+                              );
+                            },
                           ),
                         ),
-                        Gap(getResponsiveSize(16)),
-                        Align(
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Verify your identity',
-                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: getResponsiveFontSize(22),
-                            ),
+                        const Gap(16),
+                        // Heading
+                        Text(
+                          'Verify your identity',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        Gap(getResponsiveSize(8)),
-                        Align(
-                          alignment: Alignment.center,
-                          child: Text(
-                            'Enter the 4-digit OTP sent to your registered number',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                            textAlign: TextAlign.center,
+                        const Gap(8),
+                        Text(
+                          'Enter the 4-digit OTP sent to your registered number',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                        Gap(getResponsiveSize(20)),
-                        
-                        // Feature highlights (match login/sign-in styling)
+                        const Gap(20),
+                        // Feature highlights
                         Container(
-                          padding: EdgeInsets.all(getResponsiveSize(16)),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(getResponsiveSize(12)),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.2),
                               width: 1,
@@ -139,15 +132,15 @@ class _OtpScreenState extends State<OtpScreen> {
                                 'Secure Verification',
                                 'Your OTP is valid for 5 minutes only',
                                 Colors.white.withOpacity(0.9),
-                                getResponsiveSize(12),
+                                12,
                               ),
-                              Gap(getResponsiveSize(12)),
+                              const Gap(12),
                               _buildFeatureItem(
                                 Icons.sms,
                                 'SMS Delivery',
                                 'OTP sent to your registered mobile number',
                                 Colors.white.withOpacity(0.9),
-                                getResponsiveSize(12),
+                                12,
                               ),
                             ],
                           ),
@@ -156,122 +149,131 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final double maxFormWidth = 800;
-                 return Center(
-                   child: ConstrainedBox(
-                     constraints: BoxConstraints(maxWidth: maxFormWidth),
-                     child: KeyboardInsetPadding(
-                       child: Padding(
-                         padding: EdgeInsets.all(getResponsiveSize(24)),
-                         child: Form(
-                           key: _formKey,
-                           child: SingleChildScrollView(
-                             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.stretch,
-                               children: <Widget>[
-                                // OTP title
-                                Text(
-                                  'Enter OTP',
-                                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: getResponsiveFontSize(28),
-                                  ),
-                                ),
-                                Gap(getResponsiveSize(12)),
-                                Text(
-                                  'We sent a 4-digit code to your registered number',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                Gap(getResponsiveSize(32)),
-                                
-                                // OTP input field
-                                TextFormField(
-                                  controller: _otpController,
-                                  keyboardType: TextInputType.number,
-                                  textInputAction: TextInputAction.done,
-                                  maxLength: 4,
-                                  decoration: const InputDecoration(
-                                    labelText: 'OTP',
-                                    hintText: '----',
-                                    border: OutlineInputBorder(),
-                                    counterText: '', // Hide character counter
-                                  ),
-                                  scrollPadding: EdgeInsets.only(
-                                    bottom: MediaQuery.of(context).viewInsets.bottom + getResponsiveSize(120),
-                                  ),
-                                  inputFormatters: <TextInputFormatter>[
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(4),
-                                  ],
-                                  validator: (value) {
-                                    final String? requiredResult = _requiredValidator(value, fieldName: 'OTP');
-                                    if (requiredResult != null) return requiredResult;
-                                    if (value!.length != 4) {
-                                      return 'OTP must be 4 digits';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                Gap(getResponsiveSize(24)),
-                                
-                                // Submit button (bypass OTP)
-                                SizedBox(
-                                  height: getResponsiveSize(56),
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    onPressed: _handleOtpSubmit,
-                                    child: const Text('Continue'),
-                                  ),
-                                ),
-                                Gap(getResponsiveSize(16)),
-                                
-                                // Resend OTP
-                                Center(
-                                  child: TextButton(
-                                    onPressed: _handleResendOtp,
-                                    child: Text(
-                                      'Didn\'t receive OTP? Resend',
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Gap(getResponsiveSize(16)),
-                                
-                                // Back to sign in
-                                Center(
-                                  child: TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: Text(
-                                      'Back to Sign In',
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                
+                // Row 2: OTP Form Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        // OTP title
+                        Text(
+                          'Enter OTP',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade900,
+                          ),
                         ),
-                      ),
+                        const Gap(8),
+                        Text(
+                          'We sent a 4-digit code to your registered number',
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const Gap(32),
+                        
+                        // OTP input field
+                        TextFormField(
+                          controller: _otpController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          maxLength: 4,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            labelText: 'OTP',
+                            hintText: '----',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 20,
+                            ),
+                            counterText: '', // Hide character counter
+                          ),
+                          scrollPadding: const EdgeInsets.only(bottom: 100),
+                          inputFormatters: <TextInputFormatter>[
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(4),
+                          ],
+                          validator: (value) {
+                            final String? requiredResult = _requiredValidator(value, fieldName: 'OTP');
+                            if (requiredResult != null) return requiredResult;
+                            if (value!.length != 4) {
+                              return 'OTP must be 4 digits';
+                            }
+                            return null;
+                          },
+                        ),
+                        const Gap(32),
+                        
+                        // Submit button
+                        SizedBox(
+                          height: 56,
+                          child: FilledButton(
+                            onPressed: _handleOtpSubmit,
+                            style: FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: const Text(
+                              'Continue',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Gap(16),
+                        
+                        // Resend OTP
+                        Center(
+                          child: TextButton(
+                            onPressed: _handleResendOtp,
+                            child: Text(
+                              'Didn\'t receive OTP? Resend',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Gap(8),
+                        
+                        // Back to sign in
+                        Center(
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(
+                              'Back to Sign In',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                );
-              },
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -280,14 +282,14 @@ class _OtpScreenState extends State<OtpScreen> {
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(getResponsiveSize(8)),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(getResponsiveSize(8)),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: color, size: getResponsiveSize(20)),
+          child: Icon(icon, color: color, size: 20),
         ),
-        Gap(getResponsiveSize(12)),
+        const Gap(12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,14 +299,14 @@ class _OtpScreenState extends State<OtpScreen> {
                 style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.w600,
-                  fontSize: getResponsiveFontSize(14),
+                  fontSize: 14,
                 ),
               ),
               Text(
                 description,
                 style: TextStyle(
                   color: color.withOpacity(0.8),
-                  fontSize: getResponsiveFontSize(12),
+                  fontSize: 12,
                   height: 1.3,
                 ),
               ),

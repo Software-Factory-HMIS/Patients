@@ -129,6 +129,113 @@ class EmrApiClient {
     }
     throw Exception('Failed to load pregnancy records (${res.statusCode})');
   }
+
+  Future<List<dynamic>> fetchHospitals() async {
+    final uri = Uri.parse('$baseUrl/api/hospitals');
+    try {
+      print('🔍 Fetching hospitals from: $uri');
+      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      print('📡 Response status: ${res.statusCode}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as List<dynamic>;
+        }
+        return response['hospitals'] as List<dynamic>? ?? [];
+      }
+      throw Exception('Failed to load hospitals (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error fetching hospitals: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> fetchDepartments() async {
+    final uri = Uri.parse('$baseUrl/api/departments');
+    try {
+      print('🔍 Fetching departments from: $uri');
+      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      print('📡 Response status: ${res.statusCode}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as List<dynamic>;
+        }
+        return response['departments'] as List<dynamic>? ?? [];
+      }
+      throw Exception('Failed to load departments (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error fetching departments: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> addPatientToQueue({
+    required int patientId,
+    required int hospitalId,
+    required int hospitalDepartmentId,
+    required int createdBy,
+    String priority = 'Normal',
+    String queueType = 'OPD',
+    String visitPurpose = 'Check-Up',
+    String patientSource = 'SELF_CHECKIN',
+    int? assignedToUserId,
+    int? assignedToOpdId,
+    int? referralId,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-queue');
+    try {
+      print('🔍 Adding patient to queue: $uri');
+      
+      final body = {
+        'patientId': patientId,
+        'hospitalId': hospitalId,
+        'hospitalDepartmentId': hospitalDepartmentId,
+        'createdBy': createdBy,
+        'priority': priority,
+        'queueType': queueType,
+        'visitPurpose': visitPurpose,
+        'patientSource': patientSource,
+        if (assignedToUserId != null) 'assignedToUserId': assignedToUserId,
+        if (assignedToOpdId != null) 'assignedToOpdId': assignedToOpdId,
+        if (referralId != null) 'referralId': referralId,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      print('📡 Response status: ${res.statusCode}');
+      print('📡 Response body: ${res.body}');
+      
+      if (res.statusCode == 409) {
+        // Patient already in queue - return existing queue info
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        throw Exception('Patient already in queue. Queue ID: ${response['queueId']}, Token: ${response['tokenNumber']}');
+      }
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      throw Exception('Failed to add patient to queue (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error adding patient to queue: $e');
+      rethrow;
+    }
+  }
 }
 
 

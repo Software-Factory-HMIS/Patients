@@ -14,23 +14,22 @@ String resolveEmrBaseUrl() {
 
   if (kIsWeb) {
     print('🌐 Web platform detected, using localhost');
-    return 'http://localhost:5107';
+    return 'https://localhost:7287';
   }
 
   try {
     if (Platform.isAndroid) {
       print('📱 Android platform detected');
-      // For Android devices, localhost won't work on physical devices
-      // Use the primary IP (your development machine) for physical devices
-      final primaryUrl = getPrimaryBaseUrl();
-      print('🔗 Using primary IP for Android: $primaryUrl');
-      return primaryUrl;
+      // For Android emulator, use 10.0.2.2 to access host machine's localhost
+      // For physical devices, use the primary IP
+      // API is running at https://localhost:7287
+      return 'https://10.0.2.2:7287'; // Android emulator host IP
     } else if (Platform.isIOS) {
       print('🍎 iOS platform detected, using localhost');
-      return 'http://localhost:5107';
+      return 'https://localhost:7287';
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       print('💻 Desktop platform detected, using localhost');
-      return 'http://localhost:5107';
+      return 'https://localhost:7287';
     }
   } catch (e) {
     print('⚠️ Platform detection failed: $e');
@@ -38,7 +37,7 @@ String resolveEmrBaseUrl() {
   }
 
   print('🔄 Fallback to localhost');
-  return 'http://localhost:5107';
+  return 'https://localhost:7287';
 }
 
 // Primary and fallback IP addresses for physical devices
@@ -46,7 +45,7 @@ String resolveEmrBaseUrl() {
 const String _primaryIp = '192.168.51.207';  // Your development machine (actual IP)
 const String _fallbackIp = '192.168.56.122'; // Secondary machine
 const String _tertiaryIp = '10.152.206.21';  // Additional fallback machine
-const int _port = 5107;
+const int _port = 7287;
 
 // Common network ranges to try for Android devices
 const List<String> _commonNetworkRanges = [
@@ -122,28 +121,28 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
   
   try {
     if (Platform.isAndroid) {
-      print('📱 Android device detected - prioritizing network IPs');
+      print('📱 Android device detected - prioritizing emulator host IP');
       urlsToTry = [
+        'https://10.0.2.2:7287', // Android emulator host IP (maps to localhost:7287)
         getPrimaryBaseUrl(),    // Your development machine (192.168.56.200)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
         getTertiaryBaseUrl(),   // Tertiary machine (10.152.206.21)
-        'http://10.0.2.2:5107', // Android emulator host IP
-        'http://localhost:5107', // Only works with USB debugging
       ];
     } else {
       print('💻 Non-Android platform detected - prioritizing localhost');
       urlsToTry = [
-        'http://localhost:5107',
+        'https://localhost:7287',
+        'https://127.0.0.1:7287',
         getPrimaryBaseUrl(),    // Your development machine
         getFallbackBaseUrl(),   // Secondary machine
         getTertiaryBaseUrl(),   // Tertiary machine
-        'http://127.0.0.1:5107',
       ];
     }
   } catch (e) {
     print('⚠️ Platform detection failed, using fallback URLs: $e');
     urlsToTry = [
-      'http://localhost:5107',
+      'https://localhost:7287',
+      'https://10.0.2.2:7287',
       getPrimaryBaseUrl(),
       getFallbackBaseUrl(),
       getTertiaryBaseUrl(),

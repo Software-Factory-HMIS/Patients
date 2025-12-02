@@ -6,6 +6,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../models/appointment_models.dart';
+import 'appointment_success_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String cnic;
@@ -19,7 +21,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  late final EmrApiClient _api;
   Map<String, dynamic>? _patient;
   List<dynamic>? _vitals;
   List<dynamic>? _medications;
@@ -34,6 +35,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   bool _showOverlay = false;
   String? _selectedSection;
   bool _isTabSectionExpanded = true;
+  int _currentNavIndex = 0;
+  
+  // Appointments state
+  EmrApiClient? _api;
+  List<Hospital>? _hospitals;
+  List<Department>? _departments;
+  Hospital? _selectedHospital;
+  Department? _selectedDepartment;
+  bool _loadingHospitals = false;
+  bool _loadingDepartments = false;
+  bool _submittingAppointment = false;
+  String? _appointmentError;
+  int? _patientId;
   
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
@@ -49,11 +63,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     super.initState();
     _tabController = TabController(length: 8, vsync: this);
     _initializeApi();
+    _loadData();
+    // Load appointments data since it's the default tab
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadHospitals();
+      _loadDepartments();
+    });
   }
 
   Future<void> _initializeApi() async {
-    _api = await EmrApiClient.create();
-    _loadData();
+    try {
+      _api = await EmrApiClient.create();
+    } catch (e) {
+      print('❌ Failed to initialize API client: $e');
+    }
   }
 
   @override
@@ -75,37 +98,30 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       _loading = true;
       _error = null;
     });
-    try {
-      final mrn = widget.cnic; // using CNIC as MRN placeholder
-      final results = await Future.wait([
-        _api.fetchPatient(mrn),
-        _api.fetchVitals(mrn),
-        _api.fetchMedications(mrn),
-        _api.fetchOPD(mrn),
-        _api.fetchIPD(mrn),
-        _api.fetchLabs(mrn),
-        _api.fetchRadiology(mrn),
-        _api.fetchSurgery(mrn),
-        _api.fetchPregnancy(mrn),
-      ]);
-      setState(() {
-        _patient = results[0] as Map<String, dynamic>;
-        _vitals = results[1] as List<dynamic>;
-        _medications = results[2] as List<dynamic>;
-        _opd = results[3] as List<dynamic>;
-        _ipd = results[4] as List<dynamic>;
-        _labs = results[5] as List<dynamic>;
-        _radiology = results[6] as List<dynamic>;
-        _surgery = results[7] as List<dynamic>;
-        _pregnancy = results[8] as List<dynamic>;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
+    
+    // Simulate loading delay
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Initialize with empty/mock data
+    setState(() {
+      _patient = {
+        'name': 'Patient Name',
+        'mrn': widget.cnic,
+        'gender': 'N/A',
+        'age': 'N/A',
+        'bloodType': 'N/A',
+        'lastVisit': 'N/A',
+      };
+      _vitals = [];
+      _medications = [];
+      _opd = [];
+      _ipd = [];
+      _labs = [];
+      _radiology = [];
+      _surgery = [];
+      _pregnancy = [];
+      _loading = false;
+    });
   }
 
   void _showDebugDialog() {
@@ -140,7 +156,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDebugSection('API Base URL', _api.baseUrl),
                       _buildDebugSection('MRN', widget.cnic),
                       _buildDebugSection('Patient Data', _patient),
                       _buildDebugSection('Vitals Data', _vitals),
@@ -150,6 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       _buildDebugSection('Labs Data', _labs),
                       _buildDebugSection('Radiology Data', _radiology),
                       _buildDebugSection('Surgery Data', _surgery),
+                      _buildDebugSection('Pregnancy Data', _pregnancy),
                       _buildDebugSection('Error', _error),
                     ],
                   ),
@@ -224,17 +240,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Patient Dashboard'),
+        title: Text(_currentNavIndex == 0 ? 'Appointments' : 'Patient Dashboard'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: _showDebugDialog,
-            tooltip: 'Debug API Data',
-          ),
+          if (_currentNavIndex == 1) ...[
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: _showDebugDialog,
+              tooltip: 'Debug API Data',
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -243,174 +261,696 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                      const Gap(16),
-                      Text('Error loading patient data', style: Theme.of(context).textTheme.headlineSmall),
-                      const Gap(8),
-                      Text(_error!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-                      const Gap(16),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : KeyboardInsetPadding(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            children: [
-            // Patient Header Section
-            _buildPatientHeader(),
-            
-                            // Vertical spacing between sections (responsive)
-                            Gap(MediaQuery.of(context).size.width < 768 ? 4 : 6),
-                            
-                            // Chronic Conditions Section
-                            _buildChronicConditionsSection(),
-                            
-                            // Vertical spacing between sections (responsive)
-                            Gap(MediaQuery.of(context).size.width < 768 ? 8 : 12),
-                            
-                            // Collapsible Tab Section
-                            _buildCollapsibleTabSection(),
-          ],
-        ),
-      ),
-                    ),
-          // Overlay for section details
-          if (_showOverlay) _buildSectionOverlay(),
-          
-          // Pinned toggle button (only when expanded)
-          if (_isTabSectionExpanded) _buildPinnedToggleButton(),
-        ],
-    ),
+      body: _currentNavIndex == 0
+          ? _buildAppointmentsScreen()
+          : Stack(
+              children: [
+                _loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                                const Gap(16),
+                                Text('Error loading patient data', style: Theme.of(context).textTheme.headlineSmall),
+                                const Gap(8),
+                                Text(_error!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+                                const Gap(16),
+                                ElevatedButton(
+                                  onPressed: _loadData,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : KeyboardInsetPadding(
+                            child: SingleChildScrollView(
+                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                              child: Column(
+                                children: [
+                                  // Patient Header Section
+                                  _buildPatientHeader(),
+                                  
+                                  // Vertical spacing between sections (responsive)
+                                  Gap(MediaQuery.of(context).size.width < 768 ? 8 : 6),
+                                  
+                                  // Chronic Conditions Section
+                                  _buildChronicConditionsSection(),
+                                  
+                                  // Vertical spacing between sections (responsive)
+                                  Gap(MediaQuery.of(context).size.width < 768 ? 12 : 12),
+                                  
+                                  // Collapsible Tab Section
+                                  _buildCollapsibleTabSection(),
+                                ],
+                              ),
+                            ),
+                          ),
+                // Overlay for section details
+                if (_showOverlay) _buildSectionOverlay(),
+                
+                // Pinned toggle button (only when expanded)
+                if (_isTabSectionExpanded && _currentNavIndex == 1) _buildPinnedToggleButton(),
+              ],
+            ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: BottomNavigationBar(
+          currentIndex: _currentNavIndex,
+          onTap: (index) {
+            setState(() {
+              _currentNavIndex = index;
+            });
+            // Load appointments data when switching to appointments tab
+            if (index == 0) {
+              if (_hospitals == null) {
+                _loadHospitals();
+              }
+              if (_departments == null) {
+                _loadDepartments();
+              }
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.blue.shade700,
+          unselectedItemColor: Colors.grey.shade600,
+          selectedLabelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today_outlined),
+              activeIcon: Icon(Icons.calendar_today),
+              label: 'Appointment',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined),
+              activeIcon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentsScreen() {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Text(
+              'Book Appointment',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+            ),
+            const Gap(8),
+            Text(
+              'Select a hospital and department to book your appointment',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
+            ),
+            const Gap(24),
+
+            // Hospital Dropdown
+            Text(
+              'Hospital *',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const Gap(8),
+            _loadingHospitals
+                ? const Center(child: CircularProgressIndicator())
+                : DropdownButtonFormField<Hospital>(
+                    value: _selectedHospital,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    hint: const Text('Select a hospital'),
+                    items: _hospitals?.map((hospital) {
+                      return DropdownMenuItem<Hospital>(
+                        value: hospital,
+                        child: Text(hospital.name),
+                      );
+                    }).toList(),
+                    onChanged: (hospital) {
+                      setState(() {
+                        _selectedHospital = hospital;
+                        _selectedDepartment = null; // Reset department when hospital changes
+                      });
+                    },
+                  ),
+            const Gap(24),
+
+            // Department Dropdown
+            Text(
+              'Department *',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const Gap(8),
+            _loadingDepartments
+                ? const Center(child: CircularProgressIndicator())
+                : IgnorePointer(
+                    ignoring: _selectedHospital == null,
+                    child: Opacity(
+                      opacity: _selectedHospital == null ? 0.6 : 1.0,
+                      child: DropdownButtonFormField<Department>(
+                        value: _selectedDepartment,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: _selectedHospital != null
+                              ? Colors.white
+                              : Colors.grey.shade100,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        hint: Text(
+                          _selectedHospital == null
+                              ? 'Please select a hospital first'
+                              : 'Select a department',
+                        ),
+                        items: _departments?.map((department) {
+                          return DropdownMenuItem<Department>(
+                            value: department,
+                            child: Text(department.name),
+                          );
+                        }).toList(),
+                        onChanged: _selectedHospital == null
+                            ? null
+                            : (department) {
+                                setState(() {
+                                  _selectedDepartment = department;
+                                });
+                              },
+                      ),
+                    ),
+                  ),
+            const Gap(32),
+
+            // Error Message
+            if (_appointmentError != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700),
+                    const Gap(8),
+                    Expanded(
+                      child: Text(
+                        _appointmentError!,
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (_appointmentError != null) const Gap(16),
+
+            // Submit Button
+            ElevatedButton(
+              onPressed: (_selectedHospital != null &&
+                      _selectedDepartment != null &&
+                      !_submittingAppointment)
+                  ? _handleAppointmentSubmission
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                disabledBackgroundColor: Colors.grey.shade300,
+              ),
+              child: _submittingAppointment
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        Gap(12),
+                        Text('Processing...'),
+                      ],
+                    )
+                  : const Text(
+                      'Book Appointment',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+            const Gap(16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadHospitals() async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      setState(() {
+        _appointmentError = 'Failed to initialize API client';
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingHospitals = true;
+      _appointmentError = null;
+    });
+
+    try {
+      final hospitalsData = await _api!.fetchHospitals();
+      final hospitals = (hospitalsData as List)
+          .map((json) => Hospital.fromJson(json as Map<String, dynamic>))
+          .where((h) => h.isActive)
+          .toList();
+
+      setState(() {
+        _hospitals = hospitals;
+        _loadingHospitals = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingHospitals = false;
+        _appointmentError = 'Failed to load hospitals: $e';
+      });
+    }
+  }
+
+  Future<void> _loadDepartments() async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      setState(() {
+        _appointmentError = 'Failed to initialize API client';
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingDepartments = true;
+      _appointmentError = null;
+    });
+
+    try {
+      final departmentsData = await _api!.fetchDepartments();
+      final departments = (departmentsData as List)
+          .map((json) => Department.fromJson(json as Map<String, dynamic>))
+          .where((d) => d.isActive)
+          .toList();
+
+      setState(() {
+        _departments = departments;
+        _loadingDepartments = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingDepartments = false;
+        _appointmentError = 'Failed to load departments: $e';
+      });
+    }
+  }
+
+  Future<int> _fetchPatientId() async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      throw Exception('Failed to initialize API client');
+    }
+
+    try {
+      final patient = await _api!.fetchPatient(widget.cnic);
+      final patientId = patient['patientId'] as int? ?? patient['PatientID'] as int?;
+      if (patientId == null) {
+        throw Exception('Patient ID not found in patient data');
+      }
+      return patientId;
+    } catch (e) {
+      throw Exception('Failed to fetch patient ID: $e');
+    }
+  }
+
+  Future<void> _handleAppointmentSubmission() async {
+    if (_selectedHospital == null || _selectedDepartment == null) {
+      return;
+    }
+
+    setState(() {
+      _submittingAppointment = true;
+      _appointmentError = null;
+    });
+
+    try {
+      // Fetch patient ID
+      final patientId = await _fetchPatientId();
+
+      if (_api == null) {
+        throw Exception('API client not initialized');
+      }
+
+      // Submit to queue
+      final response = await _api!.addPatientToQueue(
+        patientId: patientId,
+        hospitalId: _selectedHospital!.hospitalID,
+        hospitalDepartmentId: _selectedDepartment!.departmentID,
+        createdBy: 1, // Default user ID
+        priority: 'Normal',
+        queueType: 'OPD',
+        visitPurpose: 'Check-Up',
+        patientSource: 'SELF_CHECKIN',
+      );
+
+      final queueResponse = QueueResponse.fromJson(response);
+
+      // Create appointment details
+      final appointmentDetails = AppointmentDetails(
+        queueResponse: queueResponse,
+        hospital: _selectedHospital!,
+        department: _selectedDepartment!,
+        patientName: _patient?['name'] as String? ?? 'Unknown',
+        patientMRN: widget.cnic,
+        appointmentDate: DateTime.now(),
+        queuePosition: null, // Can be added if API provides it
+        estimatedWaitTime: null, // Can be calculated or provided by API
+      );
+
+      // Navigate to success screen
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => AppointmentSuccessScreen(
+              appointment: appointmentDetails,
+            ),
+          ),
+        );
+
+        // Reset form after navigation
+        setState(() {
+          _selectedHospital = null;
+          _selectedDepartment = null;
+          _submittingAppointment = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _submittingAppointment = false;
+        _appointmentError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
   Widget _buildPatientHeader() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
       color: Colors.white,
-      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 768 ? 16 : 20),
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
       child: Column(
         children: [
           // Patient Profile - Full Width Card
           Card(
-              elevation: 3,
+            elevation: 3,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: Colors.blue.shade400, width: 2),
             ),
-              child: Padding(
-            padding: const EdgeInsets.all(20),
-              child: Row(
-              children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      size: 30,
-                      color: Colors.blue.shade600,
-                    ),
-                  ),
-                  const Gap(16),
-                  Expanded(
-                    child: Column(
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 16 : 20),
+              child: isMobile
+                  ? Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                Text(
-                      _patient?['name'] as String? ?? 'Loading...',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade800,
-                  ),
-                ),
-                const Gap(8),
-                        // Single line with MRN and other fields
-                Text(
-                          'MRN: ${_patient?['mrn'] ?? 'N/A'} • ${_patient?['gender'] ?? 'N/A'} • ${_patient?['age'] ?? 'N/A'} years • ${_patient?['bloodType'] ?? 'N/A'} • Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                        Row(
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(28),
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                size: 28,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                            const Gap(12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _patient?['name'] as String? ?? 'Loading...',
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                  const Gap(4),
+                                  Text(
+                                    'MRN: ${_patient?['mrn'] ?? 'N/A'}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Gap(12),
+                        Divider(height: 1, color: Colors.grey.shade300),
+                        const Gap(12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            _buildInfoChip(Icons.person_outline, 'Gender', _patient?['gender'] ?? 'N/A'),
+                            _buildInfoChip(Icons.cake_outlined, 'Age', '${_patient?['age'] ?? 'N/A'} years'),
+                            _buildInfoChip(Icons.bloodtype, 'Blood Type', _patient?['bloodType'] ?? 'N/A'),
+                            _buildInfoChip(Icons.calendar_today, 'Last Visit', _patient?['lastVisit'] ?? 'N/A'),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Icon(
+                            Icons.person,
+                            size: 30,
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                        const Gap(16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _patient?['name'] as String? ?? 'Loading...',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                              const Gap(8),
+                              Text(
+                                'MRN: ${_patient?['mrn'] ?? 'N/A'} • ${_patient?['gender'] ?? 'N/A'} • ${_patient?['age'] ?? 'N/A'} years • ${_patient?['bloodType'] ?? 'N/A'} • Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                  ),
-                ),
-              ],
-                ),
-              ),
+                    ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.blue.shade700),
+          const Gap(6),
+          Text(
+            '$label: $value',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blue.shade900,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildChronicConditionsSection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 768 ? 16 : 20),
-            child: Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Colors.red.shade300, width: 1),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
             borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: Colors.red.shade300, width: 1),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-              child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-                  children: [
-              // Icon
-              Icon(
-                Icons.health_and_safety,
-                size: 20,
-                color: Colors.red.shade600,
-              ),
-                        const Gap(8),
-              // Title
-                        Text(
-                'Chronic Conditions:',
-                style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                  color: Colors.red.shade800,
-                  fontSize: 15,
-                ),
-              ),
-              const Gap(8),
-              // Conditions
-              Expanded(
-                child: Row(
-                  children: [
-                    _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
-                    const Gap(6),
-                    _buildSimpleConditionChip('Hypertension', 'I10'),
-                    const Gap(6),
-                    _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
-                  ],
-                ),
-                              ),
-                            ],
-                    ),
-                ),
-              ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 12 : 16),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.health_and_safety,
+                            size: 20,
+                            color: Colors.red.shade600,
+                          ),
+                          const Gap(8),
+                          Text(
+                            'Chronic Conditions:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade800,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Gap(10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
+                          _buildSimpleConditionChip('Hypertension', 'I10'),
+                          _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Icon(
+                        Icons.health_and_safety,
+                        size: 20,
+                        color: Colors.red.shade600,
+                      ),
+                      const Gap(8),
+                      Text(
+                        'Chronic Conditions:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const Gap(8),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
+                            const Gap(6),
+                            _buildSimpleConditionChip('Hypertension', 'I10'),
+                            const Gap(6),
+                            _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -435,6 +975,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildSectionCard(String title, IconData icon, Color color, int count, String sectionKey) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -442,46 +983,54 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         onTap: () => _showSectionOverlay(sectionKey),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 24),
-                  const Gap(8),
-                  Expanded(
-                    child: Text(
+          padding: EdgeInsets.all(isMobile ? 18 : 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: isMobile ? 28 : 24),
+              ),
+              const Gap(16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: color,
+                        fontSize: isMobile ? 16 : 14,
                       ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-                      count.toString(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    ),
+                    const Gap(4),
+                    Text(
+                      '$count records',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                        fontSize: isMobile ? 13 : 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
-              ),
-              const Gap(8),
-              Text(
-                'Tap to view details',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade600,
-                  fontStyle: FontStyle.italic,
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 8, vertical: isMobile ? 6 : 4),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  count.toString(),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: isMobile ? 14 : 12,
+                  ),
                 ),
               ),
             ],
@@ -822,196 +1371,334 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildSectionOverlay() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
       color: Colors.black.withValues(alpha: 0.5),
-      child: Center(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.8,
-          margin: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-      child: Column(
-        children: [
-              // Header
-          Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      _getSectionColor(_selectedSection!).withValues(alpha: 0.1),
-                      _getSectionColor(_selectedSection!).withValues(alpha: 0.05),
-                    ],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: _getSectionColor(_selectedSection!).withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                      child: Row(
-                        children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _getSectionColor(_selectedSection!),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _getSectionColor(_selectedSection!).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
+      child: isMobile
+          ? Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.white,
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _getSectionColor(_selectedSection!).withValues(alpha: 0.1),
+                          _getSectionColor(_selectedSection!).withValues(alpha: 0.05),
                         ],
                       ),
-                      child: Icon(
-                        _getSectionIcon(_selectedSection!),
-                        color: Colors.white,
-                            size: 24,
-                          ),
-                    ),
-                    const Gap(16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _getSectionTitle(_selectedSection!),
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade800,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const Gap(4),
-                          Text(
-                            '${_getDataCount(_selectedSection!)} records found',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      border: Border(
+                        bottom: BorderSide(
+                          color: _getSectionColor(_selectedSection!).withValues(alpha: 0.2),
+                          width: 1,
+                        ),
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Row(
                       children: [
                         Container(
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade600,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.green.withValues(alpha: 0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                            color: _getSectionColor(_selectedSection!),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: IconButton(
-                            onPressed: () => _generateAndPrintPDF(_selectedSection!),
-                            icon: const Icon(Icons.print_rounded),
-                            tooltip: 'Print PDF',
+                          child: Icon(
+                            _getSectionIcon(_selectedSection!),
                             color: Colors.white,
+                            size: 20,
                           ),
                         ),
-                        const Gap(8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+                        const Gap(12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getSectionTitle(_selectedSection!),
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                              const Gap(2),
+                              Text(
+                                '${_getDataCount(_selectedSection!)} records',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
-                          child: IconButton(
-                            onPressed: _hideOverlay,
-                            icon: const Icon(Icons.close_rounded),
-                            tooltip: 'Close',
-                            color: Colors.grey.shade600,
-                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () => _generateAndPrintPDF(_selectedSection!),
+                              icon: const Icon(Icons.print_rounded),
+                              tooltip: 'Print PDF',
+                              color: Colors.green.shade600,
+                            ),
+                            IconButton(
+                              onPressed: _hideOverlay,
+                              icon: const Icon(Icons.close_rounded),
+                              tooltip: 'Close',
+                              color: Colors.grey.shade600,
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                  ),
+                  // Content
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Column(
+                          children: [
+                            // Search bar for modal
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              child: TextField(
+                                controller: _getSearchController(_selectedSection!),
+                                onChanged: (value) => setState(() {}),
+                                decoration: InputDecoration(
+                                  hintText: 'Search ${_getSectionTitle(_selectedSection!).toLowerCase()}...',
+                                  prefixIcon: const Icon(Icons.search),
+                                  suffixIcon: _getSearchController(_selectedSection!)?.text.isNotEmpty == true
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () {
+                                            _getSearchController(_selectedSection!)?.clear();
+                                            setState(() {});
+                                          },
+                                        )
+                                      : null,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                              ),
+                            ),
+                            // Content area
+                            Expanded(
+                              child: _buildSectionContent(_selectedSection!),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                height: MediaQuery.of(context).size.height * 0.8,
+                margin: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            _getSectionColor(_selectedSection!).withValues(alpha: 0.1),
+                            _getSectionColor(_selectedSection!).withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                        ),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: _getSectionColor(_selectedSection!).withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _getSectionColor(_selectedSection!),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getSectionColor(_selectedSection!).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _getSectionIcon(_selectedSection!),
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const Gap(16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getSectionTitle(_selectedSection!),
+                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const Gap(4),
+                                Text(
+                                  '${_getDataCount(_selectedSection!)} records found',
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade600,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.green.withValues(alpha: 0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  onPressed: () => _generateAndPrintPDF(_selectedSection!),
+                                  icon: const Icon(Icons.print_rounded),
+                                  tooltip: 'Print PDF',
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const Gap(8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  onPressed: _hideOverlay,
+                                  icon: const Icon(Icons.close_rounded),
+                                  tooltip: 'Close',
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Content
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey.shade200,
+                            width: 1,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Column(
+                            children: [
+                              // Search bar for modal
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                child: TextField(
+                                  controller: _getSearchController(_selectedSection!),
+                                  onChanged: (value) => setState(() {}),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search ${_getSectionTitle(_selectedSection!).toLowerCase()}...',
+                                    prefixIcon: const Icon(Icons.search),
+                                    suffixIcon: _getSearchController(_selectedSection!)?.text.isNotEmpty == true
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              _getSearchController(_selectedSection!)?.clear();
+                                              setState(() {});
+                                            },
+                                          )
+                                        : null,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              // Content area
+                              Expanded(
+                                child: _buildSectionContent(_selectedSection!),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              // Content
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey.shade200,
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Column(
-                      children: [
-                        // Search bar for modal
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          child: TextField(
-                            controller: _getSearchController(_selectedSection!),
-                            onChanged: (value) => setState(() {}),
-                            decoration: InputDecoration(
-                              hintText: 'Search ${_getSectionTitle(_selectedSection!).toLowerCase()}...',
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: _getSearchController(_selectedSection!)?.text.isNotEmpty == true
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _getSearchController(_selectedSection!)?.clear();
-                                        setState(() {});
-                                      },
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        // Content area
-                        Expanded(
-                          child: _buildSectionContent(_selectedSection!),
-                        ),
-                      ],
-                    ),
-                                      ),
-                                    ),
-                                  ),
-            ],
-                                      ),
-                                    ),
-                                  ),
+            ),
     );
   }
 
@@ -1418,13 +2105,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildCollapsibleTabSection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 768 ? 16 : 20),
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
       child: Column(
         children: [
           // Collapsible Tab Section
           Container(
-            height: _isTabSectionExpanded ? MediaQuery.of(context).size.height * 0.7 : 220,
+            height: _isTabSectionExpanded 
+                ? (isMobile ? MediaQuery.of(context).size.height * 0.75 : MediaQuery.of(context).size.height * 0.7)
+                : (isMobile ? 200 : 220),
             child: Container(
               color: Colors.white,
               child: _isTabSectionExpanded 
@@ -1435,7 +2125,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       // Content Area
                       Expanded(child: _buildTabBarView()),
                       // Space for toggle button
-                      const SizedBox(height: 40),
+                      SizedBox(height: isMobile ? 50 : 40),
                     ],
                   )
                 : Stack(
@@ -1457,7 +2147,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           
           // Medical Record Section Cards (shown only when collapsed)
           if (!_isTabSectionExpanded) ...[
-            Gap(MediaQuery.of(context).size.width < 768 ? 12 : 16),
+            Gap(isMobile ? 12 : 16),
             _buildMedicalRecordCards(),
           ],
         ],
@@ -1466,40 +2156,58 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildMedicalRecordCards() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
       color: Colors.white,
-      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 768 ? 16 : 20),
-      child: Column(
-        children: [
-          // Second Row - Other Medical Sections
-          Row(
-            children: [
-              Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
-            ],
-          ),
-          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
-          Row(
-            children: [
-              Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
-              Gap(MediaQuery.of(context).size.width < 768 ? 8 : 16),
-              Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
-            ],
-          ),
-          Gap(MediaQuery.of(context).size.width < 768 ? 12 : 20),
-          Row(
-            children: [
-              Expanded(child: _buildSectionCard('Pregnancy Registration', Icons.pregnant_woman, Colors.pink, _pregnancy?.length ?? 0, 'pregnancy')),
-              const Spacer(),
-            ],
-          ),
-        ],
-      ),
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
+      child: isMobile
+          ? Column(
+              children: [
+                _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals'),
+                const Gap(12),
+                _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd'),
+                const Gap(12),
+                _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd'),
+                const Gap(12),
+                _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs'),
+                const Gap(12),
+                _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology'),
+                const Gap(12),
+                _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery'),
+                const Gap(12),
+                _buildSectionCard('Pregnancy Registration', Icons.pregnant_woman, Colors.pink, _pregnancy?.length ?? 0, 'pregnancy'),
+              ],
+            )
+          : Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildSectionCard('Vitals', Icons.favorite, Colors.red, _vitals?.length ?? 0, 'vitals')),
+                    const Gap(16),
+                    Expanded(child: _buildSectionCard('OPD Visits', Icons.meeting_room_outlined, Colors.indigo, _opd?.length ?? 0, 'opd')),
+                    const Gap(16),
+                    Expanded(child: _buildSectionCard('IPD Admissions', Icons.local_hospital_outlined, Colors.teal, _ipd?.length ?? 0, 'ipd')),
+                  ],
+                ),
+                const Gap(20),
+                Row(
+                  children: [
+                    Expanded(child: _buildSectionCard('Lab Results', Icons.biotech_outlined, Colors.orange, _labs?.length ?? 0, 'labs')),
+                    const Gap(16),
+                    Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
+                    const Gap(16),
+                    Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
+                  ],
+                ),
+                const Gap(20),
+                Row(
+                  children: [
+                    Expanded(child: _buildSectionCard('Pregnancy Registration', Icons.pregnant_woman, Colors.pink, _pregnancy?.length ?? 0, 'pregnancy')),
+                    const Spacer(),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -1599,6 +2307,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildTabBar() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return Container(
       color: Colors.white,
       child: TabBar(
@@ -1607,6 +2316,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         labelColor: Colors.green,
         unselectedLabelColor: Colors.grey.shade600,
         indicatorColor: Colors.green,
+        labelPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 12),
+        labelStyle: TextStyle(
+          fontSize: isMobile ? 14 : 13,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: isMobile ? 14 : 13,
+        ),
+        tabAlignment: isMobile ? TabAlignment.start : TabAlignment.center,
         tabs: const [
           Tab(text: 'Vitals'),
           Tab(text: 'Medications'),
