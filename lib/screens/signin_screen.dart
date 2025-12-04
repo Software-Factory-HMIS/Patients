@@ -4,6 +4,9 @@ import 'package:gap/gap.dart';
 import 'otp_screen.dart';
 import 'registration_phone_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../utils/emr_api_client.dart';
+import '../utils/user_storage.dart';
+import '../utils/mock_user.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -18,9 +21,79 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Test API connection when app launches
+    _testApiConnection();
+    // Initialize mock user if no user data exists
+    _initializeMockUserIfNeeded();
+    // Load saved user data to pre-fill form
+    _loadSavedUserData();
+  }
+
+  Future<void> _initializeMockUserIfNeeded() async {
+    try {
+      final shouldUseMock = await MockUser.shouldUseMockUser();
+      if (shouldUseMock) {
+        await MockUser.initializeMockUser();
+      }
+    } catch (e) {
+      debugPrint('Error initializing mock user: $e');
+    }
+  }
+
+  Future<void> _loadSavedUserData() async {
+    try {
+      final phoneNumber = await UserStorage.getPhoneNumber();
+      if (phoneNumber != null && mounted) {
+        _mrnController.text = phoneNumber;
+      }
+    } catch (e) {
+      debugPrint('Error loading saved user data: $e');
+    }
+  }
+
+  @override
   void dispose() {
     _mrnController.dispose();
     super.dispose();
+  }
+
+  Future<void> _testApiConnection() async {
+    try {
+      // Wait a bit for the UI to be ready
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Create API client with fallback mechanism
+      final apiClient = await EmrApiClient.create();
+      
+      // Test the connection
+      final isConnected = await apiClient.testConnection();
+      
+      if (mounted && isConnected) {
+        // Show success toast message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('API connection established'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Silently fail - don't show error toast on launch
+      // Connection issues will be handled when API is actually used
+      if (mounted) {
+        debugPrint('API connection test failed: $e');
+      }
+    }
   }
 
   String? _requiredValidator(String? value, {String fieldName = 'This field'}) {

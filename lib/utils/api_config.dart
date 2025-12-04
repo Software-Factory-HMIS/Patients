@@ -12,24 +12,23 @@ String resolveEmrBaseUrl() {
     return defined;
   }
 
+  // Default to localhost:7287 for all platforms
+  print('🌐 Using default API URL: http://localhost:7287');
+  
   if (kIsWeb) {
-    print('🌐 Web platform detected, using localhost');
-    return 'https://localhost:7287';
+    return 'http://localhost:7287';
   }
 
   try {
     if (Platform.isAndroid) {
-      print('📱 Android platform detected');
-      // For Android emulator, use 10.0.2.2 to access host machine's localhost
-      // For physical devices, use the primary IP
-      // API is running at https://localhost:7287
-      return 'https://10.0.2.2:7287'; // Android emulator host IP
+      print('📱 Android platform detected, using localhost');
+      return 'http://localhost:7287';
     } else if (Platform.isIOS) {
       print('🍎 iOS platform detected, using localhost');
-      return 'https://localhost:7287';
+      return 'http://localhost:7287';
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       print('💻 Desktop platform detected, using localhost');
-      return 'https://localhost:7287';
+      return 'http://localhost:7287';
     }
   } catch (e) {
     print('⚠️ Platform detection failed: $e');
@@ -37,12 +36,12 @@ String resolveEmrBaseUrl() {
   }
 
   print('🔄 Fallback to localhost');
-  return 'https://localhost:7287';
+  return 'http://localhost:7287';
 }
 
 // Primary and fallback IP addresses for physical devices
 // Update these IPs to match your actual network configuration
-const String _primaryIp = '192.168.51.207';  // Your development machine (actual IP)
+const String _primaryIp = '172.30.163.21';   // Your development machine (test server IP)
 const String _fallbackIp = '192.168.56.122'; // Secondary machine
 const String _tertiaryIp = '10.152.206.21';  // Additional fallback machine
 const int _port = 7287;
@@ -68,27 +67,45 @@ String getTertiaryBaseUrl() {
   return 'http://$_tertiaryIp:$_port';
 }
 
-// Test connection to a URL and return true if successful
+// Test connection to a URL by testing hospitals and departments endpoints
 Future<bool> testConnection(String baseUrl) async {
+  final client = http.Client();
+  
   try {
-    final uri = Uri.parse('$baseUrl/api/health');
-    print('🔍 Testing connection to: $uri');
-    final client = http.Client();
+    // Test hospitals endpoint first
+    final hospitalsUri = Uri.parse('$baseUrl/api/hospitals');
+    print('🔍 Testing connection to: $hospitalsUri');
     
-    // Increase timeout for physical devices
-    final response = await client.get(uri).timeout(const Duration(seconds: 10));
-    client.close();
+    final hospitalsResponse = await client.get(hospitalsUri).timeout(const Duration(seconds: 10));
     
-    print('📡 Response status: ${response.statusCode}');
-    if (response.statusCode == 200) {
-      print('✅ Health check successful: ${response.body}');
-      return true;
+    print('📡 Hospitals endpoint status: ${hospitalsResponse.statusCode}');
+    
+    // If hospitals endpoint works, try departments endpoint
+    if (hospitalsResponse.statusCode >= 200 && hospitalsResponse.statusCode < 300) {
+      final departmentsUri = Uri.parse('$baseUrl/api/departments');
+      print('🔍 Testing departments endpoint: $departmentsUri');
+      
+      final departmentsResponse = await client.get(departmentsUri).timeout(const Duration(seconds: 10));
+      
+      print('📡 Departments endpoint status: ${departmentsResponse.statusCode}');
+      
+      if (departmentsResponse.statusCode >= 200 && departmentsResponse.statusCode < 300) {
+        print('✅ Connection test successful - Both hospitals and departments endpoints are working');
+        client.close();
+        return true;
+      } else {
+        print('⚠️ Hospitals endpoint works but departments returned: ${departmentsResponse.statusCode}');
+        client.close();
+        return false;
+      }
     } else {
-      print('⚠️ Unexpected status code: ${response.statusCode}');
+      print('⚠️ Hospitals endpoint returned unexpected status: ${hospitalsResponse.statusCode}');
+      client.close();
       return false;
     }
   } catch (e) {
     print('❌ Connection test failed: $e');
+    client.close();
     
     // Provide specific error guidance
     if (e.toString().contains('TimeoutException')) {
@@ -121,18 +138,19 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
   
   try {
     if (Platform.isAndroid) {
-      print('📱 Android device detected - prioritizing emulator host IP');
+      print('📱 Android device detected - prioritizing localhost');
       urlsToTry = [
-        'https://10.0.2.2:7287', // Android emulator host IP (maps to localhost:7287)
-        getPrimaryBaseUrl(),    // Your development machine (192.168.56.200)
+        'http://localhost:7287', // Default - try localhost first
+        'http://127.0.0.1:7287',
+        getPrimaryBaseUrl(),    // Your development machine (172.30.163.21)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
         getTertiaryBaseUrl(),   // Tertiary machine (10.152.206.21)
       ];
     } else {
       print('💻 Non-Android platform detected - prioritizing localhost');
       urlsToTry = [
-        'https://localhost:7287',
-        'https://127.0.0.1:7287',
+        'http://localhost:7287', // Default
+        'http://127.0.0.1:7287',
         getPrimaryBaseUrl(),    // Your development machine
         getFallbackBaseUrl(),   // Secondary machine
         getTertiaryBaseUrl(),   // Tertiary machine
@@ -141,8 +159,8 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
   } catch (e) {
     print('⚠️ Platform detection failed, using fallback URLs: $e');
     urlsToTry = [
-      'https://localhost:7287',
-      'https://10.0.2.2:7287',
+      'http://localhost:7287', // Default
+      'http://127.0.0.1:7287',
       getPrimaryBaseUrl(),
       getFallbackBaseUrl(),
       getTertiaryBaseUrl(),
@@ -172,7 +190,7 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
   }
   print('🔧 Troubleshooting tips:');
   print('   - Check if API server is running on the target machine');
-  print('   - Verify firewall allows connections on port 5107');
+  print('   - Verify firewall allows connections on port 7287');
   print('   - Ensure all devices are on the same network');
   print('   - Test connectivity: ping the IP addresses');
   
@@ -187,28 +205,29 @@ Future<void> testAllUrls() async {
   
   try {
     if (Platform.isAndroid) {
-      // For Android devices, focus on network IPs
+      // For Android devices
       urls = [
-        getPrimaryBaseUrl(),    // Your development machine (192.168.56.200)
+        'http://localhost:7287',
+        'http://127.0.0.1:7287',
+        getPrimaryBaseUrl(),    // Your development machine (172.30.163.21)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
         getTertiaryBaseUrl(),   // Tertiary machine (10.152.206.21)
-        'http://10.0.2.2:5107', // Android emulator host IP
-        'http://localhost:5107', // Only works with USB debugging
       ];
     } else {
       // For other platforms (web, desktop)
       urls = [
-        'http://localhost:5107',
+        'http://localhost:7287',
+        'http://127.0.0.1:7287',
         getPrimaryBaseUrl(),    // Your development machine
         getFallbackBaseUrl(),   // Secondary machine
         getTertiaryBaseUrl(),   // Tertiary machine
-        'http://127.0.0.1:5107',
       ];
     }
   } catch (_) {
     // Fallback for web
     urls = [
-      'http://localhost:5107',
+      'http://localhost:7287',
+      'http://127.0.0.1:7287',
       getPrimaryBaseUrl(),      // Your development machine
       getFallbackBaseUrl(),     // Secondary machine
       getTertiaryBaseUrl(),     // Tertiary machine
@@ -231,15 +250,13 @@ Future<void> detectDeviceNetwork() async {
     if (Platform.isAndroid) {
       print('📱 Android device detected');
       
-      // Test common Android network configurations
+      // Test common network configurations
       final testUrls = [
-        'http://192.168.51.207:5107', // Your development machine (actual IP)
-        'http://10.0.2.2:5107', // Android emulator
-        'http://192.168.1.1:5107', // Common router IP
-        'http://192.168.0.1:5107', // Common router IP
-        'http://192.168.56.1:5107', // VirtualBox default
-        'http://192.168.56.122:5107', // Secondary machine
-        'http://10.152.206.21:5107', // Tertiary machine
+        'http://localhost:7287',
+        'http://127.0.0.1:7287',
+        'http://172.30.163.21:7287', // Your development machine (test server IP)
+        'http://192.168.56.122:7287', // Secondary machine
+        'http://10.152.206.21:7287', // Tertiary machine
       ];
       
       print('🧪 Testing common Android network configurations...');
@@ -257,15 +274,15 @@ Future<void> detectDeviceNetwork() async {
       print('   1. Check your router admin panel for connected devices');
       print('   2. Find your development machine IP address');
       print('   3. Update _primaryIp in api_config.dart');
-      print('   4. Ensure API server is running on port 5107');
+      print('   4. Ensure API server is running on port 7287');
       
       // Provide specific guidance based on the timeout error
       print('');
       print('🔧 Specific troubleshooting for timeout errors:');
-      print('   - Verify API server is running: Check terminal for "Now listening on: http://0.0.0.0:5107"');
-      print('   - Check Windows Firewall: Allow port 5107 through firewall');
+      print('   - Verify API server is running: Check terminal for "Now listening on: http://0.0.0.0:7287"');
+      print('   - Check Windows Firewall: Allow port 7287 through firewall');
       print('   - Verify network: Ensure device and server are on same WiFi');
-      print('   - Test manually: Open browser on device and go to http://192.168.51.207:5107/api/health');
+      print('   - Test manually: Open browser and go to http://localhost:7287/api/hospitals');
       print('   - Find correct IP: Run "ipconfig" on development machine to get actual IP');
     }
   } catch (e) {
@@ -282,15 +299,14 @@ void printNetworkInfo() {
     if (Platform.isAndroid) {
       print('📱 Physical Android Device Detected');
       print('The app will try these IP addresses in order:');
-      print('  1. ${getPrimaryBaseUrl()} (your development machine)');
-      print('  2. ${getFallbackBaseUrl()} (secondary machine)');
-      print('  3. ${getTertiaryBaseUrl()} (tertiary machine)');
-      print('  4. http://10.0.2.2:5107 (Android emulator only)');
-      print('  5. http://localhost:5107 (USB debugging only)');
+      print('  1. http://localhost:7287 (local development)');
+      print('  2. ${getPrimaryBaseUrl()} (your development machine)');
+      print('  3. ${getFallbackBaseUrl()} (secondary machine)');
+      print('  4. ${getTertiaryBaseUrl()} (tertiary machine)');
     } else {
       print('💻 Desktop/Web Platform Detected');
       print('The app will try these URLs in order:');
-      print('  1. http://localhost:5107 (local development)');
+      print('  1. http://localhost:7287 (local development)');
       print('  2. ${getPrimaryBaseUrl()} (your development machine)');
       print('  3. ${getFallbackBaseUrl()} (secondary machine)');
       print('  4. ${getTertiaryBaseUrl()} (tertiary machine)');
@@ -303,22 +319,24 @@ void printNetworkInfo() {
   print('');
   print('🔧 Troubleshooting Steps:');
   print('1. Verify API server is running:');
-  print('   - Check terminal shows: "Now listening on: http://0.0.0.0:5107"');
+  print('   - Check terminal shows: "Now listening on: http://0.0.0.0:7287"');
   print('   - Ensure server is accessible from network');
   print('');
   print('2. Check network connectivity:');
-  print('   - Ensure device and server are on same WiFi network');
-      print('   - Test ping: ping 192.168.51.207');
+  print('   - Use http://localhost:7287 for local development');
+  print('   - For network access: Ensure device and server are on same WiFi network');
+      print('   - Test ping: ping 172.30.163.21');
       print('   - Test ping: ping 192.168.56.122');
       print('   - Test ping: ping 10.152.206.21');
   print('');
   print('3. Verify firewall settings:');
-  print('   - Allow port 5107 through Windows Firewall');
+  print('   - Allow port 7287 through Windows Firewall');
   print('   - Check if antivirus is blocking connections');
   print('');
   print('4. Test API directly:');
-  print('   - Open browser on device: http://192.168.51.207:5107/api/health');
-  print('   - Should return: {"status":"healthy"}');
+  print('   - Local: Open browser and go to http://localhost:7287/api/hospitals');
+  print('   - Network: Open browser and go to http://172.30.163.21:7287/api/hospitals');
+  print('   - Should return a list of hospitals');
   print('');
   print('5. Development machine IP:');
   print('   - Find your IP: ipconfig (Windows) or ifconfig (Mac/Linux)');

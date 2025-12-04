@@ -21,14 +21,14 @@ class Hospital {
 
   factory Hospital.fromJson(Map<String, dynamic> json) {
     return Hospital(
-      hospitalID: json['HospitalID'] as int,
-      name: json['Name'] as String,
-      type: json['Type'] as String?,
-      subtype: json['Subtype'] as String?,
-      isActive: json['IsActive'] as bool? ?? true,
-      division: json['Division'] as String?,
-      district: json['District'] as String?,
-      tehsil: json['Tehsil'] as String?,
+      hospitalID: json['HospitalID'] as int? ?? json['hospitalID'] as int? ?? 0,
+      name: json['Name'] as String? ?? json['name'] as String? ?? '',
+      type: json['Type'] as String? ?? json['type'] as String?,
+      subtype: json['Subtype'] as String? ?? json['subtype'] as String?,
+      isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
+      division: json['Division'] as String? ?? json['division'] as String?,
+      district: json['District'] as String? ?? json['district'] as String?,
+      tehsil: json['Tehsil'] as String? ?? json['tehsil'] as String?,
     );
   }
 
@@ -58,11 +58,11 @@ class Department {
 
   factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
-      departmentID: json['DepartmentID'] as int,
-      name: json['Name'] as String,
-      description: json['Description'] as String?,
-      isActive: json['IsActive'] as bool? ?? true,
-      hospitalCount: json['HospitalCount'] as int? ?? 0,
+      departmentID: json['DepartmentID'] as int? ?? json['departmentID'] as int? ?? 0,
+      name: json['Name'] as String? ?? json['name'] as String? ?? '',
+      description: json['Description'] as String? ?? json['description'] as String?,
+      isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
+      hospitalCount: json['HospitalCount'] as int? ?? json['hospitalCount'] as int? ?? 0,
     );
   }
 }
@@ -93,6 +93,7 @@ class AppointmentDetails {
   final DateTime appointmentDate;
   final int? queuePosition;
   final String? estimatedWaitTime;
+  final Map<String, dynamic>? receiptData; // Receipt data from print API
 
   AppointmentDetails({
     required this.queueResponse,
@@ -103,6 +104,7 @@ class AppointmentDetails {
     required this.appointmentDate,
     this.queuePosition,
     this.estimatedWaitTime,
+    this.receiptData,
   });
 }
 

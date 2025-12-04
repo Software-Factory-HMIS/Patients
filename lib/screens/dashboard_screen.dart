@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/user_storage.dart';
 import '../models/appointment_models.dart';
 import 'appointment_success_screen.dart';
 
@@ -48,6 +49,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   bool _submittingAppointment = false;
   String? _appointmentError;
   int? _patientId;
+  Map<String, dynamic>? _savedUserData; // Saved user data from registration
   
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
@@ -64,11 +66,23 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _tabController = TabController(length: 8, vsync: this);
     _initializeApi();
     _loadData();
+    _loadSavedUserData();
     // Load appointments data since it's the default tab
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHospitals();
       _loadDepartments();
     });
+  }
+
+  Future<void> _loadSavedUserData() async {
+    try {
+      _savedUserData = await UserStorage.getUserData();
+      if (_savedUserData != null) {
+        print('✅ Loaded saved user data for appointment booking');
+      }
+    } catch (e) {
+      print('❌ Error loading saved user data: $e');
+    }
   }
 
   Future<void> _initializeApi() async {
@@ -616,10 +630,21 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     try {
       final departmentsData = await _api!.fetchDepartments();
-      final departments = (departmentsData as List)
-          .map((json) => Department.fromJson(json as Map<String, dynamic>))
-          .where((d) => d.isActive)
-          .toList();
+      final departments = <Department>[];
+      
+      for (var item in departmentsData) {
+        try {
+          final json = item as Map<String, dynamic>;
+          final department = Department.fromJson(json);
+          if (department.isActive && department.departmentID > 0) {
+            departments.add(department);
+          }
+        } catch (e) {
+          print('⚠️ Error parsing department: $e');
+          print('   Department data: $item');
+          // Skip invalid departments but continue processing others
+        }
+      }
 
       setState(() {
         _departments = departments;
@@ -630,6 +655,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _loadingDepartments = false;
         _appointmentError = 'Failed to load departments: $e';
       });
+      print('❌ Error loading departments: $e');
     }
   }
 
@@ -642,14 +668,75 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
 
     try {
-      final patient = await _api!.fetchPatient(widget.cnic);
-      final patientId = patient['patientId'] as int? ?? patient['PatientID'] as int?;
-      if (patientId == null) {
-        throw Exception('Patient ID not found in patient data');
+      // Try to fetch patient by CNIC/phone
+      String searchIdentifier = widget.cnic;
+      
+      // If we have saved user data, try using CNIC first, then phone
+      if (_savedUserData != null) {
+        final cnic = _savedUserData!['cnic'] as String?;
+        if (cnic != null && cnic.isNotEmpty) {
+          searchIdentifier = cnic;
+        } else {
+          final phone = _savedUserData!['phone'] as String?;
+          if (phone != null && phone.isNotEmpty) {
+            searchIdentifier = phone;
+          }
+        }
       }
-      return patientId;
+      
+      try {
+        final patient = await _api!.fetchPatient(searchIdentifier);
+        final patientId = patient['patientId'] as int? ?? patient['PatientID'] as int?;
+        if (patientId == null) {
+          throw Exception('Patient ID not found in patient data');
+        }
+        return patientId;
+      } catch (fetchError) {
+        // If patient not found (400 or 404), try to register the patient
+        if (_savedUserData != null && fetchError.toString().contains('400') || fetchError.toString().contains('404')) {
+          print('⚠️ Patient not found, attempting to register...');
+          
+          final fullName = _savedUserData!['fullName'] as String? ?? 'Unknown';
+          final cnic = _savedUserData!['cnic'] as String? ?? '';
+          final phone = _savedUserData!['phone'] as String? ?? '';
+          final email = _savedUserData!['email'] as String? ?? '';
+          final dateOfBirth = _savedUserData!['dateOfBirth'] as DateTime? ?? DateTime(1990, 1, 1);
+          final gender = _savedUserData!['gender'] as String? ?? 'Male';
+          final address = _savedUserData!['address'] as String? ?? '';
+          final bloodGroup = _savedUserData!['bloodGroup'] as String?;
+          
+          if (cnic.isEmpty && phone.isEmpty) {
+            throw Exception('Cannot register patient: CNIC or phone number is required');
+          }
+          
+          // Register the patient
+          final registeredPatient = await _api!.registerPatient(
+            fullName: fullName,
+            cnic: cnic.isNotEmpty ? cnic : phone,
+            phone: phone.isNotEmpty ? phone : cnic,
+            email: email,
+            dateOfBirth: dateOfBirth,
+            gender: gender,
+            address: address,
+            bloodGroup: bloodGroup,
+          );
+          
+          final patientId = registeredPatient['patientId'] as int? ?? 
+                           registeredPatient['PatientID'] as int?;
+          
+          if (patientId == null) {
+            throw Exception('Patient registered but ID not found in response');
+          }
+          
+          print('✅ Patient registered successfully with ID: $patientId');
+          return patientId;
+        }
+        // Re-throw if it's not a 400/404 error
+        throw fetchError;
+      }
     } catch (e) {
-      throw Exception('Failed to fetch patient ID: $e');
+      // If patient not found, throw error with helpful message
+      throw Exception('Failed to fetch/register patient: $e');
     }
   }
 
@@ -664,40 +751,61 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     });
 
     try {
-      // Fetch patient ID
-      final patientId = await _fetchPatientId();
-
+      if (_api == null) {
+        await _initializeApi();
+      }
+      
       if (_api == null) {
         throw Exception('API client not initialized');
       }
 
-      // Submit to queue
-      final response = await _api!.addPatientToQueue(
-        patientId: patientId,
-        hospitalId: _selectedHospital!.hospitalID,
-        hospitalDepartmentId: _selectedDepartment!.departmentID,
-        createdBy: 1, // Default user ID
-        priority: 'Normal',
-        queueType: 'OPD',
-        visitPurpose: 'Check-Up',
-        patientSource: 'SELF_CHECKIN',
+      // Use saved user data for appointment details (for demonstration)
+      final patientName = _savedUserData?['fullName'] as String? ?? 
+                          _patient?['name'] as String? ?? 
+                          'Unknown';
+      final patientMRN = _savedUserData?['cnic'] as String? ?? 
+                         _savedUserData?['phone'] as String? ?? 
+                         widget.cnic;
+
+      // Generate mock queue data (no database operations)
+      final mockQueueId = DateTime.now().millisecondsSinceEpoch % 100000; // Generate a mock queue ID
+      final mockTokenNumber = 'T${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'; // Generate token number
+      
+      // Create mock queue response
+      final mockQueueResponse = QueueResponse(
+        queueId: mockQueueId,
+        tokenNumber: mockTokenNumber,
       );
 
-      final queueResponse = QueueResponse.fromJson(response);
+      // Print queue receipt using API with mock queue ID
+      // This will retrieve receipt data as it appears in the print API
+      Map<String, dynamic> receiptData = {};
+      try {
+        print('🖨️ Calling print API with queue ID: $mockQueueId');
+        receiptData = await _api!.printQueueReceipt(queueId: mockQueueId);
+        print('✅ Queue receipt data retrieved successfully');
+        if (receiptData.isNotEmpty) {
+          print('📄 Receipt data: $receiptData');
+        }
+      } catch (e) {
+        print('⚠️ Failed to retrieve receipt data: $e');
+        // Continue anyway - will show appointment details
+      }
 
-      // Create appointment details
+      // Create appointment details with mock data and receipt data from print API
       final appointmentDetails = AppointmentDetails(
-        queueResponse: queueResponse,
+        queueResponse: mockQueueResponse,
         hospital: _selectedHospital!,
         department: _selectedDepartment!,
-        patientName: _patient?['name'] as String? ?? 'Unknown',
-        patientMRN: widget.cnic,
+        patientName: patientName,
+        patientMRN: patientMRN,
         appointmentDate: DateTime.now(),
-        queuePosition: null, // Can be added if API provides it
-        estimatedWaitTime: null, // Can be calculated or provided by API
+        queuePosition: null,
+        estimatedWaitTime: null,
+        receiptData: receiptData.isNotEmpty ? receiptData : null, // Include receipt data from print API
       );
 
-      // Navigate to success screen
+      // Navigate to success screen with appointment details
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(

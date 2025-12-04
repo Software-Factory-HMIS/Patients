@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_phone_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../utils/user_storage.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String? phoneNumber;
@@ -286,7 +287,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       });
 
       // Simulate submission
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 500), () async {
         if (mounted) {
           setState(() {
             _isSubmitting = false;
@@ -332,16 +333,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               'bloodGroup': _bloodGroup,
             };
             
-            setState(() {
-              _showDetailsCard = true;
-            });
+            // Save user data for demonstration purposes
+            await UserStorage.saveUserData(_registeredPatientData!);
             
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_translations['registrationSuccessful']!),
-                backgroundColor: Colors.green,
-              ),
-            );
+            if (mounted) {
+              setState(() {
+                _showDetailsCard = true;
+              });
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_translations['registrationSuccessful']!),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           }
         }
       });

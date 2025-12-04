@@ -35,25 +35,105 @@ class EmrApiClient {
   }
 
   Future<Map<String, dynamic>> fetchPatient(String mrn) async {
-    final uri = Uri.parse('$baseUrl/api/patient/$mrn');
+    // Try both with and without dashes
+    final cleanMrn = mrn.replaceAll('-', '');
+    final uris = [
+      Uri.parse('$baseUrl/api/patient/$mrn'),      // Try with dashes first
+      Uri.parse('$baseUrl/api/patient/$cleanMrn'), // Then without dashes
+    ];
+    
+    Exception? lastError;
+    
+    for (final uri in uris) {
+      try {
+        print('🔍 Fetching patient from: $uri');
+        final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+        print('📡 Response status: ${res.statusCode}');
+        
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final patient = json.decode(res.body) as Map<String, dynamic>;
+          print('✅ Patient loaded successfully: ${patient['name'] ?? 'Unknown'}');
+          return patient;
+        }
+        
+        // If 400 or 404, try next format
+        if (res.statusCode == 400 || res.statusCode == 404) {
+          print('⚠️ Patient not found with format: $uri');
+          lastError = Exception('Failed to load patient (${res.statusCode}): ${res.body}');
+          continue; // Try next format
+        }
+        
+        // For other errors, throw immediately
+        throw Exception('Failed to load patient (${res.statusCode}): ${res.body}');
+      } catch (e) {
+        if (e.toString().contains('400') || e.toString().contains('404')) {
+          lastError = e as Exception;
+          continue; // Try next format
+        }
+        print('❌ Error fetching patient: $e');
+        rethrow;
+      }
+    }
+    
+    // If all formats failed, throw the last error
+    if (lastError != null) {
+      throw lastError;
+    }
+    throw Exception('Failed to load patient: All formats failed');
+  }
+
+  // Register a new patient
+  Future<Map<String, dynamic>> registerPatient({
+    required String fullName,
+    required String cnic,
+    required String phone,
+    required String email,
+    required DateTime dateOfBirth,
+    required String gender,
+    required String address,
+    String? bloodGroup,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient');
     try {
-      print('🔍 Fetching patient from: $uri');
-      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      print('🔍 Registering patient: $uri');
+      
+      // Remove dashes from CNIC for API
+      final cleanCnic = cnic.replaceAll('-', '');
+      
+      final body = {
+        'fullName': fullName,
+        'cnic': cleanCnic,
+        'phone': phone,
+        'email': email,
+        'dateOfBirth': dateOfBirth.toIso8601String(),
+        'gender': gender,
+        'address': address,
+        if (bloodGroup != null && bloodGroup.isNotEmpty) 'bloodGroup': bloodGroup,
+      };
+      
+      print('📤 Request body: $body');
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
       print('📡 Response status: ${res.statusCode}');
+      print('📡 Response body: ${res.body}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        final patient = json.decode(res.body) as Map<String, dynamic>;
-        // Verify the returned patient's MRN matches the requested MRN
-        final returnedMrn = patient['mrn'] as String?;
-        if (returnedMrn != mrn) {
-          throw Exception('MRN mismatch: requested $mrn but got $returnedMrn');
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
         }
-        print('✅ Patient loaded successfully: ${patient['name']}');
-        return patient;
+        print('✅ Patient registered successfully');
+        return response;
       }
-      throw Exception('Failed to load patient (${res.statusCode}): ${res.body}');
+      throw Exception('Failed to register patient (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error fetching patient: $e');
+      print('❌ Error registering patient: $e');
       rethrow;
     }
   }
@@ -236,6 +316,42 @@ class EmrApiClient {
       rethrow;
     }
   }
-}
 
+  // Print queue receipt - returns receipt data as it appears in the print API
+  Future<Map<String, dynamic>> printQueueReceipt({
+    required int queueId,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/queue/$queueId/print');
+    try {
+      print('🖨️ Printing queue receipt for queue ID: $queueId');
+      print('🔍 Print endpoint: $uri');
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 15));
+      
+      print('📡 Print response status: ${res.statusCode}');
+      print('📡 Print response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Parse and return the receipt data
+        try {
+          final receiptData = json.decode(res.body) as Map<String, dynamic>;
+          print('✅ Queue receipt data retrieved successfully');
+          return receiptData;
+        } catch (e) {
+          // If response is not JSON, return empty map
+          print('⚠️ Print API response is not JSON, returning empty receipt data');
+          return {};
+        }
+      }
+      throw Exception('Failed to print queue receipt (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error printing queue receipt: $e');
+      // Return empty map instead of throwing - allows UI to still show appointment details
+      return {};
+    }
+  }
+}
 

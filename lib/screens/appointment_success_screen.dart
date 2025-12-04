@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:convert';
 import '../models/appointment_models.dart';
 import '../utils/appointment_pdf_generator.dart';
 
@@ -72,6 +74,11 @@ class AppointmentSuccessScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const Gap(24),
+
+              // QR Code Card
+              _buildQrCodeCard(context),
+
               const Gap(24),
 
               // Appointment Details Card
@@ -149,6 +156,15 @@ class AppointmentSuccessScreen extends StatelessWidget {
                     ),
                 ],
               ),
+              // Receipt Data from Print API (if available)
+              if (appointment.receiptData != null && appointment.receiptData!.isNotEmpty) ...[
+                const Gap(16),
+                _buildDetailsCard(
+                  context,
+                  'Receipt Details',
+                  _buildReceiptDetails(context, appointment.receiptData!),
+                ),
+              ],
               const Gap(32),
 
               // Download PDF Button
@@ -254,6 +270,117 @@ class AppointmentSuccessScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  List<Widget> _buildReceiptDetails(BuildContext context, Map<String, dynamic> receiptData) {
+    final details = <Widget>[];
+    
+    // Display all receipt data fields from the print API
+    receiptData.forEach((key, value) {
+      if (value != null) {
+        String displayValue;
+        if (value is Map) {
+          displayValue = value.toString();
+        } else if (value is List) {
+          displayValue = value.join(', ');
+        } else {
+          displayValue = value.toString();
+        }
+        
+        // Format key name (convert camelCase to Title Case)
+        String formattedKey = key
+            .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(1)}')
+            .trim();
+        formattedKey = formattedKey[0].toUpperCase() + formattedKey.substring(1);
+        
+        details.add(
+          _buildDetailRow(context, formattedKey, displayValue),
+        );
+      }
+    });
+    
+    if (details.isEmpty) {
+      details.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            'No receipt details available',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey.shade600,
+                ),
+          ),
+        ),
+      );
+    }
+    
+    return details;
+  }
+
+  // Generate QR code data from appointment details
+  String _generateQrCodeData() {
+    final qrData = {
+      'queueId': appointment.queueResponse.queueId,
+      'tokenNumber': appointment.queueResponse.tokenNumber,
+      'patientName': appointment.patientName,
+      'patientMRN': appointment.patientMRN,
+      'hospitalName': appointment.hospital.name,
+      'departmentName': appointment.department.name,
+      'appointmentDate': appointment.appointmentDate.toIso8601String(),
+      'hospitalId': appointment.hospital.hospitalID,
+      'departmentId': appointment.department.departmentID,
+    };
+    return json.encode(qrData);
+  }
+
+  Widget _buildQrCodeCard(BuildContext context) {
+    final qrData = _generateQrCodeData();
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text(
+              'Appointment QR Code',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+            ),
+            const Gap(16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: QrImageView(
+                data: qrData,
+                version: QrVersions.auto,
+                size: 200.0,
+                backgroundColor: Colors.white,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+              ),
+            ),
+            const Gap(12),
+            Text(
+              'Scan to view appointment details',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
