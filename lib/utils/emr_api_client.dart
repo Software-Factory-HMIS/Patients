@@ -92,26 +92,50 @@ class EmrApiClient {
     required String gender,
     required String address,
     String? bloodGroup,
+    String? registrationType, // 'Self' or 'Others'
+    String? parentType, // 'Father' or 'Mother' when Others
+    int? createdBy, // User ID who created the patient
   }) async {
-    final uri = Uri.parse('$baseUrl/api/patient');
+    // Use /api/min-patients endpoint like hmis_flutter
+    final uri = Uri.parse('$baseUrl/api/min-patients');
     try {
       print('🔍 Registering patient: $uri');
       
       // Remove dashes from CNIC for API
-      final cleanCnic = cnic.replaceAll('-', '');
+      final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
       
-      final body = {
-        'fullName': fullName,
+      // Build patient data matching hmis_flutter structure
+      final body = <String, dynamic>{
+        'fullName': fullName.trim(),
         'cnic': cleanCnic,
-        'phone': phone,
-        'email': email,
+        'contactNumber': phone.trim(), // Use contactNumber instead of phone
+        'email': email.trim(),
         'dateOfBirth': dateOfBirth.toIso8601String(),
         'gender': gender,
-        'address': address,
-        if (bloodGroup != null && bloodGroup.isNotEmpty) 'bloodGroup': bloodGroup,
+        'address': address.trim(),
+        'source': 'Flutter', // Add source field like hmis_flutter
+        // Only include optional fields if they have values
+        if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 
+          'bloodGroup': bloodGroup,
+        if (registrationType != null && registrationType.isNotEmpty) 
+          'registrationType': registrationType,
+        if (parentType != null && parentType.isNotEmpty) 
+          'parentType': parentType,
+        // createdBy is required by database - use provided value or default to 1 (system user)
+        // Send as integer (JSON will serialize it correctly)
+        // The API should accept integer values for createdBy
+        'createdBy': createdBy ?? 1,
       };
       
+      // Verify createdBy is in the body
+      assert(body.containsKey('createdBy'), 'createdBy must be in request body');
+      assert(body['createdBy'] != null, 'createdBy must not be null');
+      
       print('📤 Request body: $body');
+      print('🔍 createdBy value: ${body['createdBy']} (type: ${body['createdBy'].runtimeType})');
+      final jsonBody = json.encode(body);
+      print('🔍 JSON body contains createdBy: ${jsonBody.contains('createdBy')}');
+      print('🔍 JSON body preview: ${jsonBody.length > 300 ? jsonBody.substring(0, 300) + "..." : jsonBody}');
       
       final res = await _client.post(
         uri,
@@ -122,6 +146,22 @@ class EmrApiClient {
       print('📡 Response status: ${res.statusCode}');
       print('📡 Response body: ${res.body}');
       
+      // Handle 409 Conflict - Patient already exists
+      if (res.statusCode == 409) {
+        try {
+          final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+          final conflictMessage = errorResponse['message'] as String? ?? 
+                                 errorResponse['error'] as String? ??
+                                 'Patient with this CNIC already exists';
+          throw Exception('Patient already exists: $conflictMessage');
+        } catch (e) {
+          if (e is Exception && e.toString().contains('already exists')) {
+            rethrow;
+          }
+          throw Exception('Patient with this CNIC already exists');
+        }
+      }
+      
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
         // Handle API response wrapper if present
@@ -131,7 +171,50 @@ class EmrApiClient {
         print('✅ Patient registered successfully');
         return response;
       }
-      throw Exception('Failed to register patient (${res.statusCode}): ${res.body}');
+      
+      // Parse error message from response
+      String errorMessage = 'Failed to register patient';
+      String? detailedError;
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorResponse['title'] as String? ??
+                      errorResponse['detail'] as String? ??
+                      res.body;
+        
+        // Extract detailed error information if available
+        if (errorResponse.containsKey('errors')) {
+          detailedError = errorResponse['errors'].toString();
+        } else if (errorResponse.containsKey('traceId')) {
+          detailedError = 'Trace ID: ${errorResponse['traceId']}';
+        }
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      // Check for specific database errors
+      if (errorMessage.toLowerCase().contains('database trigger') || 
+          errorMessage.toLowerCase().contains('dbupdateexception')) {
+        errorMessage = 'Database Configuration Error: The API server needs to be configured to handle database triggers.\n\n'
+            'This is a backend API issue that needs to be fixed by the API developer.\n\n'
+            'Full error: ${detailedError ?? errorMessage}';
+      } else if (errorMessage.toLowerCase().contains('dbnull') || 
+                 errorMessage.toLowerCase().contains('store type mapping')) {
+        errorMessage = 'Database Mapping Error: The API server encountered an issue mapping data to the database.\n\n'
+            'This might be due to:\n'
+            '- Missing or invalid field values\n'
+            '- Database schema mismatch\n'
+            '- Null value handling issues\n\n'
+            'Please check the data you entered and try again.\n\n'
+            'Full error: ${detailedError ?? errorMessage}';
+      }
+      
+      final fullError = detailedError != null 
+          ? '$errorMessage\n\nDetails: $detailedError'
+          : errorMessage;
+      
+      throw Exception('Failed to register patient (${res.statusCode}): $fullError');
     } catch (e) {
       print('❌ Error registering patient: $e');
       rethrow;

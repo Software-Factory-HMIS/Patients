@@ -4,6 +4,8 @@ import 'package:gap/gap.dart';
 import 'registration_phone_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/user_storage.dart';
+import '../utils/emr_api_client.dart';
+import '../utils/api_config.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String? phoneNumber;
@@ -50,6 +52,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _showDetailsCard = false; // Show details card after successful registration
   Map<String, dynamic>? _registeredPatientData; // Store registered patient data (for self registration)
   Map<String, dynamic>? _newlyAddedPatientData; // Store newly added patient data (for "Add Others")
+  EmrApiClient? _apiClient; // API client for patient registration
   
   // Translation maps
   Map<String, String> get _translations => _isUrdu ? _urduTranslations : _englishTranslations;
@@ -162,6 +165,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty) {
       _addressController.text = widget.parentAddress!;
     }
+    
+    // Initialize API client
+    _initializeApiClient();
+  }
+  
+  Future<void> _initializeApiClient() async {
+    try {
+      final baseUrl = await resolveEmrBaseUrlWithFallback();
+      _apiClient = EmrApiClient(baseUrl: baseUrl);
+      print('✅ API client initialized for registration: $baseUrl');
+    } catch (e) {
+      print('⚠️ Failed to initialize API client: $e');
+      // Continue anyway - will show error when trying to register
+    }
   }
 
   @override
@@ -191,6 +208,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return _isUrdu ? 'والدین کا قومی شناختی کارڈ' : 'Parent\'s CNIC';
       }
     }
+    // For first registration, check registration type
     if (_registrationType == 'Others') {
       if (_parentType == 'Father' || _parentType == 'والد') {
         return _translations['fathersCnic']!;
@@ -200,6 +218,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return _translations['parentsCnic']!;
       }
     }
+    // Default to Self CNIC
     return _translations['cnic']!;
   }
   
@@ -250,11 +269,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return out.toString();
   }
 
-  void _handleSubmit() {
-    if (_registrationType == null) {
+  Future<void> _handleSubmit() async {
+    // Validate registration type only for first registration (not "Add Others")
+    if (!widget.isAddOthers && _registrationType == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_translations['selectRegistrationType']!),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Validate parent type when Others is selected
+    if ((!widget.isAddOthers && _registrationType == 'Others') && 
+        (_parentType == null || _parentType!.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_translations['selectParentType']!),
           backgroundColor: Colors.red,
         ),
       );
@@ -286,8 +318,57 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _isSubmitting = true;
       });
 
-      // Simulate submission
-      Future.delayed(const Duration(milliseconds: 500), () async {
+      try {
+        // Ensure API client is initialized
+        if (_apiClient == null) {
+          await _initializeApiClient();
+        }
+        
+        if (_apiClient == null) {
+          throw Exception('Failed to initialize API client');
+        }
+
+        // Prepare patient data
+        final patientData = {
+          'fullName': _fullNameController.text.trim(),
+          'cnic': _cnicController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'dateOfBirth': _dateOfBirth!,
+          'gender': _gender!,
+          'address': _addressController.text.trim(),
+          'bloodGroup': _bloodGroup,
+        };
+
+        // Register patient via API
+        // For patient self-registration, use default system user ID (1)
+        // In a real system, this would be a dedicated "Self-Registration" system user
+        const int defaultSystemUserId = 1;
+        
+        print('📝 Registering patient via API...');
+        final registeredPatient = await _apiClient!.registerPatient(
+          fullName: patientData['fullName'] as String,
+          cnic: patientData['cnic'] as String,
+          phone: patientData['phone'] as String,
+          email: patientData['email'] as String,
+          dateOfBirth: patientData['dateOfBirth'] as DateTime,
+          gender: patientData['gender'] as String,
+          address: patientData['address'] as String,
+          bloodGroup: patientData['bloodGroup'] as String?,
+          registrationType: _registrationType,
+          parentType: _parentType,
+          createdBy: defaultSystemUserId, // Required by database - use system user for self-registration
+        );
+
+        print('✅ Patient registered successfully in database');
+        
+        // Merge API response with form data
+        final completePatientData = {
+          ...patientData,
+          'patientId': registeredPatient['patientId'] ?? registeredPatient['PatientID'],
+          'mrn': registeredPatient['mrn'] ?? registeredPatient['MRN'],
+        };
+
         if (mounted) {
           setState(() {
             _isSubmitting = false;
@@ -296,14 +377,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           if (widget.isAddOthers) {
             // For "Add Others" registration, store new patient data and show details card
             _newlyAddedPatientData = {
-              'fullName': _fullNameController.text.trim(),
-              'cnic': _cnicController.text.trim(),
-              'phone': _phoneController.text.trim(),
-              'email': _emailController.text.trim(),
-              'dateOfBirth': _dateOfBirth,
-              'gender': _gender,
-              'address': _addressController.text.trim(),
-              'bloodGroup': _bloodGroup,
+              ...completePatientData,
               'relationshipType': widget.relationshipType,
             };
             
@@ -322,16 +396,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             );
           } else {
             // For self registration, store data and show details card
-            _registeredPatientData = {
-              'fullName': _fullNameController.text.trim(),
-              'cnic': _cnicController.text.trim(),
-              'phone': _phoneController.text.trim(),
-              'email': _emailController.text.trim(),
-              'dateOfBirth': _dateOfBirth,
-              'gender': _gender,
-              'address': _addressController.text.trim(),
-              'bloodGroup': _bloodGroup,
-            };
+            _registeredPatientData = completePatientData;
             
             // Save user data for demonstration purposes
             await UserStorage.saveUserData(_registeredPatientData!);
@@ -350,7 +415,61 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             }
           }
         }
-      });
+      } catch (e) {
+        print('❌ Error registering patient: $e');
+        
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+          
+          // Extract error message
+          String errorMessage = e.toString().replaceFirst('Exception: ', '');
+          
+          // If it's a database trigger error, provide more helpful message
+          if (errorMessage.toLowerCase().contains('trigger')) {
+            errorMessage = 'Database error: $errorMessage\n\n'
+                'This might be due to:\n'
+                '- Missing required fields\n'
+                '- Data validation issues\n'
+                '- Database constraint violations\n\n'
+                'Please check the console for details.';
+          }
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'Details',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Show detailed error in a dialog
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Registration Error'),
+                      content: SingleChildScrollView(
+                        child: Text(
+                          'Full error details:\n\n$e',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -808,6 +927,143 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             ),
                           ),
                           const Gap(24),
+                          // Registration type radio buttons - only show for first registration (not "Add Others")
+                          if (!widget.isAddOthers) ...[
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(
+                                    _translations['registerAs']!,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const Gap(12),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _registrationType = 'Self';
+                                              _parentType = null;
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                            decoration: BoxDecoration(
+                                              color: _registrationType == 'Self' 
+                                                  ? Colors.blue.shade700 
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: _registrationType == 'Self' 
+                                                    ? Colors.blue.shade700 
+                                                    : Colors.grey.shade300,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                _translations['self']!,
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _registrationType == 'Self' 
+                                                      ? Colors.white 
+                                                      : Colors.grey.shade700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const Gap(12),
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () {
+                                            setState(() {
+                                              _registrationType = 'Others';
+                                              _parentType = _parentType ?? 'Father';
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                            decoration: BoxDecoration(
+                                              color: _registrationType == 'Others' 
+                                                  ? Colors.blue.shade700 
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: _registrationType == 'Others' 
+                                                    ? Colors.blue.shade700 
+                                                    : Colors.grey.shade300,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                _translations['others']!,
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _registrationType == 'Others' 
+                                                      ? Colors.white 
+                                                      : Colors.grey.shade700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Gap(24),
+                            // Parent Type selection - only show when Others is selected
+                            if (_registrationType == 'Others') ...[
+                              DropdownButtonFormField<String>(
+                                value: _parentType,
+                                decoration: InputDecoration(
+                                  labelText: _translations['parentType'],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                ),
+                                items: _parentTypeOptions.map((type) {
+                                  return DropdownMenuItem<String>(
+                                    value: _getParentTypeValue(type),
+                                    child: Text(type),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _parentType = value;
+                                  });
+                                },
+                                validator: (v) => v == null || v.isEmpty 
+                                    ? _translations['selectParentType'] 
+                                    : null,
+                              ),
+                              const Gap(24),
+                            ],
+                          ],
                           // Registration type radio buttons - only show for "Add Others"
                           if (widget.isAddOthers) ...[
                             Container(

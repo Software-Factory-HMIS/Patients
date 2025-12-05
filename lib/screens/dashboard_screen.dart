@@ -710,6 +710,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           }
           
           // Register the patient
+          // For patient self-registration, use default system user ID (1)
+          const int defaultSystemUserId = 1;
+          
           final registeredPatient = await _api!.registerPatient(
             fullName: fullName,
             cnic: cnic.isNotEmpty ? cnic : phone,
@@ -719,6 +722,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             gender: gender,
             address: address,
             bloodGroup: bloodGroup,
+            createdBy: defaultSystemUserId, // Required by database
           );
           
           final patientId = registeredPatient['patientId'] as int? ?? 
