@@ -104,6 +104,11 @@ class EmrApiClient {
       // Remove dashes from CNIC for API
       final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
       
+      // createdBy is required by database - use provided value or default to 1 (system user)
+      // Send as integer (JSON will serialize it correctly)
+      // Try both camelCase and PascalCase to ensure API receives it
+      final createdByValue = (createdBy ?? 1) as int;
+      
       // Build patient data matching hmis_flutter structure
       final body = <String, dynamic>{
         'fullName': fullName.trim(),
@@ -121,21 +126,23 @@ class EmrApiClient {
           'registrationType': registrationType,
         if (parentType != null && parentType.isNotEmpty) 
           'parentType': parentType,
-        // createdBy is required by database - use provided value or default to 1 (system user)
-        // Send as integer (JSON will serialize it correctly)
-        // The API should accept integer values for createdBy
-        'createdBy': createdBy ?? 1,
+        // Send both formats to ensure API receives it
+        'createdBy': createdByValue,
+        'CreatedBy': createdByValue, // Also send PascalCase in case API is case-sensitive
       };
       
-      // Verify createdBy is in the body
+      // Verify createdBy is in the body and is not null
       assert(body.containsKey('createdBy'), 'createdBy must be in request body');
       assert(body['createdBy'] != null, 'createdBy must not be null');
+      assert(body['createdBy'] is int, 'createdBy must be an integer');
       
       print('📤 Request body: $body');
       print('🔍 createdBy value: ${body['createdBy']} (type: ${body['createdBy'].runtimeType})');
+      print('🔍 CreatedBy value: ${body['CreatedBy']} (type: ${body['CreatedBy'].runtimeType})');
       final jsonBody = json.encode(body);
       print('🔍 JSON body contains createdBy: ${jsonBody.contains('createdBy')}');
-      print('🔍 JSON body preview: ${jsonBody.length > 300 ? jsonBody.substring(0, 300) + "..." : jsonBody}');
+      print('🔍 JSON body contains CreatedBy: ${jsonBody.contains('CreatedBy')}');
+      print('🔍 Full JSON body: $jsonBody');
       
       final res = await _client.post(
         uri,

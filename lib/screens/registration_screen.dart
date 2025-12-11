@@ -491,11 +491,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _isUrdu ? 'زبان' : 'Language',
+                'اردو',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade900,
+                  color: _isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
                 ),
               ),
               Switch(
@@ -508,11 +508,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 activeColor: Colors.blue.shade700,
               ),
               Text(
-                _isUrdu ? 'English' : 'اردو',
+                'English',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade900,
+                  color: !_isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
                 ),
               ),
             ],
@@ -899,11 +899,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  _isUrdu ? 'زبان' : 'Language',
+                                  'اردو',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.blue.shade900,
+                                    color: _isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
                                   ),
                                 ),
                                 Switch(
@@ -916,11 +916,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   activeColor: Colors.blue.shade700,
                                 ),
                                 Text(
-                                  _isUrdu ? 'English' : 'اردو',
+                                  'English',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.blue.shade900,
+                                    color: !_isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
