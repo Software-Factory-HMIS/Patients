@@ -82,6 +82,51 @@ class EmrApiClient {
     throw Exception('Failed to load patient: All formats failed');
   }
 
+  // Login with phone number - returns list of patients with matching phone number
+  Future<List<Map<String, dynamic>>> loginByPhoneNumber(String phoneNumber) async {
+    final uri = Uri.parse('$baseUrl/api/min-patients/by-phone/$phoneNumber');
+    try {
+      print('🔍 Logging in with phone number: $uri');
+      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      print('📡 Response status: ${res.statusCode}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body);
+        
+        // Handle both single object and array responses
+        List<dynamic> patientsList;
+        if (response is List) {
+          patientsList = response;
+        } else if (response is Map<String, dynamic> && response.containsKey('data')) {
+          // Handle API response wrapper
+          final data = response['data'];
+          patientsList = data is List ? data : [data];
+        } else {
+          // Single patient object
+          patientsList = [response];
+        }
+        
+        // Convert to List<Map<String, dynamic>>
+        final patients = patientsList
+            .map((p) => p as Map<String, dynamic>)
+            .toList();
+        
+        print('✅ Found ${patients.length} patient(s) with phone number: $phoneNumber');
+        return patients;
+      }
+      
+      if (res.statusCode == 404) {
+        print('⚠️ No patients found with phone number: $phoneNumber');
+        return [];
+      }
+      
+      throw Exception('Failed to login with phone number (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error logging in with phone number: $e');
+      rethrow;
+    }
+  }
+
   // Register a new patient
   Future<Map<String, dynamic>> registerPatient({
     required String fullName,

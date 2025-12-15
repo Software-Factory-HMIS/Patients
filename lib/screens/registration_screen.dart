@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_phone_screen.dart';
+import 'signin_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/user_storage.dart';
 import '../utils/emr_api_client.dart';
@@ -591,6 +592,38 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
         const Gap(16),
         
+        // Book Appointment Button
+        SizedBox(
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const SignInScreen(),
+                ),
+                (route) => false,
+              );
+            },
+            icon: const Icon(Icons.calendar_today),
+            label: Text(
+              _isUrdu ? 'اپائنٹمنٹ بک کریں' : 'Book Appointment',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+        const Gap(16),
+        
         // Back to Sign In Button
         SizedBox(
           height: 56,
@@ -873,6 +906,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: SafeArea(
         child: KeyboardInsetPadding(

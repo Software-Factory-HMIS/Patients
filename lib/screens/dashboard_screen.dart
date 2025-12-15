@@ -258,7 +258,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           if (_currentNavIndex == 1) ...[
             IconButton(

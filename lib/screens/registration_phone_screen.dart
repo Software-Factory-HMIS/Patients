@@ -39,6 +39,10 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: SafeArea(
         child: KeyboardInsetPadding(
