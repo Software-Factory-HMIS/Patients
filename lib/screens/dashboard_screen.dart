@@ -113,18 +113,112 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       _error = null;
     });
     
+    // Ensure saved user data is loaded
+    if (_savedUserData == null) {
+      await _loadSavedUserData();
+    }
+    
     // Simulate loading delay
     await Future.delayed(const Duration(milliseconds: 500));
     
-    // Initialize with empty/mock data
+    // Load patient data from saved user data
+    String patientName = 'Patient Name';
+    String mrn = widget.cnic;
+    String gender = 'N/A';
+    String age = 'N/A';
+    String bloodType = 'N/A';
+    String lastVisit = 'N/A';
+    
+    if (_savedUserData != null) {
+      // Get name from FullName or fullName
+      patientName = _savedUserData!['FullName'] as String? ?? 
+                   _savedUserData!['fullName'] as String? ?? 
+                   'Patient Name';
+      
+      // Get MRN
+      mrn = _savedUserData!['MRN'] as String? ?? 
+            _savedUserData!['mrn'] as String? ?? 
+            widget.cnic;
+      
+      // Get gender
+      gender = _savedUserData!['Gender'] as String? ?? 
+               _savedUserData!['gender'] as String? ?? 
+               'N/A';
+      
+      // Calculate age from DateOfBirth
+      final dateOfBirth = _savedUserData!['DateOfBirth'] ?? 
+                          _savedUserData!['dateOfBirth'];
+      if (dateOfBirth != null) {
+        try {
+          DateTime? dob;
+          if (dateOfBirth is DateTime) {
+            dob = dateOfBirth;
+          } else if (dateOfBirth is String) {
+            dob = DateTime.parse(dateOfBirth);
+          }
+          if (dob != null) {
+            final now = DateTime.now();
+            int years = now.year - dob.year;
+            if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+              years--;
+            }
+            age = years.toString();
+          }
+        } catch (e) {
+          print('Error calculating age: $e');
+        }
+      }
+      
+      // Get blood type
+      bloodType = _savedUserData!['BloodGroup'] as String? ?? 
+                  _savedUserData!['bloodGroup'] as String? ?? 
+                  'N/A';
+      
+      // Get last visit from UpdatedDate or CreatedDate
+      final updatedDate = _savedUserData!['UpdatedDate'] ?? 
+                         _savedUserData!['updatedDate'];
+      final createdDate = _savedUserData!['CreatedDate'] ?? 
+                         _savedUserData!['createdDate'];
+      if (updatedDate != null || createdDate != null) {
+        try {
+          DateTime? visitDate;
+          if (updatedDate is DateTime) {
+            visitDate = updatedDate;
+          } else if (updatedDate is String) {
+            visitDate = DateTime.parse(updatedDate);
+          } else if (createdDate is DateTime) {
+            visitDate = createdDate;
+          } else if (createdDate is String) {
+            visitDate = DateTime.parse(createdDate);
+          }
+          if (visitDate != null) {
+            final now = DateTime.now();
+            final difference = now.difference(visitDate);
+            if (difference.inDays == 0) {
+              lastVisit = 'Today';
+            } else if (difference.inDays == 1) {
+              lastVisit = 'Yesterday';
+            } else if (difference.inDays < 30) {
+              lastVisit = '${difference.inDays} days ago';
+            } else {
+              lastVisit = '${visitDate.day}/${visitDate.month}/${visitDate.year}';
+            }
+          }
+        } catch (e) {
+          print('Error formatting last visit: $e');
+        }
+      }
+    }
+    
+    // Initialize with loaded patient data
     setState(() {
       _patient = {
-        'name': 'Patient Name',
-        'mrn': widget.cnic,
-        'gender': 'N/A',
-        'age': 'N/A',
-        'bloodType': 'N/A',
-        'lastVisit': 'N/A',
+        'name': patientName,
+        'mrn': mrn,
+        'gender': gender,
+        'age': age,
+        'bloodType': bloodType,
+        'lastVisit': lastVisit,
       };
       _vitals = [];
       _medications = [];

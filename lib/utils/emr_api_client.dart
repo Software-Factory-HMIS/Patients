@@ -82,13 +82,102 @@ class EmrApiClient {
     throw Exception('Failed to load patient: All formats failed');
   }
 
+  // Login with CNIC - returns list of patients with matching CNIC
+  Future<List<Map<String, dynamic>>> loginByCnic(String cnic) async {
+    // Clean and normalize CNIC - remove any non-digit characters
+    final cleanedCnic = cnic.replaceAll(RegExp(r'[^\d]'), '').trim();
+    
+    if (cleanedCnic.isEmpty) {
+      throw Exception('Invalid CNIC: CNIC cannot be empty');
+    }
+    
+    if (cleanedCnic.length != 13) {
+      throw Exception('Invalid CNIC: CNIC must be exactly 13 digits');
+    }
+    
+    print('🔍 [loginByCnic] Original CNIC: "$cnic", Cleaned: "$cleanedCnic"');
+    
+    // URL encode the CNIC to handle special characters
+    final encodedCnic = Uri.encodeComponent(cleanedCnic);
+    final uri = Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic');
+    
+    try {
+      print('🔍 [loginByCnic] Requesting: $uri');
+      print('🆔 [loginByCnic] CNIC being searched: "$cleanedCnic"');
+      
+      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
+      
+      print('📡 [loginByCnic] Response status: ${res.statusCode}');
+      print('📡 [loginByCnic] Response body length: ${res.body.length}');
+      
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        print('📡 [loginByCnic] Response body: ${res.body}');
+      }
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body);
+        
+        // Handle both single object and array responses
+        List<dynamic> patientsList;
+        if (response is List) {
+          patientsList = response;
+        } else if (response is Map<String, dynamic> && response.containsKey('data')) {
+          // Handle API response wrapper
+          final data = response['data'];
+          patientsList = data is List ? data : [data];
+        } else {
+          // Single patient object
+          patientsList = [response];
+        }
+        
+        // Convert to List<Map<String, dynamic>>
+        final patients = patientsList
+            .map((p) => p as Map<String, dynamic>)
+            .toList();
+        
+        print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
+        return patients;
+      }
+      
+      if (res.statusCode == 404) {
+        print('⚠️ No patients found with CNIC: $cnic');
+        return [];
+      }
+      
+      throw Exception('Failed to login with CNIC (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error logging in with CNIC: $e');
+      rethrow;
+    }
+  }
+
   // Login with phone number - returns list of patients with matching phone number
   Future<List<Map<String, dynamic>>> loginByPhoneNumber(String phoneNumber) async {
-    final uri = Uri.parse('$baseUrl/api/min-patients/by-phone/$phoneNumber');
+    // Clean and normalize phone number - remove any non-digit characters
+    final cleanedPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '').trim();
+    
+    if (cleanedPhone.isEmpty) {
+      throw Exception('Invalid phone number: phone number cannot be empty');
+    }
+    
+    print('🔍 [loginByPhoneNumber] Original phone: "$phoneNumber", Cleaned: "$cleanedPhone"');
+    
+    // URL encode the phone number to handle special characters
+    final encodedPhone = Uri.encodeComponent(cleanedPhone);
+    final uri = Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone');
+    
     try {
-      print('🔍 Logging in with phone number: $uri');
-      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      print('📡 Response status: ${res.statusCode}');
+      print('🔍 [loginByPhoneNumber] Requesting: $uri');
+      print('📱 [loginByPhoneNumber] Phone number being searched: "$cleanedPhone"');
+      
+      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
+      
+      print('📡 [loginByPhoneNumber] Response status: ${res.statusCode}');
+      print('📡 [loginByPhoneNumber] Response body length: ${res.body.length}');
+      
+      if (res.statusCode >= 400 && res.statusCode < 500) {
+        print('📡 [loginByPhoneNumber] Response body: ${res.body}');
+      }
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);
