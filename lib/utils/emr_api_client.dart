@@ -478,6 +478,33 @@ class EmrApiClient {
     }
   }
 
+  // Fetch hospital departments by hospital ID (returns hospitalDepartmentID)
+  Future<List<dynamic>> fetchHospitalDepartments(int hospitalId) async {
+    final uri = Uri.parse('$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId');
+    try {
+      print('🔍 Fetching hospital departments for hospital ID $hospitalId: $uri');
+      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      print('📡 Response status: ${res.statusCode}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body);
+        // Handle both list and wrapped responses
+        if (response is List) {
+          return response;
+        } else if (response is Map<String, dynamic>) {
+          if (response.containsKey('data')) {
+            return response['data'] as List<dynamic>;
+          }
+        }
+        return [];
+      }
+      throw Exception('Failed to load hospital departments (${res.statusCode}): ${res.body}');
+    } catch (e) {
+      print('❌ Error fetching hospital departments: $e');
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> addPatientToQueue({
     required int patientId,
     required int hospitalId,

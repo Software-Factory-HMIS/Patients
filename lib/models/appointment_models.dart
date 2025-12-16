@@ -84,6 +84,35 @@ class QueueResponse {
   }
 }
 
+class HospitalDepartment {
+  final int hospitalDepartmentID;
+  final int hospitalID;
+  final int departmentID;
+  final String departmentName;
+  final String? speciality;
+  final bool isOpd;
+
+  HospitalDepartment({
+    required this.hospitalDepartmentID,
+    required this.hospitalID,
+    required this.departmentID,
+    required this.departmentName,
+    this.speciality,
+    required this.isOpd,
+  });
+
+  factory HospitalDepartment.fromJson(Map<String, dynamic> json) {
+    return HospitalDepartment(
+      hospitalDepartmentID: json['hospitalDepartmentID'] as int? ?? json['HospitalDepartmentID'] as int? ?? 0,
+      hospitalID: json['hospitalID'] as int? ?? json['HospitalID'] as int? ?? 0,
+      departmentID: json['departmentID'] as int? ?? json['DepartmentID'] as int? ?? 0,
+      departmentName: json['departmentName'] as String? ?? json['DepartmentName'] as String? ?? '',
+      speciality: json['speciality'] as String? ?? json['Speciality'] as String?,
+      isOpd: json['isOpd'] as bool? ?? json['IsOpd'] as bool? ?? false,
+    );
+  }
+}
+
 class AppointmentDetails {
   final QueueResponse queueResponse;
   final Hospital hospital;

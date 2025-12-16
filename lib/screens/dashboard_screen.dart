@@ -7,7 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
-import '../models/appointment_models.dart';
+import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -42,10 +42,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   EmrApiClient? _api;
   List<Hospital>? _hospitals;
   List<Department>? _departments;
+  List<HospitalDepartment>? _hospitalDepartments; // Hospital-specific departments with hospitalDepartmentId
   Hospital? _selectedHospital;
-  Department? _selectedDepartment;
+  HospitalDepartment? _selectedHospitalDepartment;
   bool _loadingHospitals = false;
   bool _loadingDepartments = false;
+  bool _loadingHospitalDepartments = false;
   bool _submittingAppointment = false;
   String? _appointmentError;
   int? _patientId;
@@ -545,8 +547,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                     onChanged: (hospital) {
                       setState(() {
                         _selectedHospital = hospital;
-                        _selectedDepartment = null; // Reset department when hospital changes
+                        _selectedHospitalDepartment = null; // Reset department when hospital changes
+                        _hospitalDepartments = null; // Clear previous departments
                       });
+                      // Load hospital departments when hospital is selected
+                      if (hospital != null) {
+                        _loadHospitalDepartments(hospital.hospitalID);
+                      }
                     },
                   ),
             const Gap(24),
@@ -559,14 +566,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
             ),
             const Gap(8),
-            _loadingDepartments
+            _loadingHospitalDepartments
                 ? const Center(child: CircularProgressIndicator())
                 : IgnorePointer(
-                    ignoring: _selectedHospital == null,
+                    ignoring: _selectedHospital == null || _loadingHospitalDepartments,
                     child: Opacity(
                       opacity: _selectedHospital == null ? 0.6 : 1.0,
-                      child: DropdownButtonFormField<Department>(
-                        value: _selectedDepartment,
+                      child: DropdownButtonFormField<HospitalDepartment>(
+                        value: _selectedHospitalDepartment,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -583,19 +590,21 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         hint: Text(
                           _selectedHospital == null
                               ? 'Please select a hospital first'
-                              : 'Select a department',
+                              : _loadingHospitalDepartments
+                                  ? 'Loading departments...'
+                                  : 'Select a department',
                         ),
-                        items: _departments?.map((department) {
-                          return DropdownMenuItem<Department>(
-                            value: department,
-                            child: Text(department.name),
+                        items: _hospitalDepartments?.map((hospitalDept) {
+                          return DropdownMenuItem<HospitalDepartment>(
+                            value: hospitalDept,
+                            child: Text(hospitalDept.departmentName),
                           );
                         }).toList(),
-                        onChanged: _selectedHospital == null
+                        onChanged: _selectedHospital == null || _loadingHospitalDepartments
                             ? null
-                            : (department) {
+                            : (hospitalDept) {
                                 setState(() {
-                                  _selectedDepartment = department;
+                                  _selectedHospitalDepartment = hospitalDept;
                                 });
                               },
                       ),
@@ -630,7 +639,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             // Submit Button
             ElevatedButton(
               onPressed: (_selectedHospital != null &&
-                      _selectedDepartment != null &&
+                      _selectedHospitalDepartment != null &&
                       !_submittingAppointment)
                   ? _handleAppointmentSubmission
                   : null,
@@ -756,6 +765,53 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
+  Future<void> _loadHospitalDepartments(int hospitalId) async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      setState(() {
+        _appointmentError = 'Failed to initialize API client';
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingHospitalDepartments = true;
+      _appointmentError = null;
+    });
+
+    try {
+      final hospitalDepartmentsData = await _api!.fetchHospitalDepartments(hospitalId);
+      final hospitalDepartments = <HospitalDepartment>[];
+      
+      for (var item in hospitalDepartmentsData) {
+        try {
+          final json = item as Map<String, dynamic>;
+          final hospitalDept = HospitalDepartment.fromJson(json);
+          if (hospitalDept.hospitalDepartmentID > 0) {
+            hospitalDepartments.add(hospitalDept);
+          }
+        } catch (e) {
+          print('⚠️ Error parsing hospital department: $e');
+          print('   Hospital department data: $item');
+          // Skip invalid departments but continue processing others
+        }
+      }
+
+      setState(() {
+        _hospitalDepartments = hospitalDepartments;
+        _loadingHospitalDepartments = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingHospitalDepartments = false;
+        _appointmentError = 'Failed to load hospital departments: $e';
+      });
+      print('❌ Error loading hospital departments: $e');
+    }
+  }
+
   Future<int> _fetchPatientId() async {
     if (_api == null) {
       await _initializeApi();
@@ -842,7 +898,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Future<void> _handleAppointmentSubmission() async {
-    if (_selectedHospital == null || _selectedDepartment == null) {
+    if (_selectedHospital == null || _selectedHospitalDepartment == null) {
       return;
     }
 
@@ -860,30 +916,60 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         throw Exception('API client not initialized');
       }
 
-      // Use saved user data for appointment details (for demonstration)
-      final patientName = _savedUserData?['fullName'] as String? ?? 
+      // Fetch or register patient to get patient ID
+      final patientId = await _fetchPatientId();
+      print('✅ Patient ID: $patientId');
+
+      // Use saved user data for appointment details
+      final patientName = _savedUserData?['FullName'] as String? ?? 
+                          _savedUserData?['fullName'] as String? ?? 
                           _patient?['name'] as String? ?? 
                           'Unknown';
-      final patientMRN = _savedUserData?['cnic'] as String? ?? 
+      final patientMRN = _savedUserData?['MRN'] as String? ?? 
+                         _savedUserData?['mrn'] as String? ?? 
+                         _savedUserData?['cnic'] as String? ?? 
                          _savedUserData?['phone'] as String? ?? 
                          widget.cnic;
 
-      // Generate mock queue data (no database operations)
-      final mockQueueId = DateTime.now().millisecondsSinceEpoch % 100000; // Generate a mock queue ID
-      final mockTokenNumber = 'T${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'; // Generate token number
+      // Add patient to queue using the real API
+      print('📋 Adding patient to queue...');
+      print('   Patient ID: $patientId');
+      print('   Hospital ID: ${_selectedHospital!.hospitalID}');
+      print('   Hospital Department ID: ${_selectedHospitalDepartment!.hospitalDepartmentID}');
       
-      // Create mock queue response
-      final mockQueueResponse = QueueResponse(
-        queueId: mockQueueId,
-        tokenNumber: mockTokenNumber,
+      final queueResponse = await _api!.addPatientToQueue(
+        patientId: patientId,
+        hospitalId: _selectedHospital!.hospitalID,
+        hospitalDepartmentId: _selectedHospitalDepartment!.hospitalDepartmentID,
+        createdBy: 1, // Default system user for patient self-registration
+        priority: 'Normal',
+        queueType: 'OPD',
+        visitPurpose: 'Check-Up',
+        patientSource: 'SELF_CHECKIN',
       );
 
-      // Print queue receipt using API with mock queue ID
-      // This will retrieve receipt data as it appears in the print API
+      print('✅ Patient added to queue successfully');
+      print('   Queue ID: ${queueResponse['queueId']}');
+      print('   Token Number: ${queueResponse['tokenNumber']}');
+
+      final queueId = queueResponse['queueId'] as int?;
+      final tokenNumber = queueResponse['tokenNumber'] as String? ?? 'N/A';
+
+      if (queueId == null) {
+        throw Exception('Queue ID not returned from API');
+      }
+
+      // Create queue response object
+      final queueResponseObj = QueueResponse(
+        queueId: queueId,
+        tokenNumber: tokenNumber,
+      );
+
+      // Print queue receipt using the real queue ID
       Map<String, dynamic> receiptData = {};
       try {
-        print('🖨️ Calling print API with queue ID: $mockQueueId');
-        receiptData = await _api!.printQueueReceipt(queueId: mockQueueId);
+        print('🖨️ Calling print API with queue ID: $queueId');
+        receiptData = await _api!.printQueueReceipt(queueId: queueId);
         print('✅ Queue receipt data retrieved successfully');
         if (receiptData.isNotEmpty) {
           print('📄 Receipt data: $receiptData');
@@ -893,11 +979,19 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         // Continue anyway - will show appointment details
       }
 
-      // Create appointment details with mock data and receipt data from print API
+      // Create a Department object from HospitalDepartment for compatibility
+      final department = Department(
+        departmentID: _selectedHospitalDepartment!.departmentID,
+        name: _selectedHospitalDepartment!.departmentName,
+        isActive: true,
+        hospitalCount: 0,
+      );
+
+      // Create appointment details with real queue data and receipt data from print API
       final appointmentDetails = AppointmentDetails(
-        queueResponse: mockQueueResponse,
+        queueResponse: queueResponseObj,
         hospital: _selectedHospital!,
-        department: _selectedDepartment!,
+        department: department,
         patientName: patientName,
         patientMRN: patientMRN,
         appointmentDate: DateTime.now(),
@@ -919,7 +1013,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         // Reset form after navigation
         setState(() {
           _selectedHospital = null;
-          _selectedDepartment = null;
+          _selectedHospitalDepartment = null;
           _submittingAppointment = false;
         });
       }
