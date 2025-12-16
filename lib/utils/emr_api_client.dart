@@ -34,13 +34,57 @@ class EmrApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> fetchPatient(String mrn) async {
-    // Try both with and without dashes
-    final cleanMrn = mrn.replaceAll('-', '');
-    final uris = [
-      Uri.parse('$baseUrl/api/patient/$mrn'),      // Try with dashes first
-      Uri.parse('$baseUrl/api/patient/$cleanMrn'), // Then without dashes
-    ];
+  Future<Map<String, dynamic>> fetchPatient(String identifier) async {
+    // Clean the identifier - remove any non-digit characters
+    final cleaned = identifier.replaceAll(RegExp(r'[^\d]'), '').trim();
+    
+    if (cleaned.isEmpty) {
+      throw Exception('Invalid identifier: identifier cannot be empty');
+    }
+    
+    // Determine the type of identifier and try appropriate endpoints
+    final List<Uri> uris = [];
+    
+    // If it's 13 digits, it's likely a CNIC
+    if (cleaned.length == 13) {
+      final encodedCnic = Uri.encodeComponent(cleaned);
+      uris.add(Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic'));
+    }
+    // If it's 11 digits or less, it could be a phone number
+    else if (cleaned.length <= 11 && cleaned.length >= 7) {
+      final encodedPhone = Uri.encodeComponent(cleaned);
+      uris.add(Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone'));
+    }
+    // If it's numeric and could be a patient ID (typically 1-6 digits)
+    else if (RegExp(r'^\d+$').hasMatch(cleaned) && cleaned.length <= 6) {
+      try {
+        final patientId = int.parse(cleaned);
+        uris.add(Uri.parse('$baseUrl/api/min-patients/$patientId'));
+      } catch (e) {
+        // Not a valid integer, skip
+      }
+    }
+    
+    // If no specific format matched, try all possible endpoints
+    if (uris.isEmpty) {
+      // Try as CNIC (13 digits)
+      final encodedCnic = Uri.encodeComponent(cleaned);
+      uris.add(Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic'));
+      
+      // Try as phone
+      final encodedPhone = Uri.encodeComponent(cleaned);
+      uris.add(Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone'));
+      
+      // Try as patient ID if it's numeric
+      if (RegExp(r'^\d+$').hasMatch(cleaned)) {
+        try {
+          final patientId = int.parse(cleaned);
+          uris.add(Uri.parse('$baseUrl/api/min-patients/$patientId'));
+        } catch (e) {
+          // Not a valid integer
+        }
+      }
+    }
     
     Exception? lastError;
     
@@ -51,8 +95,20 @@ class EmrApiClient {
         print('📡 Response status: ${res.statusCode}');
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          final patient = json.decode(res.body) as Map<String, dynamic>;
-          print('✅ Patient loaded successfully: ${patient['name'] ?? 'Unknown'}');
+          final response = json.decode(res.body);
+          
+          // Handle both single object and array responses
+          Map<String, dynamic> patient;
+          if (response is List && response.isNotEmpty) {
+            // If it's a list, take the first patient
+            patient = response[0] as Map<String, dynamic>;
+          } else if (response is Map<String, dynamic>) {
+            patient = response;
+          } else {
+            throw Exception('Unexpected response format');
+          }
+          
+          print('✅ Patient loaded successfully: ${patient['FullName'] ?? patient['fullName'] ?? 'Unknown'}');
           return patient;
         }
         
