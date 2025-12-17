@@ -936,14 +936,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       print('   Patient ID: $patientId');
       print('   Hospital ID: ${_selectedHospital!.hospitalID}');
       print('   Hospital Department ID: ${_selectedHospitalDepartment!.hospitalDepartmentID}');
-      
+
+      final deptName = (_selectedHospitalDepartment!.departmentName ?? '').toLowerCase().trim();
+      final isEmergencyDept = deptName.contains('emergency');
+
       final queueResponse = await _api!.addPatientToQueue(
         patientId: patientId,
         hospitalId: _selectedHospital!.hospitalID,
         hospitalDepartmentId: _selectedHospitalDepartment!.hospitalDepartmentID,
         createdBy: 1, // Default system user for patient self-registration
         priority: 'Normal',
-        queueType: 'OPD',
+        queueType: isEmergencyDept ? 'Emergency' : 'OPD',
         visitPurpose: 'Check-Up',
         patientSource: 'SELF_CHECKIN',
       );
