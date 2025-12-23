@@ -277,11 +277,11 @@ class EmrApiClient {
     required String fullName,
     required String cnic,
     required String phone,
-    required String email,
+    String? email, // Optional
     required DateTime dateOfBirth,
     required String gender,
-    required String address,
-    String? bloodGroup,
+    String? address, // Optional
+    String? bloodGroup, // Optional
     String? registrationType, // 'Self' or 'Others'
     String? parentType, // 'Father' or 'Mother' when Others
     int? createdBy, // User ID who created the patient
@@ -304,12 +304,14 @@ class EmrApiClient {
         'fullName': fullName.trim(),
         'cnic': cleanCnic,
         'contactNumber': phone.trim(), // Use contactNumber instead of phone
-        'email': email.trim(),
         'dateOfBirth': dateOfBirth.toIso8601String(),
         'gender': gender,
-        'address': address.trim(),
         'source': 'Flutter', // Add source field like hmis_flutter
         // Only include optional fields if they have values
+        if (email != null && email.trim().isNotEmpty) 
+          'email': email.trim(),
+        if (address != null && address.trim().isNotEmpty) 
+          'address': address.trim(),
         if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 
           'bloodGroup': bloodGroup,
         if (registrationType != null && registrationType.isNotEmpty) 

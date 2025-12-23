@@ -78,13 +78,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     'male': 'Male',
     'female': 'Female',
     'email': 'Email',
+    'emailOptional': 'Email (Optional)',
     'phone': 'Phone',
     'address': 'Address',
+    'addressOptional': 'Address (Optional)',
     'bloodGroup': 'Blood group',
+    'bloodGroupOptional': 'Blood group (Optional)',
     'selectBloodGroup': 'Select blood group',
     'selectRelation': 'Select relation',
     'completeRegistration': 'Complete Registration',
     'required': 'is required',
+    'optional': '(Optional)',
     'selectRegistrationType': 'Please select registration type (Self or Others)',
     'selectDateOfBirth': 'Please select date of birth',
     'selectGender': 'Please select gender',
@@ -115,13 +119,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     'male': 'مرد',
     'female': 'عورت',
     'email': 'ای میل',
+    'emailOptional': 'ای میل (اختیاری)',
     'phone': 'فون',
     'address': 'پتہ',
+    'addressOptional': 'پتہ (اختیاری)',
     'bloodGroup': 'خون کا گروپ',
+    'bloodGroupOptional': 'خون کا گروپ (اختیاری)',
     'selectBloodGroup': 'خون کا گروپ منتخب کریں',
     'selectRelation': 'رشتہ منتخب کریں',
     'completeRegistration': 'رجسٹریشن مکمل کریں',
     'required': 'درکار ہے',
+    'optional': '(اختیاری)',
     'selectRegistrationType': 'براہ کرم رجسٹریشن کی قسم منتخب کریں (خود یا دوسرے)',
     'selectDateOfBirth': 'براہ کرم تاریخ پیدائش منتخب کریں',
     'selectGender': 'براہ کرم جنس منتخب کریں',
@@ -334,10 +342,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           'fullName': _fullNameController.text.trim(),
           'cnic': _cnicController.text.trim(),
           'phone': _phoneController.text.trim(),
-          'email': _emailController.text.trim(),
+          'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
           'dateOfBirth': _dateOfBirth!,
           'gender': _gender!,
-          'address': _addressController.text.trim(),
+          'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
           'bloodGroup': _bloodGroup,
         };
 
@@ -351,10 +359,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           fullName: patientData['fullName'] as String,
           cnic: patientData['cnic'] as String,
           phone: patientData['phone'] as String,
-          email: patientData['email'] as String,
+          email: patientData['email'] as String?,
           dateOfBirth: patientData['dateOfBirth'] as DateTime,
           gender: patientData['gender'] as String,
-          address: patientData['address'] as String,
+          address: patientData['address'] as String?,
           bloodGroup: patientData['bloodGroup'] as String?,
           registrationType: _registrationType,
           parentType: _parentType,
@@ -1317,36 +1325,63 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     Row(
                       children: <Widget>[
                         Expanded(
-                          child: TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            style: const TextStyle(fontSize: 16),
-                            decoration: InputDecoration(
-                              labelText: _translations['email'],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                style: const TextStyle(fontSize: 16),
+                                decoration: InputDecoration(
+                                  labelText: _translations['emailOptional'],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  // Only validate format if value is provided
+                                  if (value != null && value.trim().isNotEmpty) {
+                                    final String trimmed = value.trim();
+                                    final bool looksValid = RegExp(
+                                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                        .hasMatch(trimmed);
+                                    if (!looksValid) {
+                                      return _translations['enterValidEmail']!;
+                                    }
+                                  }
+                                  return null;
+                                },
                               ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
+                              const Gap(4),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    const Gap(4),
+                                    Text(
+                                      _translations['optional']!,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            validator: (value) {
-                              final String? requiredResult =
-                                  _requiredValidator(value, fieldName: _translations['email']!);
-                              if (requiredResult != null) return requiredResult;
-                              final String trimmed = value!.trim();
-                              final bool looksValid = RegExp(
-                                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                  .hasMatch(trimmed);
-                              if (!looksValid) {
-                                return _translations['enterValidEmail']!;
-                              }
-                              return null;
-                            },
+                            ],
                           ),
                         ),
                         const Gap(16),
@@ -1391,62 +1426,117 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     const Gap(16),
                     
                     // Address field
-                    TextFormField(
-                      controller: _addressController,
-                      keyboardType: TextInputType.streetAddress,
-                      textInputAction: TextInputAction.next,
-                      readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
-                      style: const TextStyle(fontSize: 16),
-                      decoration: InputDecoration(
-                        labelText: _translations['address'],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          controller: _addressController,
+                          keyboardType: TextInputType.streetAddress,
+                          textInputAction: TextInputAction.next,
+                          readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
+                          style: const TextStyle(fontSize: 16),
+                          decoration: InputDecoration(
+                            labelText: _translations['addressOptional'],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          // No validator - field is optional
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
+                        const Gap(4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const Gap(4),
+                              Text(
+                                _translations['optional']!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      validator: (v) =>
-                          _requiredValidator(v, fieldName: _translations['address']!),
+                      ],
                     ),
                     const Gap(16),
                     
                     // Blood group field
-                    DropdownButtonFormField<String>(
-                      value: _bloodGroup,
-                      decoration: InputDecoration(
-                        labelText: _translations['bloodGroup'],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _bloodGroup,
+                          decoration: InputDecoration(
+                            labelText: _translations['bloodGroupOptional'],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          items: [
+                            // Add a null option for "Not Selected"
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text(
+                                _isUrdu ? 'منتخب نہیں کیا' : 'Not Selected',
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            ),
+                            const DropdownMenuItem<String>(value: 'A+', child: Text('A+')),
+                            const DropdownMenuItem<String>(value: 'A-', child: Text('A-')),
+                            const DropdownMenuItem<String>(value: 'B+', child: Text('B+')),
+                            const DropdownMenuItem<String>(value: 'B-', child: Text('B-')),
+                            const DropdownMenuItem<String>(value: 'AB+', child: Text('AB+')),
+                            const DropdownMenuItem<String>(value: 'AB-', child: Text('AB-')),
+                            const DropdownMenuItem<String>(value: 'O+', child: Text('O+')),
+                            const DropdownMenuItem<String>(value: 'O-', child: Text('O-')),
+                          ],
+                          onChanged: (value) => setState(() => _bloodGroup = value),
+                          // No validator - field is optional
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
+                        const Gap(4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                              const Gap(4),
+                              Text(
+                                _translations['optional']!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      items: const [
-                        'A+',
-                        'A-',
-                        'B+',
-                        'B-',
-                        'AB+',
-                        'AB-',
-                        'O+',
-                        'O-'
-                      ]
-                          .map((g) => DropdownMenuItem<String>(
-                                value: g,
-                                child: Text(g),
-                              ))
-                          .toList(),
-                      onChanged: (value) => setState(() => _bloodGroup = value),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? _translations['selectBloodGroup'] : null,
+                      ],
                     ),
                     const Gap(32),
                     
