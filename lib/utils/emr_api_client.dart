@@ -662,5 +662,191 @@ class EmrApiClient {
       return {};
     }
   }
+
+  // Request OTP for patient authentication
+  Future<Map<String, dynamic>> requestOtp({required String cnic}) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/request');
+    try {
+      print('🔍 Requesting OTP for CNIC: $cnic');
+      
+      final body = {
+        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      print('📡 OTP request response status: ${res.statusCode}');
+      print('📡 OTP request response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Failed to request OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception('$errorMessage (${res.statusCode})');
+    } catch (e) {
+      print('❌ Error requesting OTP: $e');
+      rethrow;
+    }
+  }
+
+  // Verify OTP for patient authentication
+  Future<Map<String, dynamic>> verifyOtp({
+    required String cnic,
+    required String otpCode,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/verify');
+    try {
+      print('🔍 Verifying OTP for CNIC: $cnic');
+      
+      final body = {
+        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+        'code': otpCode.trim(),
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      print('📡 OTP verify response status: ${res.statusCode}');
+      print('📡 OTP verify response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Invalid OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception(errorMessage);
+    } catch (e) {
+      print('❌ Error verifying OTP: $e');
+      rethrow;
+    }
+  }
+
+  // Send registration OTP SMS
+  Future<void> sendRegistrationOtp({
+    required String phoneNumber,
+    required String otp,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/send-registration');
+    try {
+      print('🔍 Sending registration OTP to: $phoneNumber');
+      
+      final body = {
+        'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
+        'otp': otp,
+      };
+      
+      // Increase timeout to 30 seconds for SMS operations
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 30));
+      
+      print('📡 Registration OTP send response status: ${res.statusCode}');
+      print('📡 Registration OTP send response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        final data = response['data'] as Map<String, dynamic>?;
+        final message = response['message'] as String? ?? 'OTP sent successfully';
+        final smsStatus = data?['smsStatus'] as String?;
+        
+        print('✅ Registration OTP response: $message');
+        
+        // Check SMS status from response
+        if (smsStatus != null) {
+          print('📡 SMS Status: $smsStatus');
+          if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
+            print('⚠️ SMS delivery failed or timed out');
+            // Extract OTP from message if available
+            final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
+            if (otpMatch != null) {
+              print('📝 OTP from response: ${otpMatch.group(1)}');
+            }
+            // Throw exception to indicate SMS failed
+            throw Exception('SMS delivery failed: $message');
+          } else if (smsStatus == 'NotSupported') {
+            print('⚠️ SMS not supported for this number type');
+            // Extract OTP from message if available
+            final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
+            if (otpMatch != null) {
+              print('📝 OTP from response: ${otpMatch.group(1)}');
+            }
+            // Throw exception to indicate SMS not supported
+            throw Exception('SMS not supported: $message');
+          } else if (smsStatus == 'Sent') {
+            print('✅ SMS sent successfully');
+          }
+        } else if (message.contains('OTP:') || message.contains('OTP generated') || 
+                   message.contains('SMS delivery') || message.contains('timed out') ||
+                   message.contains('not sent') || message.contains('not supported')) {
+          print('⚠️ SMS may have failed, but OTP is available in response');
+          // Throw exception to indicate SMS issue
+          throw Exception('SMS delivery issue: $message');
+        }
+        
+        return;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Failed to send registration OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception('$errorMessage (${res.statusCode})');
+    } catch (e) {
+      print('❌ Error sending registration OTP: $e');
+      // Don't rethrow - let the fallback mechanism handle it
+      // The backend now returns success even if SMS fails, with OTP in message
+      if (e.toString().contains('TimeoutException')) {
+        print('⚠️ Request timed out, but SMS may still be processing');
+      }
+      rethrow;
+    }
+  }
 }
 

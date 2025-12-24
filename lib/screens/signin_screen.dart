@@ -8,7 +8,6 @@ import 'dashboard_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
-import '../utils/mock_user.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -27,21 +26,8 @@ class _SignInScreenState extends State<SignInScreen> {
     super.initState();
     // Test API connection when app launches
     _testApiConnection();
-    // Initialize mock user if no user data exists
-    _initializeMockUserIfNeeded();
     // Load saved user data to pre-fill form
     _loadSavedUserData();
-  }
-
-  Future<void> _initializeMockUserIfNeeded() async {
-    try {
-      final shouldUseMock = await MockUser.shouldUseMockUser();
-      if (shouldUseMock) {
-        await MockUser.initializeMockUser();
-      }
-    } catch (e) {
-      debugPrint('Error initializing mock user: $e');
-    }
   }
 
   Future<void> _loadSavedUserData() async {
@@ -352,7 +338,7 @@ class _SignInScreenState extends State<SignInScreen> {
         print('⚠️ [SignIn] No patients found');
         _showNoPatientsFoundDialog(cnic);
       } else if (patients.length == 1) {
-        // Single patient found - save and navigate directly
+        // Single patient found - save and navigate directly (no OTP required for sign in)
         print('✅ [SignIn] Single patient found, navigating to dashboard');
         await _handleSinglePatient(patients[0]);
       } else {

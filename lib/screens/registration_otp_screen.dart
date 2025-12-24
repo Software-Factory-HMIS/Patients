@@ -6,8 +6,15 @@ import '../utils/keyboard_inset_padding.dart';
 
 class RegistrationOtpScreen extends StatefulWidget {
   final String phoneNumber;
+  final String? expectedOtp; // OTP to verify against
+  final String? errorMessage; // Error message to display if SMS failed
   
-  const RegistrationOtpScreen({super.key, required this.phoneNumber});
+  const RegistrationOtpScreen({
+    super.key, 
+    required this.phoneNumber,
+    this.expectedOtp,
+    this.errorMessage,
+  });
 
   @override
   State<RegistrationOtpScreen> createState() => _RegistrationOtpScreenState();
@@ -215,28 +222,58 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     );
   }
 
-  void _handleVerifyOtp() {
+  Future<void> _handleVerifyOtp() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    
+    final otpCode = _otpController.text.trim();
+    
+    // Basic validation - OTP must be 4 digits
+    if (otpCode.length != 4 || !RegExp(r'^\d{4}$').hasMatch(otpCode)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid 4-digit OTP'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Verify OTP matches expected value
+    if (widget.expectedOtp != null && otpCode != widget.expectedOtp) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid OTP. Please check and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     
     setState(() {
       _loading = true;
     });
 
-    // Simulate OTP verification
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-        // Navigate to registration screen after OTP verification
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => RegistrationScreen(phoneNumber: widget.phoneNumber),
-          ),
-          (route) => false, // Remove all previous routes
-        );
-      }
-    });
+    // OTP verified - proceed to registration
+    // Small delay for UX feedback
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+      
+      // Navigate to registration screen after OTP verification
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => RegistrationScreen(phoneNumber: widget.phoneNumber),
+        ),
+        (route) => false, // Remove all previous routes
+      );
+    }
   }
 
   void _handleResendOtp() {

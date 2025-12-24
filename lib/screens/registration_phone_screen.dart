@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_otp_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../utils/emr_api_client.dart';
 
 class RegistrationPhoneScreen extends StatefulWidget {
   const RegistrationPhoneScreen({super.key});
@@ -15,6 +17,22 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
+  EmrApiClient? _apiClient;
+  String? _storedOtp; // Store OTP for verification
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApiClient();
+  }
+
+  Future<void> _initializeApiClient() async {
+    try {
+      _apiClient = await EmrApiClient.create();
+    } catch (e) {
+      debugPrint('Error initializing API client: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -207,28 +225,118 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     );
   }
 
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
     final phoneNumber = _phoneController.text.trim();
     
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _loading = true;
     });
 
-    // Simulate a brief loading state for better UX
-    Future.delayed(const Duration(milliseconds: 300), () {
+    try {
+      // Generate a simple OTP for registration (4 digits)
+      final otp = _generateRegistrationOtp();
+      _storedOtp = otp;
+      
+      // Send OTP via SMS API
+      String? errorMessage;
+      try {
+        await _apiClient!.sendRegistrationOtp(
+          phoneNumber: phoneNumber,
+          otp: otp,
+        );
+        
+        // If we get here, SMS was sent successfully
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('OTP sent to your phone number'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (smsError) {
+        debugPrint('Failed to send OTP via SMS: $smsError');
+        // Extract OTP from error message if available
+        final errorMsg = smsError.toString();
+        final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(errorMsg);
+        final displayOtp = otpMatch?.group(1) ?? otp;
+        
+        // Store error message to show on next screen
+        if (errorMsg.contains('not supported') || errorMsg.contains('NotSupported')) {
+          errorMessage = 'SMS not available for non-Ufone numbers. OTP: $displayOtp';
+        } else {
+          errorMessage = 'SMS delivery failed. OTP: $displayOtp';
+        }
+        
+        // Show snackbar before navigation
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 15),
+            ),
+          );
+          
+          // Wait a moment for snackbar to appear before navigating
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+
+      // Navigate to OTP verification screen
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => RegistrationOtpScreen(
+              phoneNumber: phoneNumber,
+              expectedOtp: otp, // Pass OTP for verification
+              errorMessage: errorMessage, // Pass error message if SMS failed
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error in registration phone verification: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() {
           _loading = false;
         });
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => RegistrationOtpScreen(phoneNumber: phoneNumber),
-          ),
-        );
       }
-    });
+    }
+  }
+
+  String _generateRegistrationOtp() {
+    // Generate a 4-digit OTP
+    final random = DateTime.now().millisecondsSinceEpoch % 10000;
+    return random.toString().padLeft(4, '0');
   }
 }
 

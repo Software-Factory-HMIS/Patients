@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'dashboard_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../utils/emr_api_client.dart';
 
 class OtpScreen extends StatefulWidget {
   final String cnic;
@@ -17,6 +18,9 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _otpController = TextEditingController();
+  EmrApiClient? _apiClient;
+  bool _isRequestingOtp = false;
+  bool _isVerifyingOtp = false;
 
   // Responsive sizing methods (aligned with login_page.dart)
   double getResponsiveSize(double baseSize) {
@@ -35,6 +39,71 @@ class _OtpScreenState extends State<OtpScreen> {
     final screenSize = MediaQuery.of(context).size;
     final scaleFactor = screenSize.width < 600 ? 0.3675 : screenSize.width < 1200 ? 0.72 : 1.0;
     return baseFontSize * scaleFactor;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApiClient();
+    _requestOtp();
+  }
+
+  Future<void> _initializeApiClient() async {
+    try {
+      _apiClient = await EmrApiClient.create();
+    } catch (e) {
+      debugPrint('Error initializing API client: $e');
+    }
+  }
+
+  Future<void> _requestOtp() async {
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+    
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isRequestingOtp = true;
+    });
+
+    try {
+      await _apiClient!.requestOtp(cnic: widget.cnic);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('OTP sent to your registered number'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error requesting OTP: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send OTP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRequestingOtp = false;
+        });
+      }
+    }
   }
 
   @override
@@ -222,20 +291,29 @@ class _OtpScreenState extends State<OtpScreen> {
                         SizedBox(
                           height: 56,
                           child: FilledButton(
-                            onPressed: _handleOtpSubmit,
+                            onPressed: (_isVerifyingOtp || _isRequestingOtp) ? null : _handleOtpSubmit,
                             style: FilledButton.styleFrom(
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                            child: const Text(
-                              'Continue',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _isVerifyingOtp
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator.adaptive(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Continue',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                         const Gap(16),
@@ -317,24 +395,64 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 
-  void _handleOtpSubmit() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Navigate to dashboard
+  Future<void> _handleOtpSubmit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isVerifyingOtp = true;
+    });
+
+    try {
+      final otpCode = _otpController.text.trim();
+      final response = await _apiClient!.verifyOtp(
+        cnic: widget.cnic,
+        otpCode: otpCode,
+      );
+
+      if (!mounted) return;
+
+      // OTP verified successfully - navigate to dashboard
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => DashboardScreen(cnic: widget.cnic),
         ),
       );
+    } catch (e) {
+      debugPrint('Error verifying OTP: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invalid OTP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifyingOtp = false;
+        });
+      }
     }
   }
 
   void _handleResendOtp() {
-    // Handle resend OTP logic here
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP resent to your registered number'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    _requestOtp();
   }
 }

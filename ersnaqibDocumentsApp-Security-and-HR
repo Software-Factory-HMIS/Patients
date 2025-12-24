@@ -1,0 +1,84 @@
+warning: in the working copy of 'lib/screens/signin_screen.dart', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/lib/screens/signin_screen.dart b/lib/screens/signin_screen.dart[m
+[1mindex 4fa56a4..1fd3034 100644[m
+[1m--- a/lib/screens/signin_screen.dart[m
+[1m+++ b/lib/screens/signin_screen.dart[m
+[36m@@ -8,7 +8,6 @@[m [mimport 'dashboard_screen.dart';[m
+ import '../utils/keyboard_inset_padding.dart';[m
+ import '../utils/emr_api_client.dart';[m
+ import '../utils/user_storage.dart';[m
+[31m-import '../utils/mock_user.dart';[m
+ [m
+ class SignInScreen extends StatefulWidget {[m
+   const SignInScreen({super.key});[m
+[36m@@ -27,23 +26,10 @@[m [mclass _SignInScreenState extends State<SignInScreen> {[m
+     super.initState();[m
+     // Test API connection when app launches[m
+     _testApiConnection();[m
+[31m-    // Initialize mock user if no user data exists[m
+[31m-    _initializeMockUserIfNeeded();[m
+     // Load saved user data to pre-fill form[m
+     _loadSavedUserData();[m
+   }[m
+ [m
+[31m-  Future<void> _initializeMockUserIfNeeded() async {[m
+[31m-    try {[m
+[31m-      final shouldUseMock = await MockUser.shouldUseMockUser();[m
+[31m-      if (shouldUseMock) {[m
+[31m-        await MockUser.initializeMockUser();[m
+[31m-      }[m
+[31m-    } catch (e) {[m
+[31m-      debugPrint('Error initializing mock user: $e');[m
+[31m-    }[m
+[31m-  }[m
+[31m-[m
+   Future<void> _loadSavedUserData() async {[m
+     try {[m
+       final userData = await UserStorage.getUserData();[m
+[1mdiff --git a/lib/utils/mock_user.dart b/lib/utils/mock_user.dart[m
+[1mdeleted file mode 100644[m
+[1mindex cbaa0ea..0000000[m
+[1m--- a/lib/utils/mock_user.dart[m
+[1m+++ /dev/null[m
+[36m@@ -1,41 +0,0 @@[m
+[31m-import 'user_storage.dart';[m
+[31m-[m
+[31m-/// Mock user data for testing the application flow[m
+[31m-class MockUser {[m
+[31m-  static const Map<String, dynamic> mockUserData = {[m
+[31m-    'fullName': 'Ahmed Ali',[m
+[31m-    'cnic': '35202-1234567-1',[m
+[31m-    'phone': '03001234567',[m
+[31m-    'email': 'ahmed.ali@example.com',[m
+[31m-    'dateOfBirth': '1990-05-15T00:00:00.000Z', // ISO string format[m
+[31m-    'gender': 'Male',[m
+[31m-    'address': '123 Main Street, Lahore, Pakistan',[m
+[31m-    'bloodGroup': 'O+',[m
+[31m-  };[m
+[31m-[m
+[31m-  /// Initialize mock user data for testing[m
+[31m-  /// This saves the mock user data to local storage[m
+[31m-  static Future<void> initializeMockUser() async {[m
+[31m-    try {[m
+[31m-      // Convert date string to DateTime[m
+[31m-      final userData = Map<String, dynamic>.from(mockUserData);[m
+[31m-      userData['dateOfBirth'] = DateTime.parse(mockUserData['dateOfBirth'] as String);[m
+[31m-      [m
+[31m-      await UserStorage.saveUserData(userData);[m
+[31m-      print('✅ Mock user initialized successfully');[m
+[31m-      print('   Name: ${mockUserData['fullName']}');[m
+[31m-      print('   Phone: ${mockUserData['phone']}');[m
+[31m-      print('   CNIC: ${mockUserData['cnic']}');[m
+[31m-    } catch (e) {[m
+[31m-      print('❌ Error initializing mock user: $e');[m
+[31m-    }[m
+[31m-  }[m
+[31m-[m
+[31m-  /// Check if mock user should be used[m
+[31m-  /// Returns true if no user data exists in storage[m
+[31m-  static Future<bool> shouldUseMockUser() async {[m
+[31m-    final hasUserData = await UserStorage.hasUserData();[m
+[31m-    return !hasUserData;[m
+[31m-  }[m
+[31m-}[m
+[31m-[m
