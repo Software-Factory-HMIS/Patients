@@ -40,7 +40,7 @@ class UserStorage {
         return null;
       }
       
-      final userData = json.decode(userDataString) as Ma p<String, dynamic>;
+      final userData = json.decode(userDataString) as Map<String, dynamic>;
       
       // Convert ISO string back to DateTime
       if (userData['dateOfBirth'] != null && userData['dateOfBirth'] is String) {

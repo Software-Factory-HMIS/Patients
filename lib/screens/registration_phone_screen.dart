@@ -256,7 +256,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
       _storedOtp = otp;
       
       // Send OTP via SMS API
-      String? errorMessage;
+      bool smsSentSuccessfully = false;
       try {
         await _apiClient!.sendRegistrationOtp(
           phoneNumber: phoneNumber,
@@ -264,6 +264,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         );
         
         // If we get here, SMS was sent successfully
+        smsSentSuccessfully = true;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -280,36 +281,38 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(errorMsg);
         final displayOtp = otpMatch?.group(1) ?? otp;
         
-        // Store error message to show on next screen
+        // Determine error message based on error type
+        String errorMessage;
         if (errorMsg.contains('not supported') || errorMsg.contains('NotSupported')) {
-          errorMessage = 'SMS not available for non-Ufone numbers. OTP: $displayOtp';
+          errorMessage = 'SMS is only available for Ufone numbers (0333-0337). Please use a Ufone number to continue.';
+        } else if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
+          errorMessage = 'SMS delivery timed out. Please try again.';
         } else {
-          errorMessage = 'SMS delivery failed. OTP: $displayOtp';
+          errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
         }
         
-        // Show snackbar before navigation
+        // Show error message and don't navigate
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(errorMessage),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 15),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
             ),
           );
-          
-          // Wait a moment for snackbar to appear before navigating
-          await Future.delayed(const Duration(milliseconds: 500));
         }
+        
+        // Don't navigate - SMS failed
+        return;
       }
 
-      // Navigate to OTP verification screen
-      if (mounted) {
+      // Only navigate if SMS was sent successfully
+      if (smsSentSuccessfully && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => RegistrationOtpScreen(
               phoneNumber: phoneNumber,
               expectedOtp: otp, // Pass OTP for verification
-              errorMessage: errorMessage, // Pass error message if SMS failed
             ),
           ),
         );

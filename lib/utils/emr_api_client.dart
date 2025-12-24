@@ -848,5 +848,45 @@ class EmrApiClient {
       rethrow;
     }
   }
+
+  /// Test SMS service without requiring a valid phone number
+  /// Returns detailed information about the SMS API call
+  Future<Map<String, dynamic>> testSmsService({
+    String? phoneNumber,
+    String? message,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/test-sms');
+    try {
+      print('🧪 Testing SMS service...');
+      
+      final body = <String, dynamic>{};
+      if (phoneNumber != null) {
+        body['phoneNumber'] = phoneNumber;
+      }
+      if (message != null) {
+        body['message'] = message;
+      }
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 20));
+      
+      print('📡 SMS Test response status: ${res.statusCode}');
+      print('📡 SMS Test response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        print('✅ SMS Test completed. Check server logs for detailed API information.');
+        return response;
+      }
+      
+      throw Exception('SMS test failed: ${res.statusCode} - ${res.body}');
+    } catch (e) {
+      print('❌ Error testing SMS service: $e');
+      rethrow;
+    }
+  }
 }
 
