@@ -42,6 +42,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _cnicController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   
   // State variables
   DateTime? _dateOfBirth;
@@ -50,6 +52,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String? _registrationType; // 'Self' or 'Others' - defaults to 'Self' for first registration
   String? _parentType; // 'Father' or 'Mother'
   bool _isSubmitting = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _showDetailsCard = false; // Show details card after successful registration
   Map<String, dynamic>? _registeredPatientData; // Store registered patient data (for self registration)
   Map<String, dynamic>? _newlyAddedPatientData; // Store newly added patient data (for "Add Others")
@@ -97,6 +101,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     'enterCnicFormat': 'Enter CNIC as 12345-1234567-1',
     'registrationSuccessful': 'Registration successful!',
     'languageToggle': 'English',
+    'password': 'Password',
+    'confirmPassword': 'Confirm Password',
+    'passwordRequirements': 'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character',
+    'passwordsDoNotMatch': 'Passwords do not match',
   };
   
   static const Map<String, String> _urduTranslations = {
@@ -138,6 +146,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     'enterCnicFormat': 'قومی شناختی کارڈ 12345-1234567-1 کی شکل میں درج کریں',
     'registrationSuccessful': 'رجسٹریشن کامیاب!',
     'languageToggle': 'اردو',
+    'password': 'پاس ورڈ',
+    'confirmPassword': 'پاس ورڈ کی تصدیق',
+    'passwordRequirements': 'پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے اور بڑے حروف، چھوٹے حروف، نمبر اور خاص علامت شامل ہونی چاہیے',
+    'passwordsDoNotMatch': 'پاس ورڈ میل نہیں کھاتے',
   };
   
   // Dropdown options translations
@@ -197,6 +209,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     _cnicController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -204,6 +218,50 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (value == null || value.trim().isEmpty) {
       return '$fieldName ${_translations['required']}';
     }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return '${_translations['password']} ${_translations['required']}';
+    }
+    
+    if (value.length < 8) {
+      return _translations['passwordRequirements'];
+    }
+    
+    // Check for uppercase letter
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return _translations['passwordRequirements'];
+    }
+    
+    // Check for lowercase letter
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return _translations['passwordRequirements'];
+    }
+    
+    // Check for number
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return _translations['passwordRequirements'];
+    }
+    
+    // Check for special character
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return _translations['passwordRequirements'];
+    }
+    
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return '${_translations['confirmPassword']} ${_translations['required']}';
+    }
+    
+    if (value != _passwordController.text) {
+      return _translations['passwordsDoNotMatch'];
+    }
+    
     return null;
   }
 
@@ -322,6 +380,45 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
     
+    // Additional validation: Ensure password is provided for Self registration
+    if (_registrationType == 'Self' && !widget.isAddOthers) {
+      final passwordText = _passwordController.text.trim();
+      if (passwordText.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_translations['password']} ${_translations['required']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      // Validate password meets requirements
+      final passwordError = _validatePassword(passwordText);
+      if (passwordError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(passwordError),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+      
+      // Validate confirm password matches
+      final confirmPasswordError = _validateConfirmPassword(_confirmPasswordController.text.trim());
+      if (confirmPasswordError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(confirmPasswordError),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+    
     if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isSubmitting = true;
@@ -347,6 +444,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           'gender': _gender!,
           'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
           'bloodGroup': _bloodGroup,
+          'password': _passwordController.text, // Only for Self registration
         };
 
         // Register patient via API
@@ -355,6 +453,42 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         const int defaultSystemUserId = 1;
         
         print('📝 Registering patient via API...');
+        print('🔍 Registration Type: $_registrationType');
+        print('🔍 Is Add Others: ${widget.isAddOthers}');
+        print('🔍 Password controller text length: ${_passwordController.text.length}');
+        print('🔍 Password controller text (first char): ${_passwordController.text.isNotEmpty ? _passwordController.text[0] : "empty"}');
+        print('🔍 Confirm password controller text length: ${_confirmPasswordController.text.length}');
+        
+        // Determine password to send - only for Self registration
+        String? passwordToSend;
+        if (_registrationType == 'Self' && !widget.isAddOthers) {
+          final passwordText = _passwordController.text.trim();
+          print('🔍 Password text trimmed length: ${passwordText.length}');
+          
+          if (passwordText.isEmpty) {
+            print('⚠️ Password is empty for Self registration!');
+            if (mounted) {
+              setState(() {
+                _isSubmitting = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${_translations['password']} ${_translations['required']}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+          
+          passwordToSend = passwordText;
+          print('✅ Password will be sent (length: ${passwordToSend.length})');
+        } else {
+          print('ℹ️ Password not required (RegistrationType: $_registrationType, isAddOthers: ${widget.isAddOthers})');
+        }
+        
+        print('🔍 Final passwordToSend: ${passwordToSend != null ? "*** (length: ${passwordToSend.length})" : "null"}');
+        
         final registeredPatient = await _apiClient!.registerPatient(
           fullName: patientData['fullName'] as String,
           cnic: patientData['cnic'] as String,
@@ -364,6 +498,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           gender: patientData['gender'] as String,
           address: patientData['address'] as String?,
           bloodGroup: patientData['bloodGroup'] as String?,
+          password: passwordToSend, // Only for Self registration
           registrationType: _registrationType,
           parentType: _parentType,
           createdBy: defaultSystemUserId, // Required by database - use system user for self-registration
@@ -1538,6 +1673,102 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                       ],
                     ),
+                    const Gap(16),
+                    
+                    // Password fields - only show for Self registration (not for "Add Others")
+                    if (!widget.isAddOthers && _registrationType == 'Self') ...[
+                      // Password field
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.next,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: InputDecoration(
+                          labelText: _translations['password'],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: _validatePassword,
+                      ),
+                      const Gap(16),
+                      
+                      // Confirm Password field
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        textInputAction: TextInputAction.done,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: InputDecoration(
+                          labelText: _translations['confirmPassword'],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureConfirmPassword = !_obscureConfirmPassword;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: _validateConfirmPassword,
+                      ),
+                      const Gap(8),
+                      
+                      // Password requirements hint
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                            const Gap(4),
+                            Expanded(
+                              child: Text(
+                                _translations['passwordRequirements']!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Gap(16),
+                    ],
+                    
                     const Gap(32),
                     
                     // Submit button

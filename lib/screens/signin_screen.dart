@@ -19,7 +19,9 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _cnicController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _loading = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void dispose() {
     _cnicController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -146,7 +149,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     const Gap(8),
                     
                     Text(
-                      'Enter your CNIC to continue',
+                      'Enter your CNIC and password to continue',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.grey.shade600,
                       ),
@@ -202,6 +205,49 @@ class _SignInScreenState extends State<SignInScreen> {
                           return 'CNIC must be exactly 13 digits';
                         }
                         
+                        return null;
+                      },
+                    ),
+                    
+                    const Gap(16),
+                    
+                    // Password input field
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'Enter your password',
+                        prefixIcon: const Icon(Icons.lock_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 20,
+                        ),
+                      ),
+                      scrollPadding: const EdgeInsets.only(bottom: 100),
+                      validator: (value) {
+                        final String? requiredResult = _requiredValidator(value, fieldName: 'Password');
+                        if (requiredResult != null) return requiredResult;
                         return null;
                       },
                     ),
@@ -298,13 +344,24 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _handleSignIn() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
-    // Get and clean CNIC
+    // Get and clean CNIC and password
     final cnic = _cnicController.text.trim();
+    final password = _passwordController.text;
     
     if (cnic.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a CNIC'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your password'),
           backgroundColor: Colors.red,
         ),
       );
@@ -321,8 +378,8 @@ class _SignInScreenState extends State<SignInScreen> {
       
       print('🔍 [SignIn] Attempting login with CNIC: $cnic');
       
-      // Call login by CNIC API
-      final patients = await apiClient.loginByCnic(cnic);
+      // Call login by CNIC and password API
+      final patients = await apiClient.loginByCnic(cnic, password: password);
       
       if (!mounted) return;
       

@@ -261,19 +261,19 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     // Small delay for UX feedback
     await Future.delayed(const Duration(milliseconds: 300));
     
-    if (mounted) {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
       
-      // Navigate to registration screen after OTP verification
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => RegistrationScreen(phoneNumber: widget.phoneNumber),
-        ),
-        (route) => false, // Remove all previous routes
-      );
-    }
+        // Navigate to registration screen after OTP verification
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => RegistrationScreen(phoneNumber: widget.phoneNumber),
+          ),
+          (route) => false, // Remove all previous routes
+        );
+      }
   }
 
   void _handleResendOtp() {

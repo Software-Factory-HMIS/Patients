@@ -263,7 +263,8 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           otp: otp,
         );
         
-        // If we get here, SMS was sent successfully
+        // If we get here without exception, the API call succeeded
+        // This means either SMS was sent OR CanProceed=true (allowing manual OTP entry)
         smsSentSuccessfully = true;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -276,37 +277,59 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         }
       } catch (smsError) {
         debugPrint('Failed to send OTP via SMS: $smsError');
-        // Extract OTP from error message if available
         final errorMsg = smsError.toString();
-        final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(errorMsg);
-        final displayOtp = otpMatch?.group(1) ?? otp;
         
-        // Determine error message based on error type
-        String errorMessage;
-        if (errorMsg.contains('not supported') || errorMsg.contains('NotSupported')) {
-          errorMessage = 'SMS is only available for Ufone numbers (0333-0337). Please use a Ufone number to continue.';
-        } else if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
-          errorMessage = 'SMS delivery timed out. Please try again.';
+        // Check if error message indicates we can still proceed
+        // Backend returns CanProceed=true even when SMS fails, so API client shouldn't throw
+        // But if it does throw, check if we can extract OTP and proceed
+        if (errorMsg.contains('OTP:') || 
+            errorMsg.contains('proceed to enter') ||
+            errorMsg.contains('CanProceed')) {
+          // SMS failed but we can proceed with manual OTP entry
+          smsSentSuccessfully = true; // Allow navigation
+          
+          // Show warning message
+          String warningMessage;
+          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
+            warningMessage = 'SMS delivery timed out. You can still enter the OTP manually.';
+          } else if (errorMsg.contains('Invalid sender IP')) {
+            warningMessage = 'SMS service temporarily unavailable. Please enter the OTP manually.';
+          } else {
+            warningMessage = 'SMS delivery failed. Please enter the OTP manually.';
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(warningMessage),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
         } else {
-          errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
+          // True error - cannot proceed
+          String errorMessage;
+          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
+            errorMessage = 'SMS delivery timed out. Please try again.';
+          } else {
+            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMessage),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          return; // Don't navigate - true error
         }
-        
-        // Show error message and don't navigate
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
-        
-        // Don't navigate - SMS failed
-        return;
       }
 
-      // Only navigate if SMS was sent successfully
+      // Navigate to OTP entry screen if SMS was sent successfully OR if we can proceed
       if (smsSentSuccessfully && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(

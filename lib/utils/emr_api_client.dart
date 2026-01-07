@@ -138,8 +138,8 @@ class EmrApiClient {
     throw Exception('Failed to load patient: All formats failed');
   }
 
-  // Login with CNIC - returns list of patients with matching CNIC
-  Future<List<Map<String, dynamic>>> loginByCnic(String cnic) async {
+  // Login with CNIC and password - returns list of patients with matching CNIC and verified password
+  Future<List<Map<String, dynamic>>> loginByCnic(String cnic, {String? password}) async {
     // Clean and normalize CNIC - remove any non-digit characters
     final cleanedCnic = cnic.replaceAll(RegExp(r'[^\d]'), '').trim();
     
@@ -153,57 +153,115 @@ class EmrApiClient {
     
     print('🔍 [loginByCnic] Original CNIC: "$cnic", Cleaned: "$cleanedCnic"');
     
-    // URL encode the CNIC to handle special characters
-    final encodedCnic = Uri.encodeComponent(cleanedCnic);
-    final uri = Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic');
-    
-    try {
-      print('🔍 [loginByCnic] Requesting: $uri');
-      print('🆔 [loginByCnic] CNIC being searched: "$cleanedCnic"');
+    // Use POST endpoint for login with password, or GET if no password provided
+    if (password != null && password.isNotEmpty) {
+      // POST request with CNIC and password
+      final uri = Uri.parse('$baseUrl/api/patient-auth/login');
       
-      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
-      
-      print('📡 [loginByCnic] Response status: ${res.statusCode}');
-      print('📡 [loginByCnic] Response body length: ${res.body.length}');
-      
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        print('📡 [loginByCnic] Response body: ${res.body}');
-      }
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body);
+      try {
+        print('🔍 [loginByCnic] Attempting login with CNIC and password');
         
-        // Handle both single object and array responses
-        List<dynamic> patientsList;
-        if (response is List) {
-          patientsList = response;
-        } else if (response is Map<String, dynamic> && response.containsKey('data')) {
+        final body = json.encode({
+          'cnic': cleanedCnic,
+          'password': password,
+        });
+        
+        final res = await _client.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        ).timeout(const Duration(seconds: 15));
+        
+        print('📡 [loginByCnic] Response status: ${res.statusCode}');
+        
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final response = json.decode(res.body) as Map<String, dynamic>;
+          
           // Handle API response wrapper
-          final data = response['data'];
-          patientsList = data is List ? data : [data];
-        } else {
-          // Single patient object
-          patientsList = [response];
+          List<dynamic> patientsList;
+          if (response.containsKey('data')) {
+            final data = response['data'];
+            patientsList = data is List ? data : [data];
+          } else {
+            patientsList = [response];
+          }
+          
+          // Convert to List<Map<String, dynamic>>
+          final patients = patientsList
+              .map((p) => p as Map<String, dynamic>)
+              .toList();
+          
+          print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
+          return patients;
         }
         
-        // Convert to List<Map<String, dynamic>>
-        final patients = patientsList
-            .map((p) => p as Map<String, dynamic>)
-            .toList();
+        if (res.statusCode == 401 || res.statusCode == 403) {
+          throw Exception('Invalid CNIC or password');
+        }
         
-        print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
-        return patients;
+        if (res.statusCode == 404) {
+          print('⚠️ No patients found with CNIC: $cnic');
+          return [];
+        }
+        
+        throw Exception('Failed to login (${res.statusCode}): ${res.body}');
+      } catch (e) {
+        print('❌ Error logging in with CNIC and password: $e');
+        rethrow;
       }
+    } else {
+      // Fallback to GET endpoint if no password provided (for backward compatibility)
+      final encodedCnic = Uri.encodeComponent(cleanedCnic);
+      final uri = Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic');
       
-      if (res.statusCode == 404) {
-        print('⚠️ No patients found with CNIC: $cnic');
-        return [];
+      try {
+        print('🔍 [loginByCnic] Requesting: $uri');
+        print('🆔 [loginByCnic] CNIC being searched: "$cleanedCnic"');
+        
+        final res = await _client.get(uri).timeout(const Duration(seconds: 15));
+        
+        print('📡 [loginByCnic] Response status: ${res.statusCode}');
+        print('📡 [loginByCnic] Response body length: ${res.body.length}');
+        
+        if (res.statusCode >= 400 && res.statusCode < 500) {
+          print('📡 [loginByCnic] Response body: ${res.body}');
+        }
+        
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final response = json.decode(res.body);
+          
+          // Handle both single object and array responses
+          List<dynamic> patientsList;
+          if (response is List) {
+            patientsList = response;
+          } else if (response is Map<String, dynamic> && response.containsKey('data')) {
+            // Handle API response wrapper
+            final data = response['data'];
+            patientsList = data is List ? data : [data];
+          } else {
+            // Single patient object
+            patientsList = [response];
+          }
+          
+          // Convert to List<Map<String, dynamic>>
+          final patients = patientsList
+              .map((p) => p as Map<String, dynamic>)
+              .toList();
+          
+          print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
+          return patients;
+        }
+        
+        if (res.statusCode == 404) {
+          print('⚠️ No patients found with CNIC: $cnic');
+          return [];
+        }
+        
+        throw Exception('Failed to login with CNIC (${res.statusCode}): ${res.body}');
+      } catch (e) {
+        print('❌ Error logging in with CNIC: $e');
+        rethrow;
       }
-      
-      throw Exception('Failed to login with CNIC (${res.statusCode}): ${res.body}');
-    } catch (e) {
-      print('❌ Error logging in with CNIC: $e');
-      rethrow;
     }
   }
 
@@ -282,6 +340,7 @@ class EmrApiClient {
     required String gender,
     String? address, // Optional
     String? bloodGroup, // Optional
+    String? password, // Optional - only for Self registration
     String? registrationType, // 'Self' or 'Others'
     String? parentType, // 'Father' or 'Mother' when Others
     int? createdBy, // User ID who created the patient
@@ -298,6 +357,9 @@ class EmrApiClient {
       // Send as integer (JSON will serialize it correctly)
       // Try both camelCase and PascalCase to ensure API receives it
       final createdByValue = (createdBy ?? 1) as int;
+      
+      // Trim password before checking
+      final trimmedPassword = password?.trim();
       
       // Build patient data matching hmis_flutter structure
       final body = <String, dynamic>{
@@ -323,6 +385,16 @@ class EmrApiClient {
         'CreatedBy': createdByValue, // Also send PascalCase in case API is case-sensitive
       };
       
+      // Include password if provided and not empty (add after map creation)
+      // Backend will hash this before storing
+      if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
+        body['passwordHash'] = trimmedPassword;
+        body['password'] = trimmedPassword; // Also send as 'password' for backward compatibility
+        print('✅ Password included in request body (length: ${trimmedPassword.length})');
+      } else {
+        print('⚠️ Password NOT included - password: ${password != null ? "provided but empty/whitespace" : "null"}, trimmed: ${trimmedPassword != null ? "empty" : "null"}');
+      }
+      
       // Verify createdBy is in the body and is not null
       assert(body.containsKey('createdBy'), 'createdBy must be in request body');
       assert(body['createdBy'] != null, 'createdBy must not be null');
@@ -331,9 +403,15 @@ class EmrApiClient {
       print('📤 Request body: $body');
       print('🔍 createdBy value: ${body['createdBy']} (type: ${body['createdBy'].runtimeType})');
       print('🔍 CreatedBy value: ${body['CreatedBy']} (type: ${body['CreatedBy'].runtimeType})');
+      print('🔍 Password provided: ${password != null}');
+      print('🔍 Password length: ${password?.length ?? 0}');
+      print('🔍 PasswordHash in body: ${body.containsKey('passwordHash')}');
+      print('🔍 Password in body: ${body.containsKey('password')}');
       final jsonBody = json.encode(body);
       print('🔍 JSON body contains createdBy: ${jsonBody.contains('createdBy')}');
       print('🔍 JSON body contains CreatedBy: ${jsonBody.contains('CreatedBy')}');
+      print('🔍 JSON body contains passwordHash: ${jsonBody.contains('passwordHash')}');
+      print('🔍 JSON body contains password: ${jsonBody.contains('"password"')}');
       print('🔍 Full JSON body: $jsonBody');
       
       final res = await _client.post(
@@ -714,7 +792,7 @@ class EmrApiClient {
     required String cnic,
     required String otpCode,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/verify');
+    final uri = Uri.parse('$baseUrl/api/patient-auth/verify');
     try {
       print('🔍 Verifying OTP for CNIC: $cnic');
       
@@ -764,7 +842,7 @@ class EmrApiClient {
     required String phoneNumber,
     required String otp,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/send-registration');
+    final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
     try {
       print('🔍 Sending registration OTP to: $phoneNumber');
       
@@ -788,10 +866,20 @@ class EmrApiClient {
         final data = response['data'] as Map<String, dynamic>?;
         final message = response['message'] as String? ?? 'OTP sent successfully';
         final smsStatus = data?['smsStatus'] as String?;
+        final canProceed = data?['canProceed'] as bool? ?? false;
         
         print('✅ Registration OTP response: $message');
         
-        // Check SMS status from response
+        // Check if we can proceed regardless of SMS status
+        if (canProceed) {
+          print('✅ Can proceed to OTP entry screen (CanProceed: true)');
+          if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
+            print('⚠️ SMS delivery failed or timed out, but user can proceed');
+          }
+          return; // Success - allow user to proceed
+        }
+        
+        // Check SMS status from response (only if CanProceed is false)
         if (smsStatus != null) {
           print('📡 SMS Status: $smsStatus');
           if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
@@ -801,26 +889,19 @@ class EmrApiClient {
             if (otpMatch != null) {
               print('📝 OTP from response: ${otpMatch.group(1)}');
             }
-            // Throw exception to indicate SMS failed
+            // Throw exception to indicate SMS failed (only if CanProceed is false)
             throw Exception('SMS delivery failed: $message');
-          } else if (smsStatus == 'NotSupported') {
-            print('⚠️ SMS not supported for this number type');
-            // Extract OTP from message if available
-            final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
-            if (otpMatch != null) {
-              print('📝 OTP from response: ${otpMatch.group(1)}');
-            }
-            // Throw exception to indicate SMS not supported
-            throw Exception('SMS not supported: $message');
           } else if (smsStatus == 'Sent') {
             print('✅ SMS sent successfully');
           }
         } else if (message.contains('OTP:') || message.contains('OTP generated') || 
                    message.contains('SMS delivery') || message.contains('timed out') ||
-                   message.contains('not sent') || message.contains('not supported')) {
+                   message.contains('not sent')) {
           print('⚠️ SMS may have failed, but OTP is available in response');
-          // Throw exception to indicate SMS issue
-          throw Exception('SMS delivery issue: $message');
+          // Only throw if CanProceed is false
+          if (!canProceed) {
+            throw Exception('SMS delivery issue: $message');
+          }
         }
         
         return;
@@ -855,7 +936,7 @@ class EmrApiClient {
     String? phoneNumber,
     String? message,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/test-sms');
+    final uri = Uri.parse('$baseUrl/api/patient-auth/test-sms');
     try {
       print('🧪 Testing SMS service...');
       
