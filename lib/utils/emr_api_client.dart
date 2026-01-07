@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 
@@ -330,6 +331,13 @@ class EmrApiClient {
     }
   }
 
+  // Hash password using SHA-256
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   // Register a new patient
   Future<Map<String, dynamic>> registerPatient({
     required String fullName,
@@ -385,12 +393,15 @@ class EmrApiClient {
         'CreatedBy': createdByValue, // Also send PascalCase in case API is case-sensitive
       };
       
-      // Include password if provided and not empty (add after map creation)
-      // Backend will hash this before storing
+      // Include password if provided and not empty (hash it before sending)
+      // Backend will detect it's already hashed and store as-is
       if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
-        body['passwordHash'] = trimmedPassword;
-        body['password'] = trimmedPassword; // Also send as 'password' for backward compatibility
-        print('✅ Password included in request body (length: ${trimmedPassword.length})');
+        // Hash the password using SHA-256 before sending to server
+        final hashedPassword = _hashPassword(trimmedPassword);
+        body['passwordHash'] = hashedPassword;
+        body['password'] = hashedPassword; // Also send as 'password' for backward compatibility
+        body['isPasswordHashed'] = true; // Flag to indicate password is already hashed
+        print('✅ Password hashed and included in request body (original length: ${trimmedPassword.length}, hash length: ${hashedPassword.length})');
       } else {
         print('⚠️ Password NOT included - password: ${password != null ? "provided but empty/whitespace" : "null"}, trimmed: ${trimmedPassword != null ? "empty" : "null"}');
       }

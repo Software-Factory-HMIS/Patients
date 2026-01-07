@@ -164,8 +164,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
                       inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(13),
+                        _CnicInputFormatter(),
                       ],
                       style: const TextStyle(
                         fontSize: 18,
@@ -173,7 +172,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       decoration: InputDecoration(
                         labelText: 'CNIC',
-                        hintText: 'Enter 13 digit CNIC number',
+                        hintText: '12345-1234567-1 or 1234512345671',
                         prefixIcon: const Icon(Icons.badge_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -184,7 +183,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           horizontal: 20,
                           vertical: 20,
                         ),
-                        helperText: 'CNIC must be exactly 13 digits',
+                        helperText: 'CNIC: 13 digits (with or without dashes)',
                         helperStyle: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -195,14 +194,17 @@ class _SignInScreenState extends State<SignInScreen> {
                         final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
                         if (requiredResult != null) return requiredResult;
                         
-                        // Validate CNIC format (numbers only, exactly 13 digits)
+                        // Validate CNIC format - accept with or without dashes
                         final cnic = value!.trim();
-                        if (!RegExp(r'^\d+$').hasMatch(cnic)) {
-                          return 'CNIC must contain only digits';
+                        // Remove dashes and non-digits for validation
+                        final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
+                        
+                        if (digitsOnly.isEmpty) {
+                          return 'CNIC must contain digits';
                         }
                         
-                        if (cnic.length != 13) {
-                          return 'CNIC must be exactly 13 digits';
+                        if (digitsOnly.length != 13) {
+                          return 'CNIC must be exactly 13 digits (format: 12345-1234567-1 or 1234512345671)';
                         }
                         
                         return null;
@@ -345,7 +347,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
     // Get and clean CNIC and password
-    final cnic = _cnicController.text.trim();
+    // Remove dashes from CNIC before sending to API
+    final cnic = _cnicController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
     final password = _passwordController.text;
     
     if (cnic.isEmpty) {
@@ -527,6 +530,33 @@ class _SignInScreenState extends State<SignInScreen> {
       MaterialPageRoute(
         builder: (context) => const RegistrationPhoneScreen(),
       ),
+    );
+  }
+}
+
+// CNIC input formatter - formats as user types (12345-1234567-1)
+class _CnicInputFormatter extends TextInputFormatter {
+  static final RegExp _nonDigit = RegExp(r'[^0-9]');
+  
+  static String _formatCnic(String raw) {
+    final String digits = raw.replaceAll(_nonDigit, '');
+    final StringBuffer out = StringBuffer();
+    for (int i = 0; i < digits.length && i < 13; i++) {
+      out.write(digits[i]);
+      if (i == 4 || i == 11) {
+        if (i != digits.length - 1) out.write('-');
+      }
+    }
+    return out.toString();
+  }
+  
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final String formatted = _formatCnic(newValue.text);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
