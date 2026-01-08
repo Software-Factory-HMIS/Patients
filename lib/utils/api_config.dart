@@ -21,9 +21,11 @@ String resolveEmrBaseUrl() {
 
   try {
     if (Platform.isAndroid) {
-      print('📱 Android platform detected, using localhost');
-      return 'http://localhost:7287';
+      // Android emulator uses 10.0.2.2 to access host machine's localhost
+      print('📱 Android platform detected, using 10.0.2.2 for emulator (host machine localhost)');
+      return 'http://10.0.2.2:7287';
     } else if (Platform.isIOS) {
+      // iOS simulator can use localhost directly
       print('🍎 iOS platform detected, using localhost');
       return 'http://localhost:7287';
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
@@ -138,9 +140,10 @@ Future<String> resolveEmrBaseUrlWithFallback() async {
   
   try {
     if (Platform.isAndroid) {
-      print('📱 Android device detected - prioritizing localhost');
+      print('📱 Android device detected - prioritizing emulator host (10.0.2.2)');
       urlsToTry = [
-        'http://localhost:7287', // Default - try localhost first
+        'http://10.0.2.2:7287', // Android emulator special IP for host machine
+        'http://localhost:7287', // Fallback for physical devices
         'http://127.0.0.1:7287',
         getPrimaryBaseUrl(),    // Your development machine (172.30.163.21)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
@@ -205,16 +208,17 @@ Future<void> testAllUrls() async {
   
   try {
     if (Platform.isAndroid) {
-      // For Android devices
+      // For Android devices/emulators
       urls = [
-        'http://localhost:7287',
+        'http://10.0.2.2:7287', // Android emulator special IP for host machine
+        'http://localhost:7287', // For physical Android devices
         'http://127.0.0.1:7287',
         getPrimaryBaseUrl(),    // Your development machine (172.30.163.21)
         getFallbackBaseUrl(),   // Secondary machine (192.168.56.122)
         getTertiaryBaseUrl(),   // Tertiary machine (10.152.206.21)
       ];
     } else {
-      // For other platforms (web, desktop)
+      // For other platforms (web, desktop, iOS)
       urls = [
         'http://localhost:7287',
         'http://127.0.0.1:7287',
@@ -252,7 +256,8 @@ Future<void> detectDeviceNetwork() async {
       
       // Test common network configurations
       final testUrls = [
-        'http://localhost:7287',
+        'http://10.0.2.2:7287', // Android emulator special IP for host machine
+        'http://localhost:7287', // For physical Android devices
         'http://127.0.0.1:7287',
         'http://172.30.163.21:7287', // Your development machine (test server IP)
         'http://192.168.56.122:7287', // Secondary machine
@@ -297,14 +302,18 @@ void printNetworkInfo() {
   
   try {
     if (Platform.isAndroid) {
-      print('📱 Physical Android Device Detected');
+      print('📱 Android Device/Emulator Detected');
       print('The app will try these IP addresses in order:');
-      print('  1. http://localhost:7287 (local development)');
-      print('  2. ${getPrimaryBaseUrl()} (your development machine)');
-      print('  3. ${getFallbackBaseUrl()} (secondary machine)');
-      print('  4. ${getTertiaryBaseUrl()} (tertiary machine)');
+      print('  1. http://10.0.2.2:7287 (Android emulator - host machine)');
+      print('  2. http://localhost:7287 (physical Android device)');
+      print('  3. ${getPrimaryBaseUrl()} (your development machine)');
+      print('  4. ${getFallbackBaseUrl()} (secondary machine)');
+      print('  5. ${getTertiaryBaseUrl()} (tertiary machine)');
+      print('');
+      print('💡 Note: 10.0.2.2 is the special IP that Android emulators use');
+      print('   to access the host machine\'s localhost.');
     } else {
-      print('💻 Desktop/Web Platform Detected');
+      print('💻 Desktop/Web/iOS Platform Detected');
       print('The app will try these URLs in order:');
       print('  1. http://localhost:7287 (local development)');
       print('  2. ${getPrimaryBaseUrl()} (your development machine)');
@@ -323,7 +332,9 @@ void printNetworkInfo() {
   print('   - Ensure server is accessible from network');
   print('');
   print('2. Check network connectivity:');
-  print('   - Use http://localhost:7287 for local development');
+  print('   - Android Emulator: Use http://10.0.2.2:7287 (maps to host localhost)');
+  print('   - Physical Android/iOS: Use http://localhost:7287 or network IP');
+  print('   - Desktop/Web: Use http://localhost:7287');
   print('   - For network access: Ensure device and server are on same WiFi network');
       print('   - Test ping: ping 172.30.163.21');
       print('   - Test ping: ping 192.168.56.122');

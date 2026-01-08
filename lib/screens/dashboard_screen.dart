@@ -2436,7 +2436,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   )
                 : Stack(
                     children: [
-                      _buildSummaryCard(),
+                      // Make the card scrollable to prevent overflow
+                      SingleChildScrollView(
+                        child: _buildSummaryCard(),
+                      ),
                       // Button positioned at bottom of collapsed section
                       Positioned(
                         bottom: 10,
@@ -2527,6 +2530,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -2538,15 +2542,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   ),
                   const Gap(12),
                   Expanded(
-            child: Text(
+                    child: Text(
                       'Detailed Records',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                         color: Colors.green.shade800,
                         letterSpacing: 0.5,
-              ),
-            ),
-          ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const Gap(8),
@@ -2587,6 +2591,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   const Spacer(),
                 ],
               ),
+              // Add bottom padding to ensure content doesn't get cut off
+              const Gap(8),
             ],
           ),
         ),
