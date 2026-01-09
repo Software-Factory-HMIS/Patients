@@ -20,10 +20,7 @@ class AppointmentSuccessScreen extends StatelessWidget {
         title: const Text('Appointment Confirmed'),
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

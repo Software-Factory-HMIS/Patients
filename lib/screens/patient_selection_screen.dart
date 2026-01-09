@@ -26,6 +26,7 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
         title: const Text('Select Patient'),
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: Padding(

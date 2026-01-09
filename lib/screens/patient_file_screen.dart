@@ -1426,6 +1426,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         title: const Text('My Medical Records'),
         backgroundColor: Colors.blue[700],
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
