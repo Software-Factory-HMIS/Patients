@@ -700,6 +700,25 @@ class EmrApiClient {
         throw Exception('Patient already in queue. Queue ID: ${response['queueId']}, Token: ${response['tokenNumber']}');
       }
       
+      // Check for 500 error with database transaction error (patient already registered at hospital)
+      if (res.statusCode == 500) {
+        try {
+          final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+          final detail = errorResponse['detail'] as String? ?? '';
+          if (detail.toLowerCase().contains('database error while adding patient to queue') ||
+              detail.toLowerCase().contains('transaction cannot be committed') ||
+              detail.toLowerCase().contains('cannot support operations that write to the log file')) {
+            throw Exception('ALREADY_REGISTERED_AT_HOSPITAL');
+          }
+        } catch (e) {
+          // If it's our specific exception, rethrow it
+          if (e.toString().contains('ALREADY_REGISTERED_AT_HOSPITAL')) {
+            rethrow;
+          }
+          // Otherwise, continue to throw generic error
+        }
+      }
+      
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
         // Handle API response wrapper if present

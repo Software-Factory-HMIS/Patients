@@ -1046,8 +1046,77 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     } catch (e) {
       setState(() {
         _submittingAppointment = false;
-        _appointmentError = e.toString().replaceFirst('Exception: ', '');
       });
+      
+      // Check if this is the "already registered at hospital" error
+      final errorString = e.toString().toLowerCase();
+      final isAlreadyRegisteredError = errorString.contains('already_registered_at_hospital') ||
+          errorString.contains('database error while adding patient to queue') ||
+          errorString.contains('transaction cannot be committed') ||
+          errorString.contains('cannot support operations that write to the log file');
+      
+      if (isAlreadyRegisteredError && mounted) {
+        // Show attractive toast message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.info_outline,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const Gap(12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Already Registered',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const Gap(4),
+                      Text(
+                        'You are already registered at this hospital!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            duration: const Duration(seconds: 4),
+            elevation: 6,
+          ),
+        );
+        // Clear error state since we're showing toast
+        _appointmentError = null;
+      } else {
+        // Show regular error for other cases
+        _appointmentError = e.toString().replaceFirst('Exception: ', '');
+      }
     }
   }
 
