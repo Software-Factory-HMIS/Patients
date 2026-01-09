@@ -9,6 +9,7 @@ import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
+import 'patient_file_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String cnic;
@@ -212,15 +213,23 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       }
     }
     
+    // Get patient ID
+    final patientId = _savedUserData?['PatientID'] ?? 
+                     _savedUserData?['patientId'] ?? 
+                     _savedUserData?['PatientId'];
+    
     // Initialize with loaded patient data
     setState(() {
       _patient = {
         'name': patientName,
+        'fullName': patientName,
         'mrn': mrn,
         'gender': gender,
         'age': age,
         'bloodType': bloodType,
+        'bloodGroup': bloodType,
         'lastVisit': lastVisit,
+        'patientId': patientId,
       };
       _vitals = [];
       _medications = [];
@@ -350,7 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text(_currentNavIndex == 0 ? 'Appointments' : 'Patient Dashboard'),
+        title: Text(_currentNavIndex == 0 ? 'Appointments' : _currentNavIndex == 1 ? 'Patient Dashboard' : 'My Medical Records'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -359,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          if (_currentNavIndex == 1) ...[
+          if (_currentNavIndex == 1 || _currentNavIndex == 2) ...[
             IconButton(
               icon: const Icon(Icons.bug_report),
               onPressed: _showDebugDialog,
@@ -376,7 +385,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
       body: _currentNavIndex == 0
           ? _buildAppointmentsScreen()
-          : Stack(
+          : _currentNavIndex == 2
+              ? _buildFileScreen()
+              : Stack(
               children: [
                 _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -484,10 +495,22 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               activeIcon: Icon(Icons.dashboard),
               label: 'Dashboard',
             ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.folder_outlined),
+              activeIcon: Icon(Icons.folder),
+              label: 'File',
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildFileScreen() {
+    if (_patient == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return PatientFileScreen(patient: _patient!);
   }
 
   Widget _buildAppointmentsScreen() {
