@@ -221,13 +221,268 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return null;
   }
 
+  String? _validateFullName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return '${_translations['fullName']} ${_translations['required']}';
+    }
+    
+    final trimmed = value.trim();
+    
+    // Minimum length check
+    if (trimmed.length < 2) {
+      return _isUrdu 
+          ? 'مکمل نام کم از کم 2 حروف کا ہونا چاہیے'
+          : 'Full name must be at least 2 characters';
+    }
+    
+    // Maximum length check
+    if (trimmed.length > 100) {
+      return _isUrdu 
+          ? 'مکمل نام زیادہ سے زیادہ 100 حروف کا ہو سکتا ہے'
+          : 'Full name must not exceed 100 characters';
+    }
+    
+    // Should not be only numbers
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return _isUrdu 
+          ? 'مکمل نام صرف نمبر نہیں ہو سکتا'
+          : 'Full name cannot be only numbers';
+    }
+    
+    // Should contain at least one letter
+    if (!RegExp(r'[a-zA-Z\u0600-\u06FF]').hasMatch(trimmed)) {
+      return _isUrdu 
+          ? 'مکمل نام میں کم از کم ایک حرف شامل ہونا چاہیے'
+          : 'Full name must contain at least one letter';
+    }
+    
+    // Allow letters, spaces, hyphens, apostrophes, and Urdu characters
+    // Using string concatenation to avoid apostrophe escaping issues
+    final namePattern = RegExp(r'^[a-zA-Z\u0600-\u06FF\s\.\-' + "'" + r']+$');
+    if (!namePattern.hasMatch(trimmed)) {
+      return _isUrdu 
+          ? 'مکمل نام میں صرف حروف، خالی جگہیں، ہائفنز اور apostrophes کی اجازت ہے'
+          : 'Full name can only contain letters, spaces, hyphens, and apostrophes';
+    }
+    
+    return null;
+  }
+
+  String? _validateCnic(String? value) {
+    // Skip validation for children as CNIC is pre-filled
+    if (widget.isAddOthers && widget.relationshipType == 'Child') {
+      return null;
+    }
+    
+    if (value == null || value.trim().isEmpty) {
+      return '${_translations['cnic']} ${_translations['required']}';
+    }
+    
+    final trimmed = value.trim();
+    
+    // Remove dashes for validation
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Must be exactly 13 digits
+    if (digitsOnly.length != 13) {
+      return _translations['enterCnicFormat']!;
+    }
+    
+    // Format check: 12345-1234567-1
+    final formatPattern = RegExp(r'^\d{5}-\d{7}-\d{1}$');
+    if (!formatPattern.hasMatch(trimmed)) {
+      return _translations['enterCnicFormat']!;
+    }
+    
+    // Should not be all zeros
+    if (RegExp(r'^0+$').hasMatch(digitsOnly)) {
+      return _isUrdu 
+          ? 'قومی شناختی کارڈ صفر نہیں ہو سکتا'
+          : 'CNIC cannot be all zeros';
+    }
+    
+    // Should not be all same digit
+    if (RegExp(r'^(\d)\1{12}$').hasMatch(digitsOnly)) {
+      return _isUrdu 
+          ? 'قومی شناختی کارڈ ایک ہی نمبر کا نہیں ہو سکتا'
+          : 'CNIC cannot be all the same digit';
+    }
+    
+    return null;
+  }
+
+  String? _validateDateOfBirth(DateTime? date) {
+    if (date == null) {
+      return _translations['selectDateOfBirth']!;
+    }
+    
+    final now = DateTime.now();
+    final age = now.difference(date).inDays;
+    
+    // Should not be in the future
+    if (date.isAfter(now)) {
+      return _isUrdu 
+          ? 'تاریخ پیدائش مستقبل میں نہیں ہو سکتی'
+          : 'Date of birth cannot be in the future';
+    }
+    
+    // Should not be older than 120 years
+    if (age > 120 * 365) {
+      return _isUrdu 
+          ? 'تاریخ پیدائش 120 سال سے زیادہ پرانی نہیں ہو سکتی'
+          : 'Date of birth cannot be more than 120 years ago';
+    }
+    
+    // Should be at least 1 day old
+    if (age < 1) {
+      return _isUrdu 
+          ? 'تاریخ پیدائش کم از کم ایک دن پرانی ہونی چاہیے'
+          : 'Date of birth must be at least 1 day old';
+    }
+    
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return '${_translations['phone']} ${_translations['required']}';
+    }
+    
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Must be exactly 11 digits
+    if (digitsOnly.length != 11) {
+      return _translations['enterValidPhone']!;
+    }
+    
+    // Should start with 0
+    if (!digitsOnly.startsWith('0')) {
+      return _isUrdu 
+          ? 'فون نمبر 0 سے شروع ہونا چاہیے'
+          : 'Phone number must start with 0';
+    }
+    
+    // Should not be all zeros
+    if (RegExp(r'^0+$').hasMatch(digitsOnly)) {
+      return _isUrdu 
+          ? 'فون نمبر صفر نہیں ہو سکتا'
+          : 'Phone number cannot be all zeros';
+    }
+    
+    // Should not be all same digit
+    if (RegExp(r'^(\d)\1{10}$').hasMatch(digitsOnly)) {
+      return _isUrdu 
+          ? 'فون نمبر ایک ہی نمبر کا نہیں ہو سکتا'
+          : 'Phone number cannot be all the same digit';
+    }
+    
+    // Valid Pakistan mobile prefixes (03XX format)
+    final validPrefixes = ['0300', '0301', '0302', '0303', '0304', '0305', '0306', '0307', '0308', '0309',
+                           '0310', '0311', '0312', '0313', '0314', '0315', '0316', '0317', '0320', '0321',
+                           '0322', '0323', '0324', '0325', '0330', '0331', '0332', '0333', '0334', '0335',
+                           '0336', '0337', '0340', '0341', '0342', '0343', '0344', '0345', '0346', '0347',
+                           '0348', '0349', '0350', '0351', '0352', '0353', '0354', '0355', '0356', '0357',
+                           '0358', '0359', '0360', '0361', '0362', '0363', '0364', '0365', '0366', '0367',
+                           '0368', '0369', '0370', '0371', '0372', '0373', '0374', '0375', '0376', '0377',
+                           '0378', '0379', '0380', '0381', '0382', '0383', '0384', '0385', '0386', '0387',
+                           '0388', '0389', '0390', '0391', '0392', '0393', '0394', '0395', '0396', '0397',
+                           '0398', '0399'];
+    
+    final prefix = digitsOnly.substring(0, 4);
+    if (!validPrefixes.contains(prefix)) {
+      return _isUrdu 
+          ? 'فون نمبر کا prefix درست نہیں ہے (03XX format)'
+          : 'Phone number prefix is not valid (must be 03XX format)';
+    }
+    
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    // Only validate format if value is provided
+    if (value == null || value.trim().isEmpty) {
+      return null; // Email is optional
+    }
+    
+    final trimmed = value.trim();
+    
+    // Maximum length check (RFC 5321)
+    if (trimmed.length > 254) {
+      return _isUrdu 
+          ? 'ای میل ایڈریس 254 حروف سے زیادہ نہیں ہو سکتا'
+          : 'Email address cannot exceed 254 characters';
+    }
+    
+    // Should not contain spaces
+    if (trimmed.contains(' ')) {
+      return _isUrdu 
+          ? 'ای میل ایڈریس میں خالی جگہیں نہیں ہو سکتیں'
+          : 'Email address cannot contain spaces';
+    }
+    
+    // Basic email format validation
+    final emailPattern = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailPattern.hasMatch(trimmed)) {
+      return _translations['enterValidEmail']!;
+    }
+    
+    // Should not be only numbers before @
+    final localPart = trimmed.split('@')[0];
+    if (RegExp(r'^\d+$').hasMatch(localPart)) {
+      return _isUrdu 
+          ? 'ای میل کا local part صرف نمبر نہیں ہو سکتا'
+          : 'Email local part cannot be only numbers';
+    }
+    
+    // Domain should have at least one dot
+    final domain = trimmed.split('@')[1];
+    if (!domain.contains('.')) {
+      return _translations['enterValidEmail']!;
+    }
+    
+    return null;
+  }
+
+  String? _validateAddress(String? value) {
+    // Address is optional, but if provided, validate it
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    
+    final trimmed = value.trim();
+    
+    // Maximum length check
+    if (trimmed.length > 500) {
+      return _isUrdu 
+          ? 'پتہ 500 حروف سے زیادہ نہیں ہو سکتا'
+          : 'Address cannot exceed 500 characters';
+    }
+    
+    return null;
+  }
+
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return '${_translations['password']} ${_translations['required']}';
     }
     
+    // Minimum length check
     if (value.length < 8) {
       return _translations['passwordRequirements'];
+    }
+    
+    // Maximum length check
+    if (value.length > 128) {
+      return _isUrdu 
+          ? 'پاس ورڈ 128 حروف سے زیادہ نہیں ہو سکتا'
+          : 'Password cannot exceed 128 characters';
+    }
+    
+    // Should not contain spaces
+    if (value.contains(' ')) {
+      return _isUrdu 
+          ? 'پاس ورڈ میں خالی جگہیں نہیں ہو سکتیں'
+          : 'Password cannot contain spaces';
     }
     
     // Check for uppercase letter
@@ -246,8 +501,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
     
     // Check for special character
-    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/]'))) {
       return _translations['passwordRequirements'];
+    }
+    
+    // Check for common weak passwords
+    final commonPasswords = ['password', 'password123', '12345678', 'qwerty123', 'admin123', 
+                             'welcome123', 'letmein123', 'monkey123', 'dragon123', 'master123'];
+    if (commonPasswords.contains(value.toLowerCase())) {
+      return _isUrdu 
+          ? 'پاس ورڈ بہت عام ہے، براہ کرم ایک مضبوط پاس ورڈ استعمال کریں'
+          : 'Password is too common, please use a stronger password';
+    }
+    
+    // Should not be all same character
+    if (RegExp(r'^(.)\1+$').hasMatch(value)) {
+      return _isUrdu 
+          ? 'پاس ورڈ ایک ہی حرف کا نہیں ہو سکتا'
+          : 'Password cannot be all the same character';
     }
     
     return null;
@@ -320,21 +591,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
     return value;
   }
-  
-
-  // Formats numeric input into 12345-1234567-1 as the user types.
-  static final RegExp _nonDigit = RegExp(r'[^0-9]');
-  static String _formatCnic(String raw) {
-    final String digits = raw.replaceAll(_nonDigit, '');
-    final StringBuffer out = StringBuffer();
-    for (int i = 0; i < digits.length && i < 13; i++) {
-      out.write(digits[i]);
-      if (i == 4 || i == 11) {
-        if (i != digits.length - 1) out.write('-');
-      }
-    }
-    return out.toString();
-  }
 
   Future<void> _handleSubmit() async {
     // Validate registration type only for first registration (not "Add Others")
@@ -360,10 +616,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
     
-    if (_dateOfBirth == null) {
+    // Validate date of birth
+    final dateOfBirthError = _validateDateOfBirth(_dateOfBirth);
+    if (dateOfBirthError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_translations['selectDateOfBirth']!),
+          content: Text(dateOfBirthError),
           backgroundColor: Colors.red,
         ),
       );
@@ -482,7 +740,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           }
           
           passwordToSend = passwordText;
-          print('✅ Password will be sent (length: ${passwordToSend.length})');
+          print('✅ Password will be sent (length: ${passwordText.length})');
         } else {
           print('ℹ️ Password not required (RegistrationType: $_registrationType, isAddOthers: ${widget.isAddOthers})');
         }
@@ -1321,8 +1579,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 vertical: 16,
                               ),
                             ),
-                            validator: (v) =>
-                                _requiredValidator(v, fieldName: _translations['fullName']!),
+                            validator: _validateFullName,
                           ),
                         ),
                         const Gap(16),
@@ -1349,21 +1606,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             inputFormatters: <TextInputFormatter>[
                               _CnicInputFormatter(),
                             ],
-                            validator: (value) {
-                              // Skip validation for children as CNIC is pre-filled
-                              if (widget.isAddOthers && widget.relationshipType == 'Child') {
-                                return null;
-                              }
-                              final String? requiredResult =
-                                  _requiredValidator(value, fieldName: _translations['cnic']!);
-                              if (requiredResult != null) return requiredResult;
-                              final RegExp pattern =
-                                  RegExp(r'^\d{5}-\d{7}-\d{1}$');
-                              if (!pattern.hasMatch(value!.trim())) {
-                                return _translations['enterCnicFormat']!;
-                              }
-                              return null;
-                            },
+                            validator: _validateCnic,
                           ),
                         ),
                       ],
@@ -1480,19 +1723,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     vertical: 16,
                                   ),
                                 ),
-                                validator: (value) {
-                                  // Only validate format if value is provided
-                                  if (value != null && value.trim().isNotEmpty) {
-                                    final String trimmed = value.trim();
-                                    final bool looksValid = RegExp(
-                                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                        .hasMatch(trimmed);
-                                    if (!looksValid) {
-                                      return _translations['enterValidEmail']!;
-                                    }
-                                  }
-                                  return null;
-                                },
+                                validator: _validateEmail,
                               ),
                               const Gap(4),
                               Padding(
@@ -1543,17 +1774,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 vertical: 16,
                               ),
                             ),
-                            validator: (value) {
-                              final String? requiredResult =
-                                  _requiredValidator(value, fieldName: _translations['phone']!);
-                              if (requiredResult != null) return requiredResult;
-                              final String digits =
-                                  value!.replaceAll(RegExp(r'[^0-9]'), '');
-                              if (digits.length != 11) {
-                                return _translations['enterValidPhone']!;
-                              }
-                              return null;
-                            },
+                            validator: _validatePhone,
                           ),
                         ),
                       ],
@@ -1582,7 +1803,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               vertical: 16,
                             ),
                           ),
-                          // No validator - field is optional
+                          validator: _validateAddress,
                         ),
                         const Gap(4),
                         Padding(

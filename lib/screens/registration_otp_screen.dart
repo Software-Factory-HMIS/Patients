@@ -142,9 +142,27 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                       validator: (value) {
                         final String? requiredResult = _requiredValidator(value, fieldName: 'OTP');
                         if (requiredResult != null) return requiredResult;
+                        
+                        // Must be exactly 4 digits
                         if (value!.length != 4) {
-                          return 'OTP must be 4 digits';
+                          return 'OTP must be exactly 4 digits';
                         }
+                        
+                        // Must be numeric only (already enforced by inputFormatters, but double-check)
+                        if (!RegExp(r'^\d{4}$').hasMatch(value)) {
+                          return 'OTP must contain only numbers';
+                        }
+                        
+                        // Should not be all zeros
+                        if (value == '0000') {
+                          return 'OTP cannot be all zeros';
+                        }
+                        
+                        // Should not be all same digit
+                        if (RegExp(r'^(\d)\1{3}$').hasMatch(value)) {
+                          return 'OTP cannot be all the same digit';
+                        }
+                        
                         return null;
                       },
                     ),
