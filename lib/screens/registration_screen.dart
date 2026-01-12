@@ -193,9 +193,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   
   Future<void> _initializeApiClient() async {
     try {
-      final baseUrl = await resolveEmrBaseUrlWithFallback();
-      _apiClient = EmrApiClient(baseUrl: baseUrl);
-      print('✅ API client initialized for registration: $baseUrl');
+      _apiClient = EmrApiClient();
+      print('✅ API client initialized for registration');
     } catch (e) {
       print('⚠️ Failed to initialize API client: $e');
       // Continue anyway - will show error when trying to register

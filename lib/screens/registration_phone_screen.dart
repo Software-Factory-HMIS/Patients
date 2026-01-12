@@ -28,7 +28,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
 
   Future<void> _initializeApiClient() async {
     try {
-      _apiClient = await EmrApiClient.create();
+      _apiClient = EmrApiClient();
     } catch (e) {
       debugPrint('Error initializing API client: $e');
     }

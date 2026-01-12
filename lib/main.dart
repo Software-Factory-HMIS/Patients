@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'screens/signin_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'package:flutter/services.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
+  
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(const MyApp());
-  });
+  ]);
+  
+  await AuthService.instance.init();
+  
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -17,6 +22,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authService = AuthService.instance;
+    
+    Widget homeScreen;
+    if (authService.isLoggedIn && authService.patientData != null) {
+      final cnic = authService.patientData!['cnic'] ?? 
+                   authService.patientData!['CNIC'] ?? '';
+      homeScreen = DashboardScreen(cnic: cnic.toString());
+    } else {
+      homeScreen = const SignInScreen();
+    }
+    
     return MaterialApp(
       title: 'Healthcare Management System',
       useInheritedMediaQuery: true,
@@ -27,7 +43,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SignInScreen(),
+      home: homeScreen,
       debugShowCheckedModeBanner: false,
     );
   }

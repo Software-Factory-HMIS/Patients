@@ -89,7 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Future<void> _initializeApi() async {
     try {
-      _api = await EmrApiClient.create();
+      _api = EmrApiClient();
     } catch (e) {
       print('❌ Failed to initialize API client: $e');
     }
