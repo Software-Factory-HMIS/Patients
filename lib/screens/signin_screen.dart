@@ -8,6 +8,7 @@ import 'dashboard_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
+import '../services/auth_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -26,8 +27,6 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    // Test API connection when app launches
-    _testApiConnection();
     // Load saved user data to pre-fill form
     _loadSavedUserData();
   }
@@ -53,42 +52,6 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  Future<void> _testApiConnection() async {
-    try {
-      // Wait a bit for the UI to be ready
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Create API client with fallback mechanism
-      final apiClient = await EmrApiClient.create();
-      
-      // Test the connection
-      final isConnected = await apiClient.testConnection();
-      
-      if (mounted && isConnected) {
-        // Show success toast message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('API connection established'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      // Silently fail - don't show error toast on launch
-      // Connection issues will be handled when API is actually used
-      if (mounted) {
-        debugPrint('API connection test failed: $e');
-      }
-    }
-  }
 
   String? _requiredValidator(String? value, {String fieldName = 'This field'}) {
     if (value == null || value.trim().isEmpty) {
@@ -377,7 +340,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
     try {
       // Initialize API client
-      final apiClient = await EmrApiClient.create();
+      final apiClient = EmrApiClient();
       
       print('🔍 [SignIn] Attempting login with CNIC: $cnic');
       
@@ -466,8 +429,9 @@ class _SignInScreenState extends State<SignInScreen> {
     Map<String, dynamic> patient,
   ) async {
     try {
-      // Save patient data
+      // Save patient data to both UserStorage and AuthService
       await UserStorage.saveUserData(patient);
+      await AuthService.instance.saveLoginResponse(patient);
       
       // Get MRN or CNIC for navigation
       final mrn = patient['MRN'] ?? patient['mrn'] ?? '';

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
+import '../services/auth_service.dart';
 
 class EmrApiClient {
   final String baseUrl;
@@ -11,28 +12,18 @@ class EmrApiClient {
       : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
         _client = client ?? http.Client();
 
-  // Factory constructor for async initialization with fallback
-  static Future<EmrApiClient> create({String? baseUrl, http.Client? client}) async {
-    if (baseUrl != null) {
-      return EmrApiClient(baseUrl: baseUrl, client: client);
-    }
-    
-    // Use fallback mechanism to determine the best URL
-    final resolvedUrl = await resolveEmrBaseUrlWithFallback();
-    return EmrApiClient(baseUrl: resolvedUrl, client: client);
+  Future<Map<String, String>> _getAuthHeaders() async {
+    return await AuthService.instance.getAuthHeaders();
   }
 
-  Future<bool> testConnection() async {
-    try {
-      final uri = Uri.parse('$baseUrl/api/health');
-      print('🔍 Testing connection to: $uri');
-      final res = await _client.get(uri).timeout(const Duration(seconds: 5));
-      print('📡 Health check response: ${res.statusCode}');
-      return res.statusCode == 200;
-    } catch (e) {
-      print('❌ Connection test failed: $e');
-      return false;
-    }
+  Future<http.Response> _authenticatedGet(Uri uri) async {
+    final headers = await _getAuthHeaders();
+    return await _client.get(uri, headers: headers);
+  }
+
+  Future<http.Response> _authenticatedPost(Uri uri, {Object? body}) async {
+    final headers = await _getAuthHeaders();
+    return await _client.post(uri, headers: headers, body: body is String ? body : json.encode(body));
   }
 
   Future<Map<String, dynamic>> fetchPatient(String identifier) async {
@@ -338,92 +329,50 @@ class EmrApiClient {
     return digest.toString();
   }
 
-  // Register a new patient
+  // Register a new patient using the new /api/patient-auth/register endpoint
   Future<Map<String, dynamic>> registerPatient({
     required String fullName,
     required String cnic,
     required String phone,
-    String? email, // Optional
+    String? email,
     required DateTime dateOfBirth,
     required String gender,
-    String? address, // Optional
-    String? bloodGroup, // Optional
-    String? password, // Optional - only for Self registration
-    String? registrationType, // 'Self' or 'Others'
-    String? parentType, // 'Father' or 'Mother' when Others
-    int? createdBy, // User ID who created the patient
+    String? address,
+    String? bloodGroup,
+    String? password,
+    String? registrationType,
+    String? parentType,
+    int? createdBy,
   }) async {
-    // Use /api/min-patients endpoint like hmis_flutter
-    final uri = Uri.parse('$baseUrl/api/min-patients');
+    // Use new dedicated registration endpoint
+    final uri = Uri.parse('$baseUrl/api/patient-auth/register');
     try {
       print('🔍 Registering patient: $uri');
       
-      // Remove dashes from CNIC for API
       final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
-      
-      // createdBy is required by database - use provided value or default to 1 (system user)
-      // Send as integer (JSON will serialize it correctly)
-      // Try both camelCase and PascalCase to ensure API receives it
-      final createdByValue = (createdBy ?? 1) as int;
-      
-      // Trim password before checking
       final trimmedPassword = password?.trim();
       
-      // Build patient data matching hmis_flutter structure
-      final body = <String, dynamic>{
-        'fullName': fullName.trim(),
-        'cnic': cleanCnic,
-        'contactNumber': phone.trim(), // Use contactNumber instead of phone
-        'dateOfBirth': dateOfBirth.toIso8601String(),
-        'gender': gender,
-        'source': 'Flutter', // Add source field like hmis_flutter
-        // Only include optional fields if they have values
-        if (email != null && email.trim().isNotEmpty) 
-          'email': email.trim(),
-        if (address != null && address.trim().isNotEmpty) 
-          'address': address.trim(),
-        if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 
-          'bloodGroup': bloodGroup,
-        if (registrationType != null && registrationType.isNotEmpty) 
-          'registrationType': registrationType,
-        if (parentType != null && parentType.isNotEmpty) 
-          'parentType': parentType,
-        // Send both formats to ensure API receives it
-        'createdBy': createdByValue,
-        'CreatedBy': createdByValue, // Also send PascalCase in case API is case-sensitive
-      };
-      
-      // Include password if provided and not empty (hash it before sending)
-      // Backend will detect it's already hashed and store as-is
+      // Hash password before sending
+      String? hashedPassword;
       if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
-        // Hash the password using SHA-256 before sending to server
-        final hashedPassword = _hashPassword(trimmedPassword);
-        body['passwordHash'] = hashedPassword;
-        body['password'] = hashedPassword; // Also send as 'password' for backward compatibility
-        body['isPasswordHashed'] = true; // Flag to indicate password is already hashed
-        print('✅ Password hashed and included in request body (original length: ${trimmedPassword.length}, hash length: ${hashedPassword.length})');
-      } else {
-        print('⚠️ Password NOT included - password: ${password != null ? "provided but empty/whitespace" : "null"}, trimmed: ${trimmedPassword != null ? "empty" : "null"}');
+        hashedPassword = _hashPassword(trimmedPassword);
+        print('✅ Password hashed (length: ${hashedPassword.length})');
       }
       
-      // Verify createdBy is in the body and is not null
-      assert(body.containsKey('createdBy'), 'createdBy must be in request body');
-      assert(body['createdBy'] != null, 'createdBy must not be null');
-      assert(body['createdBy'] is int, 'createdBy must be an integer');
+      final body = <String, dynamic>{
+        'cnic': cleanCnic,
+        'fullName': fullName.trim(),
+        'contactNumber': phone.trim(),
+        'dateOfBirth': dateOfBirth.toIso8601String(),
+        'gender': gender,
+        'source': 'Flutter',
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
+        if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 'bloodGroup': bloodGroup,
+        if (hashedPassword != null) 'passwordHash': hashedPassword,
+      };
       
-      print('📤 Request body: $body');
-      print('🔍 createdBy value: ${body['createdBy']} (type: ${body['createdBy'].runtimeType})');
-      print('🔍 CreatedBy value: ${body['CreatedBy']} (type: ${body['CreatedBy'].runtimeType})');
-      print('🔍 Password provided: ${password != null}');
-      print('🔍 Password length: ${password?.length ?? 0}');
-      print('🔍 PasswordHash in body: ${body.containsKey('passwordHash')}');
-      print('🔍 Password in body: ${body.containsKey('password')}');
-      final jsonBody = json.encode(body);
-      print('🔍 JSON body contains createdBy: ${jsonBody.contains('createdBy')}');
-      print('🔍 JSON body contains CreatedBy: ${jsonBody.contains('CreatedBy')}');
-      print('🔍 JSON body contains passwordHash: ${jsonBody.contains('passwordHash')}');
-      print('🔍 JSON body contains password: ${jsonBody.contains('"password"')}');
-      print('🔍 Full JSON body: $jsonBody');
+      print('📤 Request body: ${json.encode(body)}');
       
       final res = await _client.post(
         uri,
@@ -667,52 +616,100 @@ class EmrApiClient {
     String? notes,
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-queue');
-    try {
-      print('🔍 Adding patient to queue: $uri');
-      
-      final body = {
-        'patientId': patientId,
-        'hospitalId': hospitalId,
-        'hospitalDepartmentId': hospitalDepartmentId,
-        'createdBy': createdBy,
-        'priority': priority,
-        'queueType': queueType,
-        'visitPurpose': visitPurpose,
-        'patientSource': patientSource,
-        if (assignedToUserId != null) 'assignedToUserId': assignedToUserId,
-        if (assignedToOpdId != null) 'assignedToOpdId': assignedToOpdId,
-        if (referralId != null) 'referralId': referralId,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-      };
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
-      print('📡 Response status: ${res.statusCode}');
-      print('📡 Response body: ${res.body}');
-      
-      if (res.statusCode == 409) {
-        // Patient already in queue - return existing queue info
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        throw Exception('Patient already in queue. Queue ID: ${response['queueId']}, Token: ${response['tokenNumber']}');
-      }
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as Map<String, dynamic>;
+    
+    final body = {
+      'patientId': patientId,
+      'hospitalId': hospitalId,
+      'hospitalDepartmentId': hospitalDepartmentId,
+      'createdBy': createdBy,
+      'priority': priority,
+      'queueType': queueType,
+      'visitPurpose': visitPurpose,
+      'patientSource': patientSource,
+      if (assignedToUserId != null) 'assignedToUserId': assignedToUserId,
+      if (assignedToOpdId != null) 'assignedToOpdId': assignedToOpdId,
+      if (referralId != null) 'referralId': referralId,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+    
+    // Retry logic for token generation failures (transient errors)
+    const maxRetries = 2;
+    Exception? lastError;
+    
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          print('🔄 Retrying to add patient to queue (attempt ${attempt + 1}/${maxRetries + 1})...');
+          // Wait a bit before retrying to allow any concurrent operations to complete
+          await Future.delayed(Duration(milliseconds: 300 * attempt));
+        } else {
+          print('🔍 Adding patient to queue: $uri');
         }
-        return response;
+        
+        final res = await _client.post(
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(body),
+        ).timeout(const Duration(seconds: 15));
+        
+        print('📡 Response status: ${res.statusCode}');
+        print('📡 Response body: ${res.body}');
+        
+        if (res.statusCode == 409) {
+          // Patient already in queue or other conflict - return existing queue info if available
+          final response = json.decode(res.body) as Map<String, dynamic>;
+          final message = response['message'] as String? ?? 'Patient already in queue';
+          final queueId = response['queueId'];
+          final tokenNumber = response['tokenNumber'];
+          
+          if (queueId != null && tokenNumber != null) {
+            // Patient is already in queue - return the existing queue info
+            print('✅ Patient already in queue: Queue ID: $queueId, Token: $tokenNumber');
+            return {
+              'queueId': queueId,
+              'tokenNumber': tokenNumber,
+            };
+          } else if (message.contains('Failed to generate token number') && attempt < maxRetries) {
+            // Token generation failed - retry
+            print('⚠️ Token generation failed, will retry...');
+            lastError = Exception('Token generation failed. Please try again.');
+            continue;
+          } else {
+            // Other conflict or max retries reached
+            throw Exception('$message${queueId != null ? ' Queue ID: $queueId' : ''}${tokenNumber != null ? ' Token: $tokenNumber' : ''}');
+          }
+        }
+        
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final response = json.decode(res.body) as Map<String, dynamic>;
+          // Handle API response wrapper if present
+          if (response.containsKey('data')) {
+            return response['data'] as Map<String, dynamic>;
+          }
+          print('✅ Patient added to queue successfully');
+          return response;
+        }
+        
+        throw Exception('Failed to add patient to queue (${res.statusCode}): ${res.body}');
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        
+        // If it's a token generation error and we haven't exhausted retries, continue
+        if (e.toString().contains('Failed to generate token number') && attempt < maxRetries) {
+          print('⚠️ Token generation error on attempt ${attempt + 1}, will retry...');
+          continue;
+        }
+        
+        // For other errors or max retries reached, break and throw
+        if (attempt >= maxRetries || !e.toString().contains('Failed to generate token number')) {
+          break;
+        }
       }
-      throw Exception('Failed to add patient to queue (${res.statusCode}): ${res.body}');
-    } catch (e) {
-      print('❌ Error adding patient to queue: $e');
-      rethrow;
     }
+    
+    // If we get here, all retries failed
+    print('❌ Error adding patient to queue after ${maxRetries + 1} attempts: $lastError');
+    throw lastError ?? Exception('Failed to add patient to queue after multiple attempts');
   }
 
   // Print queue receipt - returns receipt data as it appears in the print API
@@ -941,44 +938,5 @@ class EmrApiClient {
     }
   }
 
-  /// Test SMS service without requiring a valid phone number
-  /// Returns detailed information about the SMS API call
-  Future<Map<String, dynamic>> testSmsService({
-    String? phoneNumber,
-    String? message,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/test-sms');
-    try {
-      print('🧪 Testing SMS service...');
-      
-      final body = <String, dynamic>{};
-      if (phoneNumber != null) {
-        body['phoneNumber'] = phoneNumber;
-      }
-      if (message != null) {
-        body['message'] = message;
-      }
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 20));
-      
-      print('📡 SMS Test response status: ${res.statusCode}');
-      print('📡 SMS Test response body: ${res.body}');
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        print('✅ SMS Test completed. Check server logs for detailed API information.');
-        return response;
-      }
-      
-      throw Exception('SMS test failed: ${res.statusCode} - ${res.body}');
-    } catch (e) {
-      print('❌ Error testing SMS service: $e');
-      rethrow;
-    }
-  }
 }
 
