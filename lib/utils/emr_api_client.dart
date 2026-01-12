@@ -771,6 +771,176 @@ class EmrApiClient {
     }
   }
 
+  // Fetch appointment/queue history for a patient
+  // Uses searchText parameter to find appointments by patient ID or MRN
+  Future<List<dynamic>> fetchPatientAppointmentHistory(int patientId, {String? mrn}) async {
+    try {
+      print('🔍 Fetching appointment history for patient ID: $patientId');
+      
+      // First, try to get all hospitals to search across them
+      final hospitals = await fetchHospitals();
+      if (hospitals.isEmpty) {
+        print('⚠️ No hospitals found, cannot fetch appointment history');
+        return [];
+      }
+
+      // Collect appointments from all hospitals
+      List<dynamic> allAppointments = [];
+      
+      // NOTE: The searchText parameter causes a database error (sp_GetQueueWithReferrals has too many arguments)
+      // So we'll fetch all appointments and filter by patient ID instead
+      print('🔍 Fetching appointments for patient ID: $patientId (MRN: ${mrn != null ? mrn : "not provided"})');
+      print('⚠️ Note: Using fetch-all approach due to API searchText parameter causing database errors');
+      
+      for (var hospital in hospitals) {
+        try {
+          final hospitalId = hospital['hospitalID'] as int? ?? 
+                             hospital['HospitalID'] as int? ?? 0;
+          
+          if (hospitalId == 0) continue;
+          
+          // Try approach 1: Without searchText parameter (fetch all and filter)
+          // This avoids the database stored procedure error
+          print('🔄 Fetching all appointments for hospital $hospitalId (will filter by patient ID)');
+          try {
+            final uri = Uri.parse('$baseUrl/api/patient-queue').replace(
+              queryParameters: {
+                'hospitalId': hospitalId.toString(),
+                'pageNumber': '1',
+                'pageSize': '100',
+              },
+            );
+            
+            print('🔍 Requesting: $uri');
+            
+            final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+            print('📡 Response status for hospital $hospitalId: ${res.statusCode}');
+            
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              final response = json.decode(res.body);
+              List<dynamic> appointments = [];
+              
+              if (response is List) {
+                appointments = response;
+              } else if (response is Map<String, dynamic>) {
+                if (response.containsKey('data')) {
+                  final data = response['data'];
+                  if (data is List) {
+                    appointments = data;
+                  }
+                }
+              }
+              
+              print('📋 Fetched ${appointments.length} total appointment(s) from hospital $hospitalId');
+              
+              // Filter appointments to ensure they match the patient ID
+              final filtered = appointments.where((apt) {
+                final aptPatientId = apt['patientId'] as int? ?? 
+                                    apt['PatientId'] as int? ?? 
+                                    apt['PatientID'] as int?;
+                final matches = aptPatientId == patientId;
+                if (matches) {
+                  print('✅ Found matching appointment: QueueID=${apt['queueId'] ?? apt['QueueID']}, PatientID=$aptPatientId');
+                }
+                return matches;
+              }).toList();
+              
+              allAppointments.addAll(filtered);
+              print('✅ Found ${filtered.length} appointment(s) for patient in hospital $hospitalId');
+            } else {
+              // Log error response for debugging
+              print('❌ Error response from hospital $hospitalId: ${res.statusCode}');
+              try {
+                final errorBody = json.decode(res.body);
+                print('   Error details: $errorBody');
+              } catch (e) {
+                print('   Error body (not JSON): ${res.body.substring(0, res.body.length > 200 ? 200 : res.body.length)}');
+              }
+              
+              // Try approach 2: With patientId as direct parameter
+              if (res.statusCode >= 400) {
+                print('🔄 Trying alternative approach: using patientId parameter');
+                try {
+                  final altUri = Uri.parse('$baseUrl/api/patient-queue').replace(
+                    queryParameters: {
+                      'hospitalId': hospitalId.toString(),
+                      'patientId': patientId.toString(),
+                      'pageNumber': '1',
+                      'pageSize': '100',
+                    },
+                  );
+                  
+                  final altRes = await _client.get(altUri).timeout(const Duration(seconds: 10));
+                  print('📡 Alternative approach response status: ${altRes.statusCode}');
+                  
+                  if (altRes.statusCode >= 200 && altRes.statusCode < 300) {
+                    final altResponse = json.decode(altRes.body);
+                    List<dynamic> altAppointments = [];
+                    
+                    if (altResponse is List) {
+                      altAppointments = altResponse;
+                    } else if (altResponse is Map<String, dynamic>) {
+                      if (altResponse.containsKey('data')) {
+                        final data = altResponse['data'];
+                        if (data is List) {
+                          altAppointments = data;
+                        }
+                      }
+                    }
+                    
+                    allAppointments.addAll(altAppointments);
+                    print('✅ Found ${altAppointments.length} appointment(s) using alternative approach');
+                  }
+                } catch (altError) {
+                  print('⚠️ Alternative approach also failed: $altError');
+                }
+              }
+            }
+          } catch (innerError) {
+            print('⚠️ Error in inner try block: $innerError');
+          }
+        } catch (e) {
+          print('⚠️ Error fetching appointments from hospital: $e');
+          // Continue with next hospital
+          continue;
+        }
+      }
+      
+      // Sort by date (most recent first)
+      allAppointments.sort((a, b) {
+        final dateA = _parseDate(a);
+        final dateB = _parseDate(b);
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA); // Descending order
+      });
+      
+      print('✅ Total appointments found: ${allAppointments.length}');
+      return allAppointments;
+    } catch (e) {
+      print('❌ Error fetching appointment history: $e');
+      // Return empty list instead of throwing - allows UI to still show
+      return [];
+    }
+  }
+
+  DateTime? _parseDate(dynamic appointment) {
+    try {
+      final dateStr = appointment['queueDate'] as String? ?? 
+                      appointment['QueueDate'] as String? ??
+                      appointment['createdAt'] as String? ??
+                      appointment['CreatedAt'] as String? ??
+                      appointment['createdDate'] as String?;
+      if (dateStr != null) {
+        return DateTime.parse(dateStr);
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+    return null;
+  }
+
   // Request OTP for patient authentication
   Future<Map<String, dynamic>> requestOtp({required String cnic}) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/otp/request');

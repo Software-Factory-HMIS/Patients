@@ -53,6 +53,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   String? _appointmentError;
   int? _patientId;
   Map<String, dynamic>? _savedUserData; // Saved user data from registration
+  List<dynamic>? _appointmentHistory; // Previous appointments
+  bool _loadingAppointmentHistory = false;
+  List<Map<String, dynamic>> _localAppointments = []; // Locally stored appointments (created in this session)
   
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
@@ -74,6 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHospitals();
       _loadDepartments();
+      _loadAppointmentHistory();
     });
   }
 
@@ -467,6 +471,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               if (_departments == null) {
                 _loadDepartments();
               }
+              // Load appointment history when switching to appointments tab
+              _loadAppointmentHistory();
             }
           },
           type: BottomNavigationBarType.fixed,
@@ -696,11 +702,221 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       ),
                     ),
             ),
+            const Gap(32),
+
+            // Appointment History Section
+            Divider(height: 32, thickness: 1, color: Colors.grey.shade300),
+            const Gap(16),
+            Row(
+              children: [
+                Icon(Icons.today, color: Colors.blue.shade700, size: 24),
+                const Gap(8),
+                Text(
+                  'Today\'s Upcoming Appointments',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                ),
+              ],
+            ),
+            const Gap(16),
+            _loadingAppointmentHistory
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _appointmentHistory == null || _appointmentHistory!.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.event_busy,
+                                size: 48,
+                                color: Colors.grey.shade400,
+                              ),
+                              const Gap(12),
+                              Text(
+                                'No Upcoming Appointments Today',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: Colors.grey.shade600,
+                                    ),
+                              ),
+                              const Gap(4),
+                              Text(
+                                'You have no appointments scheduled for today',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey.shade500,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _appointmentHistory!.length,
+                        separatorBuilder: (context, index) => const Gap(12),
+                        itemBuilder: (context, index) {
+                          final appointment = _appointmentHistory![index] as Map<String, dynamic>;
+                          return _buildAppointmentHistoryCard(appointment);
+                        },
+                      ),
             const Gap(16),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAppointmentHistoryCard(Map<String, dynamic> appointment) {
+    // Parse appointment data
+    final queueId = appointment['queueId'] as int? ?? appointment['QueueID'] as int? ?? 0;
+    final tokenNumber = appointment['tokenNumber'] as String? ?? 
+                        appointment['TokenNumber'] as String? ?? 
+                        'N/A';
+    final createdAt = appointment['createdAt'] as String? ?? 
+                       appointment['CreatedAt'] as String? ??
+                       appointment['createdDate'] as String?;
+    final hospitalName = appointment['hospitalName'] as String? ?? 
+                         appointment['HospitalName'] as String? ?? 
+                         'Unknown Hospital';
+    final departmentName = appointment['departmentName'] as String? ?? 
+                           appointment['DepartmentName'] as String? ?? 
+                           'Unknown Department';
+    final status = appointment['status'] as String? ?? 
+                   appointment['Status'] as String? ?? 
+                   'Completed';
+    final queueType = appointment['queueType'] as String? ?? 
+                      appointment['QueueType'] as String? ?? 
+                      'OPD';
+
+    // Parse date if available
+    DateTime? appointmentDate;
+    if (createdAt != null) {
+      try {
+        appointmentDate = DateTime.parse(createdAt);
+      } catch (e) {
+        print('⚠️ Error parsing appointment date: $e');
+      }
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Text(
+                    'Token: $tokenNumber',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: _getStatusColor(status),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Gap(12),
+            _buildHistoryDetailRow(Icons.local_hospital, 'Hospital', hospitalName),
+            const Gap(8),
+            _buildHistoryDetailRow(Icons.medical_services, 'Department', departmentName),
+            const Gap(8),
+            if (appointmentDate != null)
+              _buildHistoryDetailRow(
+                Icons.calendar_today,
+                'Date',
+                '${appointmentDate.day}/${appointmentDate.month}/${appointmentDate.year}',
+              ),
+            if (appointmentDate != null) const Gap(8),
+            _buildHistoryDetailRow(Icons.info_outline, 'Queue ID', queueId.toString()),
+            const Gap(8),
+            _buildHistoryDetailRow(Icons.category, 'Type', queueType),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade600),
+        const Gap(8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    final lowerStatus = status.toLowerCase();
+    if (lowerStatus.contains('completed') || lowerStatus.contains('done')) {
+      return Colors.green;
+    } else if (lowerStatus.contains('pending') || lowerStatus.contains('waiting')) {
+      return Colors.orange;
+    } else if (lowerStatus.contains('cancelled') || lowerStatus.contains('canceled')) {
+      return Colors.red;
+    } else {
+      return Colors.blue;
+    }
   }
 
   Future<void> _loadHospitals() async {
@@ -829,6 +1045,184 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _appointmentError = 'Failed to load hospital departments: $e';
       });
       print('❌ Error loading hospital departments: $e');
+    }
+  }
+
+  Future<void> _loadAppointmentHistory() async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      return;
+    }
+
+    // Get patient ID first
+    int? patientId = _patientId;
+    if (patientId == null) {
+      try {
+        patientId = await _fetchPatientId();
+        _patientId = patientId;
+      } catch (e) {
+        print('⚠️ Could not fetch patient ID for appointment history: $e');
+        return;
+      }
+    }
+
+    setState(() {
+      _loadingAppointmentHistory = true;
+    });
+
+    try {
+      // Get MRN if available for better search
+      String? mrn;
+      if (_savedUserData != null) {
+        mrn = _savedUserData!['MRN'] as String? ?? 
+              _savedUserData!['mrn'] as String?;
+      }
+      if (mrn == null && _patient != null) {
+        mrn = _patient!['mrn'] as String? ?? _patient!['MRN'] as String?;
+      }
+      
+      final history = await _api!.fetchPatientAppointmentHistory(patientId, mrn: mrn);
+      
+      // Filter appointments to show only today's upcoming appointments
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      
+      print('🔍 Filtering appointments for today: ${todayStart.toString()} to ${todayEnd.toString()}');
+      print('🔍 Total appointments fetched: ${history.length}');
+      
+      final todayAppointments = history.where((appointment) {
+        // Try to parse the appointment date from multiple possible fields
+        DateTime? appointmentDate;
+        String? dateStr;
+        
+        // Try different date field names
+        dateStr = appointment['queueDate'] as String? ?? 
+                 appointment['QueueDate'] as String? ??
+                 appointment['createdAt'] as String? ?? 
+                 appointment['CreatedAt'] as String? ??
+                 appointment['createdDate'] as String? ??
+                 appointment['CreatedDate'] as String? ??
+                 appointment['appointmentDate'] as String? ??
+                 appointment['AppointmentDate'] as String?;
+        
+        if (dateStr != null) {
+          try {
+            appointmentDate = DateTime.parse(dateStr);
+            // Convert to local time if it's UTC
+            if (appointmentDate.isUtc) {
+              appointmentDate = appointmentDate.toLocal();
+            }
+            
+            print('📅 Checking appointment: dateStr=$dateStr, parsed=$appointmentDate');
+            
+            // Check if appointment is today (same year, month, day)
+            final isToday = appointmentDate.year == now.year &&
+                           appointmentDate.month == now.month &&
+                           appointmentDate.day == now.day;
+            
+            // Check appointment status - exclude completed/cancelled appointments
+            final status = (appointment['status'] as String? ?? 
+                           appointment['Status'] as String? ?? 
+                           '').toLowerCase();
+            final isActive = !status.contains('completed') && 
+                            !status.contains('cancelled') && 
+                            !status.contains('canceled') &&
+                            !status.contains('done');
+            
+            // For upcoming appointments, we want:
+            // 1. Appointments scheduled for today
+            // 2. That are still active (not completed/cancelled)
+            // 3. That haven't passed (or passed very recently - within last 2 hours to be lenient)
+            // This accounts for appointments that might have just been registered
+            final timeDiff = appointmentDate.difference(now);
+            final isUpcoming = timeDiff.inHours >= -2; // Allow appointments from up to 2 hours ago
+            
+            print('   isToday=$isToday, isActive=$isActive, isUpcoming=$isUpcoming (timeDiff: ${timeDiff.inHours}h), result=${isToday && isActive && isUpcoming}');
+            
+            return isToday && isActive && isUpcoming;
+          } catch (e) {
+            // If date parsing fails, log and skip this appointment
+            print('⚠️ Error parsing appointment date: $e, dateStr=$dateStr');
+            print('   Appointment data: ${appointment.keys.toList()}');
+          }
+        } else {
+          // Fallback: If no date field found, check if appointment was created recently (within last 24 hours)
+          // This handles cases where the API might not return a date field but the appointment is new
+          final createdAt = appointment['createdAt'] as String? ?? 
+                           appointment['CreatedAt'] as String? ??
+                           appointment['createdDate'] as String? ??
+                           appointment['CreatedDate'] as String?;
+          
+          if (createdAt != null) {
+            try {
+              var createdDate = DateTime.parse(createdAt);
+              if (createdDate.isUtc) {
+                createdDate = createdDate.toLocal();
+              }
+              // If created within last 24 hours, include it (assuming it's for today)
+              final hoursSinceCreation = now.difference(createdDate).inHours;
+              if (hoursSinceCreation < 24 && hoursSinceCreation >= 0) {
+                print('📅 Including appointment created ${hoursSinceCreation} hours ago (fallback)');
+                return true;
+              }
+            } catch (e) {
+              print('⚠️ Error parsing created date: $e');
+            }
+          }
+          
+          // Log if no date field found
+          print('⚠️ No date field found in appointment. Available keys: ${appointment.keys.toList()}');
+        }
+        return false;
+      }).toList();
+      
+      // Merge local appointments with API-fetched appointments
+      // Remove duplicates based on queueId
+      final allAppointments = <Map<String, dynamic>>[];
+      final seenQueueIds = <int>{};
+      
+      // Add local appointments first (they're the most recent)
+      for (var localAppt in _localAppointments) {
+        final queueId = localAppt['queueId'] as int? ?? 
+                       localAppt['QueueID'] as int? ?? 0;
+        if (queueId > 0 && !seenQueueIds.contains(queueId)) {
+          allAppointments.add(localAppt);
+          seenQueueIds.add(queueId);
+        }
+      }
+      
+      // Add API-fetched appointments (avoiding duplicates)
+      for (var apiAppt in todayAppointments) {
+        final apptMap = apiAppt as Map<String, dynamic>;
+        final queueId = apptMap['queueId'] as int? ?? 
+                       apptMap['QueueID'] as int? ?? 0;
+        if (queueId > 0 && !seenQueueIds.contains(queueId)) {
+          allAppointments.add(apptMap);
+          seenQueueIds.add(queueId);
+        }
+      }
+      
+      setState(() {
+        _appointmentHistory = allAppointments;
+        _loadingAppointmentHistory = false;
+      });
+      print('✅ Loaded ${allAppointments.length} upcoming appointment(s) for today (${_localAppointments.length} local, ${todayAppointments.length} from API)');
+    } catch (e) {
+      // Even if API fails, show local appointments
+      final allAppointments = <Map<String, dynamic>>[];
+      for (var localAppt in _localAppointments) {
+        allAppointments.add(localAppt);
+      }
+      
+      setState(() {
+        _appointmentHistory = allAppointments;
+        _loadingAppointmentHistory = false;
+      });
+      print('❌ Error loading appointment history from API: $e');
+      print('📋 Showing ${allAppointments.length} locally stored appointment(s)');
     }
   }
 
@@ -1023,6 +1417,34 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         receiptData: receiptData.isNotEmpty ? receiptData : null, // Include receipt data from print API
       );
 
+      // Store appointment locally (since API endpoint is broken, this ensures it shows up)
+      final localAppointment = {
+        'queueId': queueId,
+        'QueueID': queueId,
+        'tokenNumber': tokenNumber,
+        'TokenNumber': tokenNumber,
+        'patientId': patientId,
+        'PatientId': patientId,
+        'PatientID': patientId,
+        'createdAt': DateTime.now().toIso8601String(),
+        'CreatedAt': DateTime.now().toIso8601String(),
+        'queueDate': DateTime.now().toIso8601String(),
+        'QueueDate': DateTime.now().toIso8601String(),
+        'hospitalName': _selectedHospital!.name,
+        'HospitalName': _selectedHospital!.name,
+        'departmentName': department.name,
+        'DepartmentName': department.name,
+        'status': 'Pending',
+        'Status': 'Pending',
+        'queueType': isEmergencyDept ? 'Emergency' : 'OPD',
+        'QueueType': isEmergencyDept ? 'Emergency' : 'OPD',
+      };
+      
+      setState(() {
+        _localAppointments.add(localAppointment);
+        print('💾 Stored appointment locally: QueueID=$queueId, Token=$tokenNumber');
+      });
+
       // Navigate to success screen with appointment details
       if (mounted) {
         Navigator.of(context).push(
@@ -1031,7 +1453,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               appointment: appointmentDetails,
             ),
           ),
-        );
+        ).then((_) {
+          // Refresh appointment history when returning from success screen
+          _loadAppointmentHistory();
+        });
 
         // Reset form after navigation
         setState(() {

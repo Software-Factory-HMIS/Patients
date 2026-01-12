@@ -75,7 +75,7 @@ String resolveEmrBaseUrl() {
 // Primary and fallback IP addresses for physical devices
 // Update these IPs to match your actual network configuration
 // Set to empty string to auto-detect or use environment variable
-const String _primaryIp = '';   // Leave empty to auto-detect, or set your IP like '192.168.1.100'
+const String _primaryIp = '103.86.133.38';   // Backend server IP
 const String _fallbackIp = '';  // Leave empty or set secondary IP
 const String _tertiaryIp = '';  // Leave empty or set tertiary IP
 const int _port = 7287;
@@ -187,13 +187,36 @@ Future<bool> testConnection(String baseUrl) async {
     // Provide specific error guidance
     if (e.toString().contains('TimeoutException')) {
       print('⏰ Timeout - Server may be unreachable or slow to respond');
-      print('💡 Try: Check if API server is running on target machine');
+      print('💡 Troubleshooting:');
+      print('   1. Verify backend server is running on 103.86.133.38:7287');
+      print('   2. Check if server is listening on 0.0.0.0:7287 (not just localhost)');
+      print('   3. Test from browser: http://103.86.133.38:7287/api/hospitals');
+      print('   4. Check network connectivity and firewall rules');
     } else if (e.toString().contains('SocketException')) {
       print('🔌 Socket error - Network connectivity issue');
-      print('💡 Try: Verify IP address and network connection');
+      if (e.toString().contains('Connection refused')) {
+        print('🚫 Connection refused - Server not accepting connections');
+        print('💡 Troubleshooting for 103.86.133.38:7287:');
+        print('   1. Verify backend server is running and accessible');
+        print('   2. Check server is listening on 0.0.0.0:7287 (not just 127.0.0.1)');
+        print('   3. Verify firewall allows incoming connections on port 7287');
+        print('   4. Test from browser: http://103.86.133.38:7287/api/hospitals');
+        print('   5. Check server logs for startup message: "Now listening on: http://0.0.0.0:7287"');
+        print('   6. Ensure backend CORS is configured to allow all origins');
+      } else {
+        print('💡 Try: Verify IP address (103.86.133.38) and network connection');
+        print('   - Test ping: ping 103.86.133.38');
+        print('   - Test from browser: http://103.86.133.38:7287/api/hospitals');
+      }
     } else if (e.toString().contains('Connection refused')) {
       print('🚫 Connection refused - Server not accepting connections');
-      print('💡 Try: Check if API server is running and firewall settings');
+      print('💡 Troubleshooting for 103.86.133.38:7287:');
+      print('   1. Verify backend server is running and accessible');
+      print('   2. Check server is listening on 0.0.0.0:7287 (not just 127.0.0.1)');
+      print('   3. Verify firewall allows incoming connections on port 7287');
+      print('   4. Test from browser: http://103.86.133.38:7287/api/hospitals');
+      print('   5. Check server logs for startup message: "Now listening on: http://0.0.0.0:7287"');
+      print('   6. Ensure backend CORS is configured to allow all origins');
     }
     
     return false;
