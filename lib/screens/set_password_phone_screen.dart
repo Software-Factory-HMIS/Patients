@@ -22,6 +22,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
+  String? _storedOtp; // Store OTP for verification
 
   @override
   void initState() {
@@ -254,39 +255,92 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
     });
 
     try {
-      // Request OTP using CNIC (the API uses CNIC to find patient and send OTP to their phone)
-      final otpResponse = await _apiClient!.requestOtp(cnic: widget.cnic);
+      // Generate a 4-digit OTP (same as registration flow)
+      final otp = _generateOtp();
+      _storedOtp = otp;
       
-      if (!mounted) return;
-      
-      setState(() {
-        _loading = false;
-      });
+      // Send OTP via SMS API (same endpoint as registration)
+      bool smsSentSuccessfully = false;
+      try {
+        await _apiClient!.sendRegistrationOtp(
+          phoneNumber: phoneNumber,
+          otp: otp,
+        );
+        
+        // If we get here without exception, the API call succeeded
+        smsSentSuccessfully = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('OTP sent to your phone number'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (smsError) {
+        debugPrint('Failed to send OTP via SMS: $smsError');
+        final errorMsg = smsError.toString();
+        
+        // Check if error message indicates we can still proceed
+        if (errorMsg.contains('OTP:') || 
+            errorMsg.contains('proceed to enter') ||
+            errorMsg.contains('CanProceed')) {
+          // SMS failed but we can proceed with manual OTP entry
+          smsSentSuccessfully = true;
+          
+          // Show warning message
+          String warningMessage;
+          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
+            warningMessage = 'SMS delivery timed out. You can still enter the OTP manually.';
+          } else if (errorMsg.contains('Invalid sender IP')) {
+            warningMessage = 'SMS service temporarily unavailable. Please enter the OTP manually.';
+          } else {
+            warningMessage = 'SMS delivery failed. Please enter the OTP manually.';
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(warningMessage),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        } else {
+          // True error - cannot proceed
+          String errorMessage;
+          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
+            errorMessage = 'SMS delivery timed out. Please try again.';
+          } else {
+            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMessage),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          return; // Don't navigate - true error
+        }
+      }
 
-      // Check if OTP was sent successfully
-      final canProceed = otpResponse['canProceed'] as bool? ?? false;
-      final otp = otpResponse['otp'] as String?;
-      
-      if (canProceed && mounted) {
-        // Navigate to OTP verification screen
+      // Navigate to OTP entry screen if SMS was sent successfully OR if we can proceed
+      if (smsSentSuccessfully && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => SetPasswordOtpScreen(
               cnic: widget.cnic,
               phoneNumber: phoneNumber,
-              expectedOtp: otp,
+              expectedOtp: otp, // Pass OTP for verification
             ),
           ),
         );
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to send OTP. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
       }
     } catch (e) {
       debugPrint('Error requesting OTP: $e');
@@ -302,7 +356,20 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
+
+  String _generateOtp() {
+    // Generate a 4-digit OTP (same as registration)
+    final random = DateTime.now().millisecondsSinceEpoch % 10000;
+    return random.toString().padLeft(4, '0');
+  }
 }
+
 
