@@ -7,9 +7,11 @@ import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
+import '../services/auth_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
 import 'patient_file_screen.dart';
+import 'signin_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String cnic;
@@ -116,83 +118,95 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       _error = null;
     });
     
-    // Ensure saved user data is loaded
-    if (_savedUserData == null) {
-      await _loadSavedUserData();
+    // Ensure API is initialized
+    if (_api == null) {
+      await _initializeApi();
     }
     
-    // Simulate loading delay
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (_api == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Failed to initialize API client';
+      });
+      return;
+    }
     
-    // Load patient data from saved user data
-    String patientName = 'Patient Name';
-    String mrn = widget.cnic;
-    String gender = 'N/A';
-    String age = 'N/A';
-    String bloodType = 'N/A';
-    String lastVisit = 'N/A';
-    
-    if (_savedUserData != null) {
-      // Get name from FullName or fullName
-      patientName = _savedUserData!['FullName'] as String? ?? 
-                   _savedUserData!['fullName'] as String? ?? 
-                   'Patient Name';
+    try {
+      // Fetch patient data from backend using CNIC
+      print('🔍 Fetching patient data for CNIC: ${widget.cnic}');
+      final patientData = await _api!.fetchPatient(widget.cnic);
       
-      // Get MRN
-      mrn = _savedUserData!['MRN'] as String? ?? 
-            _savedUserData!['mrn'] as String? ?? 
-            widget.cnic;
+      if (!mounted) return;
       
-      // Get gender
-      gender = _savedUserData!['Gender'] as String? ?? 
-               _savedUserData!['gender'] as String? ?? 
-               'N/A';
+      // Extract patient information from API response
+      String patientName = patientData['FullName'] as String? ?? 
+                          patientData['fullName'] as String? ?? 
+                          patientData['Name'] as String? ??
+                          'Patient Name';
       
-      // Calculate age from DateOfBirth
-      final dateOfBirth = _savedUserData!['DateOfBirth'] ?? 
-                          _savedUserData!['dateOfBirth'];
-      if (dateOfBirth != null) {
-        try {
-          DateTime? dob;
-          if (dateOfBirth is DateTime) {
-            dob = dateOfBirth;
-          } else if (dateOfBirth is String) {
-            dob = DateTime.parse(dateOfBirth);
-          }
-          if (dob != null) {
-            final now = DateTime.now();
-            int years = now.year - dob.year;
-            if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
-              years--;
+      String mrn = patientData['MRN'] as String? ?? 
+                  patientData['mrn'] as String? ?? 
+                  widget.cnic;
+      
+      String gender = patientData['Gender'] as String? ?? 
+                     patientData['gender'] as String? ?? 
+                     'N/A';
+      
+      String age = 'N/A';
+      // Try to get age directly from API response first
+      if (patientData['Age'] != null) {
+        age = patientData['Age'].toString();
+      } else {
+        // Calculate age from DateOfBirth if Age is not available
+        final dateOfBirth = patientData['DateOfBirth'] ?? 
+                           patientData['dateOfBirth'];
+        if (dateOfBirth != null) {
+          try {
+            DateTime? dob;
+            if (dateOfBirth is DateTime) {
+              dob = dateOfBirth;
+            } else if (dateOfBirth is String) {
+              dob = DateTime.parse(dateOfBirth);
             }
-            age = years.toString();
+            if (dob != null) {
+              final now = DateTime.now();
+              int years = now.year - dob.year;
+              if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+                years--;
+              }
+              age = years.toString();
+            }
+          } catch (e) {
+            print('Error calculating age: $e');
           }
-        } catch (e) {
-          print('Error calculating age: $e');
         }
       }
       
-      // Get blood type
-      bloodType = _savedUserData!['BloodGroup'] as String? ?? 
-                  _savedUserData!['bloodGroup'] as String? ?? 
-                  'N/A';
+      String bloodType = patientData['BloodGroup'] as String? ?? 
+                        patientData['bloodGroup'] as String? ?? 
+                        'N/A';
       
-      // Get last visit from UpdatedDate or CreatedDate
-      final updatedDate = _savedUserData!['UpdatedDate'] ?? 
-                         _savedUserData!['updatedDate'];
-      final createdDate = _savedUserData!['CreatedDate'] ?? 
-                         _savedUserData!['createdDate'];
-      if (updatedDate != null || createdDate != null) {
+      String lastVisit = 'N/A';
+      // Get last visit from UpdatedAt, UpdatedDate, CreatedAt, or CreatedDate
+      final updatedAt = patientData['UpdatedAt'] ?? 
+                       patientData['updatedAt'] ??
+                       patientData['UpdatedDate'] ?? 
+                       patientData['updatedDate'];
+      final createdAt = patientData['CreatedAt'] ?? 
+                        patientData['createdAt'] ??
+                        patientData['CreatedDate'] ?? 
+                        patientData['createdDate'];
+      if (updatedAt != null || createdAt != null) {
         try {
           DateTime? visitDate;
-          if (updatedDate is DateTime) {
-            visitDate = updatedDate;
-          } else if (updatedDate is String) {
-            visitDate = DateTime.parse(updatedDate);
-          } else if (createdDate is DateTime) {
-            visitDate = createdDate;
-          } else if (createdDate is String) {
-            visitDate = DateTime.parse(createdDate);
+          if (updatedAt is DateTime) {
+            visitDate = updatedAt;
+          } else if (updatedAt is String) {
+            visitDate = DateTime.parse(updatedAt);
+          } else if (createdAt is DateTime) {
+            visitDate = createdAt;
+          } else if (createdAt is String) {
+            visitDate = DateTime.parse(createdAt);
           }
           if (visitDate != null) {
             final now = DateTime.now();
@@ -211,36 +225,49 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           print('Error formatting last visit: $e');
         }
       }
+      
+      // Get patient ID
+      final patientId = patientData['PatientID'] as int? ?? 
+                       patientData['patientId'] as int? ?? 
+                       patientData['PatientId'] as int?;
+      
+      // Store full patient data for later use
+      _savedUserData = patientData;
+      
+      // Initialize with loaded patient data
+      setState(() {
+        _patient = {
+          'name': patientName,
+          'fullName': patientName,
+          'mrn': mrn,
+          'gender': gender,
+          'age': age,
+          'bloodType': bloodType,
+          'bloodGroup': bloodType,
+          'lastVisit': lastVisit,
+          'patientId': patientId,
+        };
+        _vitals = [];
+        _medications = [];
+        _opd = [];
+        _ipd = [];
+        _labs = [];
+        _radiology = [];
+        _surgery = [];
+        _pregnancy = [];
+        _loading = false;
+      });
+      
+      print('✅ Patient data loaded successfully: $patientName (MRN: $mrn)');
+    } catch (e) {
+      print('❌ Error loading patient data: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Failed to load patient data: ${e.toString()}';
+        });
+      }
     }
-    
-    // Get patient ID
-    final patientId = _savedUserData?['PatientID'] ?? 
-                     _savedUserData?['patientId'] ?? 
-                     _savedUserData?['PatientId'];
-    
-    // Initialize with loaded patient data
-    setState(() {
-      _patient = {
-        'name': patientName,
-        'fullName': patientName,
-        'mrn': mrn,
-        'gender': gender,
-        'age': age,
-        'bloodType': bloodType,
-        'bloodGroup': bloodType,
-        'lastVisit': lastVisit,
-        'patientId': patientId,
-      };
-      _vitals = [];
-      _medications = [];
-      _opd = [];
-      _ipd = [];
-      _labs = [];
-      _radiology = [];
-      _surgery = [];
-      _pregnancy = [];
-      _loading = false;
-    });
   }
 
   void _showDebugDialog() {
@@ -377,8 +404,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ],
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+            onPressed: () async {
+              // Logout and navigate to sign in screen
+              await AuthService.instance.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const SignInScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
