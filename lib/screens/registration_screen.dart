@@ -1042,15 +1042,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text(widget.isAddOthers 
-            ? (_isUrdu ? 'دوسرے کی رجسٹریشن' : 'Add Others Registration')
-            : _translations['appBarTitle']!),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        title: Text(
+          widget.isAddOthers 
+              ? (_isUrdu ? 'دوسرے کی رجسٹریشن' : 'Add Others Registration')
+              : _translations['appBarTitle']!,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
       body: SafeArea(

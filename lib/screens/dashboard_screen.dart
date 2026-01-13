@@ -382,28 +382,35 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
+      drawer: _buildDrawer(context),
       appBar: AppBar(
-        title: Text(_currentNavIndex == 0 ? 'Appointments' : _currentNavIndex == 1 ? 'Patient Dashboard' : 'My Medical Records'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
+        title: Text(
+          _currentNavIndex == 0 
+              ? 'Appointments' 
+              : _currentNavIndex == 1 
+                  ? 'Patient Dashboard' 
+                  : 'My Medical Records',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
         ),
         actions: [
           if (_currentNavIndex == 1 || _currentNavIndex == 2) ...[
             IconButton(
-              icon: const Icon(Icons.bug_report),
+              icon: const Icon(Icons.bug_report_outlined),
               onPressed: _showDebugDialog,
               tooltip: 'Debug API Data',
             ),
           ],
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_outlined),
             onPressed: () async {
               // Logout and navigate to sign in screen
               await AuthService.instance.logout();
@@ -416,6 +423,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 );
               }
             },
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -1089,39 +1097,70 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Widget _buildPatientHeader() {
     final isMobile = MediaQuery.of(context).size.width < 768;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
-      color: Colors.white,
+      color: Colors.grey.shade50,
       padding: EdgeInsets.all(isMobile ? 12 : 20),
       child: Column(
         children: [
           // Patient Profile - Full Width Card
           Card(
-            elevation: 3,
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.blue.shade400, width: 2),
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outline.withOpacity(0.2),
+              ),
             ),
-            child: Padding(
-              padding: EdgeInsets.all(isMobile ? 16 : 20),
-              child: isMobile
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade100,
-                                borderRadius: BorderRadius.circular(28),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorScheme.surface,
+                    colorScheme.surfaceContainerHighest,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                child: isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      colorScheme.primary,
+                                      colorScheme.secondary,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.primary.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.person,
+                                  size: 28,
+                                  color: Colors.white,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.person,
-                                size: 28,
-                                color: Colors.blue.shade600,
-                              ),
-                            ),
                             const Gap(12),
                             Expanded(
                               child: Column(
@@ -1164,16 +1203,30 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   : Row(
                       children: [
                         Container(
-                          width: 60,
-                          height: 60,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(30),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                colorScheme.primary,
+                                colorScheme.secondary,
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.primary.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Icon(
                             Icons.person,
-                            size: 30,
-                            color: Colors.blue.shade600,
+                            size: 32,
+                            color: Colors.white,
                           ),
                         ),
                         const Gap(16),
@@ -1200,6 +1253,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         ),
                       ],
                     ),
+              ),
             ),
           ),
         ],
@@ -1207,25 +1261,415 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
+  Widget _buildDrawer(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Drawer(
+      child: Column(
+        children: [
+          // Header with gradient
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 24,
+              left: 16,
+              right: 16,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primaryContainer,
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Healthcare',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Management System',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Patient Details Card
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Patient Details Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: colorScheme.outline.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          colorScheme.surface,
+                          colorScheme.surfaceContainerHighest,
+                        ],
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    colorScheme.primary,
+                                    colorScheme.secondary,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.primary.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                size: 32,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Gap(16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _patient?['name'] as String? ?? 'Loading...',
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const Gap(4),
+                                  Text(
+                                    'MRN: ${_patient?['mrn'] ?? 'N/A'}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Gap(20),
+                        Divider(color: colorScheme.outline.withOpacity(0.2)),
+                        const Gap(16),
+                        _buildDrawerInfoRow(
+                          Icons.person_outline,
+                          'Gender',
+                          _patient?['gender'] ?? 'N/A',
+                          colorScheme,
+                        ),
+                        const Gap(12),
+                        _buildDrawerInfoRow(
+                          Icons.cake_outlined,
+                          'Age',
+                          '${_patient?['age'] ?? 'N/A'} years',
+                          colorScheme,
+                        ),
+                        const Gap(12),
+                        _buildDrawerInfoRow(
+                          Icons.bloodtype,
+                          'Blood Type',
+                          _patient?['bloodType'] ?? 'N/A',
+                          colorScheme,
+                        ),
+                        const Gap(12),
+                        _buildDrawerInfoRow(
+                          Icons.calendar_today_outlined,
+                          'Last Visit',
+                          _patient?['lastVisit'] ?? 'N/A',
+                          colorScheme,
+                        ),
+                        if (_savedUserData != null) ...[
+                          const Gap(12),
+                          if (_savedUserData!['CNIC'] != null || _savedUserData!['cnic'] != null)
+                            _buildDrawerInfoRow(
+                              Icons.badge_outlined,
+                              'CNIC',
+                              _savedUserData!['CNIC'] ?? _savedUserData!['cnic'] ?? 'N/A',
+                              colorScheme,
+                            ),
+                          if (_savedUserData!['ContactNumber'] != null || _savedUserData!['contactNumber'] != null) ...[
+                            const Gap(12),
+                            _buildDrawerInfoRow(
+                              Icons.phone_outlined,
+                              'Contact',
+                              _savedUserData!['ContactNumber'] ?? _savedUserData!['contactNumber'] ?? 'N/A',
+                              colorScheme,
+                            ),
+                          ],
+                          if (_savedUserData!['Email'] != null || _savedUserData!['email'] != null) ...[
+                            const Gap(12),
+                            _buildDrawerInfoRow(
+                              Icons.email_outlined,
+                              'Email',
+                              _savedUserData!['Email'] ?? _savedUserData!['email'] ?? 'N/A',
+                              colorScheme,
+                            ),
+                          ],
+                          if (_savedUserData!['Address'] != null || _savedUserData!['address'] != null) ...[
+                            const Gap(12),
+                            _buildDrawerInfoRow(
+                              Icons.location_on_outlined,
+                              'Address',
+                              _savedUserData!['Address'] ?? _savedUserData!['address'] ?? 'N/A',
+                              colorScheme,
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const Gap(16),
+                
+                // Navigation Items
+                _buildDrawerTile(
+                  context,
+                  Icons.dashboard_outlined,
+                  'Dashboard',
+                  _currentNavIndex == 1,
+                  () {
+                    setState(() => _currentNavIndex = 1);
+                    Navigator.pop(context);
+                  },
+                  colorScheme,
+                ),
+                _buildDrawerTile(
+                  context,
+                  Icons.calendar_today_outlined,
+                  'Appointments',
+                  _currentNavIndex == 0,
+                  () {
+                    setState(() => _currentNavIndex = 0);
+                    Navigator.pop(context);
+                  },
+                  colorScheme,
+                ),
+                _buildDrawerTile(
+                  context,
+                  Icons.folder_outlined,
+                  'Medical Records',
+                  _currentNavIndex == 2,
+                  () {
+                    setState(() => _currentNavIndex = 2);
+                    Navigator.pop(context);
+                  },
+                  colorScheme,
+                ),
+                const Divider(height: 32),
+                _buildDrawerTile(
+                  context,
+                  Icons.settings_outlined,
+                  'Settings',
+                  false,
+                  () {
+                    Navigator.pop(context);
+                    // TODO: Navigate to settings
+                  },
+                  colorScheme,
+                ),
+                _buildDrawerTile(
+                  context,
+                  Icons.help_outline,
+                  'Help & Support',
+                  false,
+                  () {
+                    Navigator.pop(context);
+                    // TODO: Navigate to help
+                  },
+                  colorScheme,
+                ),
+                _buildDrawerTile(
+                  context,
+                  Icons.logout_outlined,
+                  'Logout',
+                  false,
+                  () async {
+                    Navigator.pop(context);
+                    await AuthService.instance.logout();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const SignInScreen(),
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  },
+                  colorScheme,
+                  isDestructive: true,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerInfoRow(IconData icon, String label, String value, ColorScheme colorScheme) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: colorScheme.onPrimaryContainer,
+          ),
+        ),
+        const Gap(12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Gap(2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawerTile(
+    BuildContext context,
+    IconData icon,
+    String title,
+    bool isSelected,
+    VoidCallback onTap,
+    ColorScheme colorScheme, {
+    bool isDestructive = false,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: isSelected
+              ? colorScheme.onPrimaryContainer
+              : isDestructive
+                  ? colorScheme.error
+                  : colorScheme.onSurfaceVariant,
+          size: 20,
+        ),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          color: isDestructive
+              ? colorScheme.error
+              : isSelected
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurfaceVariant,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: colorScheme.primaryContainer.withOpacity(0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      onTap: onTap,
+    );
+  }
+
   Widget _buildInfoChip(IconData icon, String label, String value) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200, width: 1),
+        color: colorScheme.primaryContainer.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: Colors.blue.shade700),
+          Icon(
+            icon,
+            size: 16,
+            color: colorScheme.onPrimaryContainer,
+          ),
           const Gap(6),
           Text(
             '$label: $value',
             style: TextStyle(
               fontSize: 12,
-              color: Colors.blue.shade900,
-              fontWeight: FontWeight.w500,
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -1235,18 +1679,31 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
   Widget _buildChronicConditionsSection() {
     final isMobile = MediaQuery.of(context).size.width < 768;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
       margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
       child: Card(
-        elevation: 2,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.red.shade300, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: colorScheme.errorContainer.withOpacity(0.5),
+            width: 1,
+          ),
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.red.shade50,
-            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colorScheme.errorContainer.withOpacity(0.3),
+                colorScheme.errorContainer.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 12 : 16),
