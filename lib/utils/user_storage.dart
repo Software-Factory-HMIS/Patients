@@ -86,5 +86,34 @@ class UserStorage {
       return false;
     }
   }
+
+  // Save recent appointments
+  static Future<void> saveRecentAppointments(List<Map<String, dynamic>> appointments) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('recent_appointments', json.encode(appointments));
+      print('✅ Recent appointments saved successfully');
+    } catch (e) {
+      print('❌ Error saving recent appointments: $e');
+    }
+  }
+
+  // Get saved recent appointments
+  static Future<List<Map<String, dynamic>>?> getRecentAppointments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final appointmentsString = prefs.getString('recent_appointments');
+      
+      if (appointmentsString == null) {
+        return null;
+      }
+      
+      final appointmentsList = json.decode(appointmentsString) as List;
+      return appointmentsList.map((item) => item as Map<String, dynamic>).toList();
+    } catch (e) {
+      print('❌ Error loading recent appointments: $e');
+      return null;
+    }
+  }
 }
 

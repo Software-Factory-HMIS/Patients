@@ -55,6 +55,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   String? _appointmentError;
   int? _patientId;
   Map<String, dynamic>? _savedUserData; // Saved user data from registration
+  final TextEditingController _hospitalSearchController = TextEditingController();
+  List<Map<String, dynamic>>? _recentAppointments;
+  bool _loadingRecentAppointments = false;
   
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
@@ -76,6 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHospitals();
       _loadDepartments();
+      _loadRecentAppointments();
     });
   }
 
@@ -109,6 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _labsSearchController.dispose();
     _radiologySearchController.dispose();
     _surgerySearchController.dispose();
+    _hospitalSearchController.dispose();
     super.dispose();
   }
 
@@ -514,6 +519,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               if (_departments == null) {
                 _loadDepartments();
               }
+              // Reload recent appointments when switching to appointments tab
+              _loadRecentAppointments();
             }
           },
           type: BottomNavigationBarType.fixed,
@@ -558,196 +565,917 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildAppointmentsScreen() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final filteredHospitals = _getFilteredHospitals();
+    
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
-            Text(
-              'Book Appointment',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
+            // Hero Header Card
+            Card(
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.secondary,
+                    ],
                   ),
-            ),
-            const Gap(8),
-            Text(
-              'Select a hospital and department to book your appointment',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
-            ),
-            const Gap(24),
-
-            // Hospital Dropdown
-            Text(
-              'Hospital *',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const Gap(8),
-            _loadingHospitals
-                ? const Center(child: CircularProgressIndicator())
-                : DropdownButtonFormField<Hospital>(
-                    value: _selectedHospital,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_today,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const Gap(16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Book Appointment',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const Gap(4),
+                              Text(
+                                'Select hospital and department',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    hint: const Text('Select a hospital'),
-                    items: _hospitals?.map((hospital) {
-                      return DropdownMenuItem<Hospital>(
-                        value: hospital,
-                        child: Text(hospital.name),
-                      );
-                    }).toList(),
-                    onChanged: (hospital) {
-                      setState(() {
-                        _selectedHospital = hospital;
-                        _selectedHospitalDepartment = null; // Reset department when hospital changes
-                        _hospitalDepartments = null; // Clear previous departments
-                      });
-                      // Load hospital departments when hospital is selected
-                      if (hospital != null) {
-                        _loadHospitalDepartments(hospital.hospitalID);
-                      }
-                    },
-                  ),
+                  ],
+                ),
+              ),
+            ),
             const Gap(24),
 
-            // Department Dropdown
-            Text(
-              'Department *',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            const Gap(8),
-            _loadingHospitalDepartments
-                ? const Center(child: CircularProgressIndicator())
-                : IgnorePointer(
-                    ignoring: _selectedHospital == null || _loadingHospitalDepartments,
-                    child: Opacity(
-                      opacity: _selectedHospital == null ? 0.6 : 1.0,
-                      child: DropdownButtonFormField<HospitalDepartment>(
-                        value: _selectedHospitalDepartment,
+            // Hospital Selection Card
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: colorScheme.outline.withOpacity(0.2),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_hospital_outlined,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
+                        const Gap(8),
+                        Text(
+                          'Hospital',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const Gap(4),
+                        Text(
+                          '*',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ],
+                    ),
+                    const Gap(12),
+                    // Hospital Search Field
+                    if (_hospitals != null && _hospitals!.length > 5)
+                      TextField(
+                        controller: _hospitalSearchController,
                         decoration: InputDecoration(
+                          hintText: 'Search hospitals...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _hospitalSearchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _hospitalSearchController.clear();
+                                    });
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          filled: true,
-                          fillColor: _selectedHospital != null
-                              ? Colors.white
-                              : Colors.grey.shade100,
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 16,
+                            vertical: 12,
                           ),
                         ),
-                        hint: Text(
-                          _selectedHospital == null
-                              ? 'Please select a hospital first'
-                              : _loadingHospitalDepartments
-                                  ? 'Loading departments...'
-                                  : 'Select a department',
-                        ),
-                        items: _hospitalDepartments?.map((hospitalDept) {
-                          return DropdownMenuItem<HospitalDepartment>(
-                            value: hospitalDept,
-                            child: Text(hospitalDept.departmentName),
-                          );
-                        }).toList(),
-                        onChanged: _selectedHospital == null || _loadingHospitalDepartments
-                            ? null
-                            : (hospitalDept) {
-                                setState(() {
-                                  _selectedHospitalDepartment = hospitalDept;
-                                });
-                              },
+                        onChanged: (value) {
+                          setState(() {
+                            // Clear selection if it's filtered out
+                            final filtered = _getFilteredHospitals();
+                            if (_selectedHospital != null && 
+                                filtered != null && 
+                                !filtered.contains(_selectedHospital)) {
+                              _selectedHospital = null;
+                              _selectedHospitalDepartment = null;
+                              _hospitalDepartments = null;
+                            }
+                          });
+                        },
                       ),
+                    if (_hospitals != null && _hospitals!.length > 5) const Gap(12),
+                    _loadingHospitals
+                        ? _buildSkeletonLoader()
+                        : (filteredHospitals == null || filteredHospitals.isEmpty)
+                            ? Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: colorScheme.outline.withOpacity(0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      color: colorScheme.onSurfaceVariant,
+                                      size: 20,
+                                    ),
+                                    const Gap(12),
+                                    Expanded(
+                                      child: Text(
+                                        _hospitals == null
+                                            ? 'Loading hospitals...'
+                                            : 'No hospitals found',
+                                        style: TextStyle(
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : SizedBox(
+                                width: double.infinity,
+                                child: DropdownButtonFormField<Hospital>(
+                                  value: filteredHospitals.contains(_selectedHospital) 
+                                      ? _selectedHospital 
+                                      : null,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    filled: true,
+                                    fillColor: colorScheme.surfaceContainerHighest,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                  hint: const Text('Select a hospital'),
+                                  items: filteredHospitals.map((hospital) {
+                                    return DropdownMenuItem<Hospital>(
+                                      value: hospital,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.local_hospital,
+                                            size: 18,
+                                            color: colorScheme.primary,
+                                          ),
+                                          const Gap(8),
+                                          Expanded(
+                                            child: Text(
+                                              hospital.name,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (hospital) {
+                                    setState(() {
+                                      _selectedHospital = hospital;
+                                      _selectedHospitalDepartment = null;
+                                      _hospitalDepartments = null;
+                                    });
+                                    if (hospital != null) {
+                                      _loadHospitalDepartments(hospital.hospitalID);
+                                    }
+                                  },
+                                ),
+                              ),
+                    // Hospital Details Expansion
+                    if (_selectedHospital != null) ...[
+                      const Gap(12),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        leading: Icon(
+                          Icons.info_outline,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
+                        title: Text(
+                          'Hospital Details',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        children: [
+                          _buildHospitalDetails(_selectedHospital!, colorScheme),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const Gap(16),
+
+            // Department Selection Card
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: colorScheme.outline.withOpacity(0.2),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.medical_services_outlined,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
+                        const Gap(8),
+                        Text(
+                          'Department',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const Gap(4),
+                        Text(
+                          '*',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ],
                     ),
+                    const Gap(12),
+                    _loadingHospitalDepartments
+                        ? _buildSkeletonLoader()
+                        : IgnorePointer(
+                            ignoring: _selectedHospital == null || _loadingHospitalDepartments,
+                            child: Opacity(
+                              opacity: _selectedHospital == null ? 0.6 : 1.0,
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: DropdownButtonFormField<HospitalDepartment>(
+                                  value: _selectedHospitalDepartment,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    filled: true,
+                                    fillColor: _selectedHospital != null
+                                        ? colorScheme.surfaceContainerHighest
+                                        : colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                  hint: Text(
+                                    _selectedHospital == null
+                                        ? 'Please select a hospital first'
+                                        : _loadingHospitalDepartments
+                                            ? 'Loading departments...'
+                                            : 'Select a department',
+                                  ),
+                                  items: _hospitalDepartments?.map((hospitalDept) {
+                                    return DropdownMenuItem<HospitalDepartment>(
+                                      value: hospitalDept,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.medical_services,
+                                            size: 18,
+                                            color: colorScheme.primary,
+                                          ),
+                                          const Gap(8),
+                                          Expanded(
+                                            child: Text(
+                                              hospitalDept.departmentName,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: _selectedHospital == null || _loadingHospitalDepartments
+                                      ? null
+                                      : (hospitalDept) {
+                                          setState(() {
+                                            _selectedHospitalDepartment = hospitalDept;
+                                          });
+                                        },
+                                ),
+                              ),
+                            ),
+                          ),
+                  ],
+                ),
+              ),
+            ),
+            const Gap(16),
+
+            // Selection Summary Card
+            if (_selectedHospital != null && _selectedHospitalDepartment != null)
+              Card(
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: colorScheme.primaryContainer.withOpacity(0.5),
+                    width: 2,
                   ),
-            const Gap(32),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.primaryContainer.withOpacity(0.3),
+                        colorScheme.secondaryContainer.withOpacity(0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: colorScheme.primary,
+                            size: 20,
+                          ),
+                          const Gap(8),
+                          Text(
+                            'Selected',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Gap(12),
+                      _buildSummaryRow(
+                        Icons.local_hospital,
+                        'Hospital',
+                        _selectedHospital!.name,
+                        colorScheme,
+                      ),
+                      const Gap(8),
+                      _buildSummaryRow(
+                        Icons.medical_services,
+                        'Department',
+                        _selectedHospitalDepartment!.departmentName,
+                        colorScheme,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_selectedHospital != null && _selectedHospitalDepartment != null) const Gap(16),
 
             // Error Message
             if (_appointmentError != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  border: Border.all(color: Colors.red.shade300),
-                  borderRadius: BorderRadius.circular(8),
+              Card(
+                elevation: 0,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: colorScheme.errorContainer,
+                    width: 1,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700),
-                    const Gap(8),
-                    Expanded(
-                      child: Text(
-                        _appointmentError!,
-                        style: TextStyle(color: Colors.red.shade700),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.errorContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.error_outline_rounded,
+                          color: colorScheme.onErrorContainer,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                  ],
+                      const Gap(12),
+                      Expanded(
+                        child: Text(
+                          _appointmentError!,
+                          style: TextStyle(
+                            color: colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             if (_appointmentError != null) const Gap(16),
 
             // Submit Button
-            ElevatedButton(
+            FilledButton.icon(
               onPressed: (_selectedHospital != null &&
                       _selectedHospitalDepartment != null &&
                       !_submittingAppointment)
                   ? _handleAppointmentSubmission
                   : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                disabledBackgroundColor: Colors.grey.shade300,
+                minimumSize: const Size(double.infinity, 56),
               ),
-              child: _submittingAppointment
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+              icon: _submittingAppointment
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          colorScheme.onPrimary,
                         ),
-                        Gap(12),
-                        Text('Processing...'),
-                      ],
+                      ),
                     )
+                  : const Icon(Icons.calendar_today, size: 20),
+              label: _submittingAppointment
+                  ? const Text('Processing...')
                   : const Text(
                       'Book Appointment',
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
             ),
-            const Gap(16),
+            const Gap(24),
+
+            // Recent Appointments Section
+            _buildRecentAppointmentsSection(theme, colorScheme),
           ],
         ),
       ),
     );
+  }
+
+  // Helper methods for appointments screen
+  List<Hospital>? _getFilteredHospitals() {
+    if (_hospitals == null) return null;
+    final searchText = _hospitalSearchController.text.toLowerCase().trim();
+    if (searchText.isEmpty) return _hospitals;
+    final filtered = _hospitals!.where((hospital) {
+      return hospital.name.toLowerCase().contains(searchText);
+    }).toList();
+    return filtered.isEmpty ? [] : filtered;
+  }
+
+  Widget _buildSkeletonLoader() {
+    return Card(
+      elevation: 0,
+      child: Container(
+        height: 60,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const Gap(12),
+            Expanded(
+              child: Container(
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHospitalDetails(Hospital hospital, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hospital.location.isNotEmpty && hospital.location != 'Location not specified')
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const Gap(8),
+                Expanded(
+                  child: Text(
+                    hospital.location,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (hospital.type != null && hospital.type!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.category_outlined,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const Gap(8),
+                Text(
+                  hospital.type!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryRow(
+    IconData icon,
+    String label,
+    String value,
+    ColorScheme colorScheme,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
+        const Gap(8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 14,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentAppointmentsSection(ThemeData theme, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.history,
+              color: colorScheme.primary,
+              size: 20,
+            ),
+            const Gap(8),
+            Text(
+              'Recent Appointments',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        const Gap(16),
+        _loadingRecentAppointments
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            : _recentAppointments == null || _recentAppointments!.isEmpty
+                ? _buildEmptyAppointmentsState(colorScheme)
+                : Column(
+                    children: _recentAppointments!.take(3).map((appointment) {
+                      return _buildAppointmentCard(appointment, colorScheme, theme);
+                    }).toList(),
+                  ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyAppointmentsState(ColorScheme colorScheme) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 48,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            ),
+            const Gap(16),
+            Text(
+              'No recent appointments',
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Gap(4),
+            Text(
+              'Your appointment history will appear here',
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentCard(
+    Map<String, dynamic> appointment,
+    ColorScheme colorScheme,
+    ThemeData theme,
+  ) {
+    final hospitalName = appointment['hospitalName'] ?? 
+                         appointment['HospitalName'] ?? 
+                         appointment['hospital']?['name'] ??
+                         'Hospital';
+    final departmentName = appointment['departmentName'] ?? 
+                           appointment['DepartmentName'] ?? 
+                           appointment['department']?['name'] ??
+                           'Department';
+    final queueDate = appointment['queueDate'] ?? 
+                     appointment['QueueDate'] ?? 
+                     appointment['createdAt'] ??
+                     appointment['CreatedAt'];
+    
+    DateTime? appointmentDate;
+    if (queueDate != null) {
+      try {
+        if (queueDate is DateTime) {
+          appointmentDate = queueDate;
+        } else if (queueDate is String) {
+          appointmentDate = DateTime.parse(queueDate);
+        }
+      } catch (e) {
+        print('Error parsing appointment date: $e');
+      }
+    }
+    
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          // Could navigate to appointment details
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.calendar_today,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const Gap(16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hospitalName.toString(),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Gap(4),
+                    Text(
+                      departmentName.toString(),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (appointmentDate != null) ...[
+                      const Gap(4),
+                      Text(
+                        _formatAppointmentDate(appointmentDate!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatAppointmentDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now);
+    
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Tomorrow';
+    } else if (difference.inDays == -1) {
+      return 'Yesterday';
+    } else if (difference.inDays > 0 && difference.inDays < 7) {
+      return 'In ${difference.inDays} days';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  Future<void> _loadRecentAppointments() async {
+    if (_api == null) {
+      await _initializeApi();
+    }
+    if (_api == null) {
+      setState(() {
+        _loadingRecentAppointments = false;
+        _recentAppointments = _recentAppointments ?? [];
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingRecentAppointments = true;
+    });
+
+    try {
+      // Try to load from local storage first
+      final savedAppointments = await UserStorage.getRecentAppointments();
+      if (savedAppointments != null && savedAppointments.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _recentAppointments = savedAppointments;
+            _loadingRecentAppointments = false;
+          });
+        }
+        return;
+      }
+
+      // If no saved appointments, use in-memory list
+      if (mounted) {
+        setState(() {
+          _loadingRecentAppointments = false;
+          _recentAppointments = _recentAppointments ?? [];
+        });
+      }
+    } catch (e) {
+      print('Error loading recent appointments: $e');
+      // Silently fail - recent appointments are optional
+      if (mounted) {
+        setState(() {
+          _loadingRecentAppointments = false;
+          _recentAppointments = _recentAppointments ?? [];
+        });
+      }
+    }
   }
 
   Future<void> _loadHospitals() async {
@@ -1070,6 +1798,31 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         receiptData: receiptData.isNotEmpty ? receiptData : null, // Include receipt data from print API
       );
 
+      // Add to recent appointments before navigation
+      final appointmentMap = {
+        'hospitalName': _selectedHospital!.name,
+        'departmentName': _selectedHospitalDepartment!.departmentName,
+        'queueDate': appointmentDetails.appointmentDate.toIso8601String(),
+        'tokenNumber': tokenNumber,
+        'queueId': queueId,
+        'appointmentDate': appointmentDetails.appointmentDate.toIso8601String(),
+      };
+      
+      // Update in-memory list
+      _recentAppointments ??= [];
+      _recentAppointments!.insert(0, appointmentMap); // Add to beginning
+      // Keep only last 5 appointments
+      if (_recentAppointments!.length > 5) {
+        _recentAppointments = _recentAppointments!.take(5).toList();
+      }
+      
+      // Save to local storage
+      await UserStorage.saveRecentAppointments(_recentAppointments!);
+      
+      setState(() {
+        // State already updated above
+      });
+
       // Navigate to success screen with appointment details
       if (mounted) {
         Navigator.of(context).push(
@@ -1078,7 +1831,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               appointment: appointmentDetails,
             ),
           ),
-        );
+        ).then((_) {
+          // Reload recent appointments when returning from success screen
+          if (mounted) {
+            _loadRecentAppointments();
+          }
+        });
 
         // Reset form after navigation
         setState(() {
