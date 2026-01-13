@@ -5,6 +5,7 @@ import 'otp_screen.dart';
 import 'registration_phone_screen.dart';
 import 'patient_selection_screen.dart';
 import 'dashboard_screen.dart';
+import 'set_password_phone_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
@@ -215,6 +216,29 @@ class _SignInScreenState extends State<SignInScreen> {
                         if (requiredResult != null) return requiredResult;
                         return null;
                       },
+                    ),
+                    
+                    const Gap(16),
+                    
+                    // Set Password button for existing users without password
+                    OutlinedButton.icon(
+                      onPressed: _handleSetPassword,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: Colors.blue.shade300),
+                      ),
+                      icon: Icon(Icons.lock_reset, color: Colors.blue.shade700),
+                      label: Text(
+                        'Set Password',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
                     ),
                     
                     const Gap(16),
@@ -493,6 +517,28 @@ class _SignInScreenState extends State<SignInScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const RegistrationPhoneScreen(),
+      ),
+    );
+  }
+
+  void _handleSetPassword() {
+    // Get CNIC from the form
+    final cnic = _cnicController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (cnic.isEmpty || cnic.length != 13) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid CNIC first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // Navigate to set password flow
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SetPasswordPhoneScreen(cnic: cnic),
       ),
     );
   }

@@ -938,5 +938,51 @@ class EmrApiClient {
     }
   }
 
+  // Set password for a patient by CNIC
+  Future<void> setPasswordByCnic({
+    required String cnic,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/set-password');
+    try {
+      print('🔍 Setting password for CNIC: $cnic');
+      
+      final body = {
+        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+        'password': password,
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      print('📡 Set password response status: ${res.statusCode}');
+      print('📡 Set password response body: ${res.body}');
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        print('✅ Password set successfully');
+        return;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Failed to set password';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception('$errorMessage (${res.statusCode})');
+    } catch (e) {
+      print('❌ Error setting password: $e');
+      rethrow;
+    }
+  }
+
 }
 

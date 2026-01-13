@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/signin_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/splash_screen.dart';
 import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
 
@@ -22,17 +21,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService.instance;
-    
-    Widget homeScreen;
-    if (authService.isLoggedIn && authService.patientData != null) {
-      final cnic = authService.patientData!['cnic'] ?? 
-                   authService.patientData!['CNIC'] ?? '';
-      homeScreen = DashboardScreen(cnic: cnic.toString());
-    } else {
-      homeScreen = const SignInScreen();
-    }
-    
     return MaterialApp(
       title: 'Healthcare Management System',
       useInheritedMediaQuery: true,
@@ -43,7 +31,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: homeScreen,
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
