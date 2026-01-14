@@ -93,20 +93,44 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     try {
       final mrn = _patientMrn;
+      print('🔍 Loading medical records for MRN: $mrn');
       if (mrn.isEmpty) {
         throw Exception('Patient MRN is required');
       }
 
       // Load all data in parallel
       final results = await Future.wait([
-        _api!.fetchOPD(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchIPD(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchVitals(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchLabs(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchRadiology(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchSurgery(mrn).catchError((e) => <dynamic>[]),
-        _api!.fetchMedications(mrn).catchError((e) => <dynamic>[]),
+        _api!.fetchOPD(mrn).catchError((e) {
+          print('❌ Error fetching OPD: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchIPD(mrn).catchError((e) {
+          print('❌ Error fetching IPD: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchVitals(mrn).catchError((e) {
+          print('❌ Error fetching Vitals: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchLabs(mrn).catchError((e) {
+          print('❌ Error fetching Labs: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchRadiology(mrn).catchError((e) {
+          print('❌ Error fetching Radiology: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchSurgery(mrn).catchError((e) {
+          print('❌ Error fetching Surgery: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchMedications(mrn).catchError((e) {
+          print('❌ Error fetching Medications: $e');
+          return <dynamic>[];
+        }),
       ]);
+
+      print('📊 Data received - OPD: ${results[0].length}, IPD: ${results[1].length}, Vitals: ${results[2].length}, Labs: ${results[3].length}, Radiology: ${results[4].length}, Surgery: ${results[5].length}, Medications: ${results[6].length}');
 
       setState(() {
         _opd = results[0];
@@ -121,6 +145,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       });
 
       _buildCombinedTimeline();
+      print('📋 Combined timeline items: ${_combinedTimeline.length}');
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -1542,12 +1567,6 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Medical Records',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
       body: Column(
         children: [
           _buildPatientInfoCard(),

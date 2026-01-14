@@ -1137,7 +1137,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(15),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -1194,7 +1194,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(15),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
@@ -1273,7 +1273,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       ],
                                     ),
                                   ),
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(15),
                                   child: DropdownButtonFormField<String>(
                                     value: _parentType,
                                     decoration: InputDecoration(
@@ -1359,7 +1359,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(15),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[

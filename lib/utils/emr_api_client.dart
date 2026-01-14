@@ -536,63 +536,126 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchVitals(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/vitals');
-    final res = await _client.get(uri);
+    print('📡 Fetching vitals from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 Vitals response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no vitals records - return empty list
+      print('⚠️ No vitals found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ Vitals loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load vitals (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchMedications(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/medications');
-    final res = await _client.get(uri);
+    print('📡 Fetching medications from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 Medications response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no medications records - return empty list
+      print('⚠️ No medications found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ Medications loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load medications (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchOPD(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/opd');
-    final res = await _client.get(uri);
+    print('📡 Fetching OPD from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 OPD response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no OPD records - return empty list
+      print('⚠️ No OPD found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ OPD loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load OPD records (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchIPD(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/ipd');
-    final res = await _client.get(uri);
+    print('📡 Fetching IPD from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 IPD response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no IPD records - return empty list
+      print('⚠️ No IPD found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ IPD loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load IPD records (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchLabs(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/labs');
-    final res = await _client.get(uri);
+    print('📡 Fetching labs from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 Labs response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no lab records - return empty list
+      print('⚠️ No labs found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ Labs loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load lab results (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchRadiology(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/radiology');
-    final res = await _client.get(uri);
+    print('📡 Fetching radiology from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 Radiology response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no radiology records - return empty list
+      print('⚠️ No radiology found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ Radiology loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load radiology records (${res.statusCode})');
   }
 
   Future<List<dynamic>> fetchSurgery(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/surgery');
-    final res = await _client.get(uri);
+    print('📡 Fetching surgery from: $uri');
+    final res = await _authenticatedGet(uri);
+    print('📡 Surgery response status: ${res.statusCode}, body length: ${res.body.length}');
+    if (res.statusCode == 404) {
+      // Patient has no surgery records - return empty list
+      print('⚠️ No surgery found (404) for MRN: $mrn');
+      return <dynamic>[];
+    }
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return json.decode(res.body) as List<dynamic>;
+      final data = json.decode(res.body) as List<dynamic>;
+      print('✅ Surgery loaded: ${data.length} records');
+      return data;
     }
     throw Exception('Failed to load surgery records (${res.statusCode})');
   }
