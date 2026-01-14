@@ -10,6 +10,7 @@ import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
 import '../services/auth_service.dart';
+import '../services/inactivity_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -591,6 +592,9 @@ class _SignInScreenState extends State<SignInScreen> {
       final identifier = mrn.isNotEmpty ? mrn : cnic;
       
       if (!mounted) return;
+      
+      // Reset inactivity timer on successful login
+      InactivityService.instance.resetActivity();
       
       // Navigate to dashboard
       Navigator.of(context).pushReplacement(

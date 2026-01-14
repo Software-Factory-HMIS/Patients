@@ -8,6 +8,7 @@ import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
 import '../services/auth_service.dart';
+import '../services/inactivity_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
 import 'patient_file_screen.dart';
@@ -74,6 +75,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     _initializeApi();
     _loadData();
     _loadSavedUserData();
+    // Reset inactivity timer when dashboard loads
+    InactivityService.instance.resetActivity();
     // Load appointments data since it's the default tab
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadHospitals();

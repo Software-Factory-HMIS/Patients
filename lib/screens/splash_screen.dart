@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'signin_screen.dart';
 import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
+import '../services/inactivity_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -123,6 +124,8 @@ class _SplashScreenState extends State<SplashScreen>
     if (authService.isLoggedIn && authService.patientData != null) {
       final cnic = authService.patientData!['cnic'] ?? 
                    authService.patientData!['CNIC'] ?? '';
+      // Reset inactivity timer when navigating to dashboard
+      InactivityService.instance.resetActivity();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => DashboardScreen(cnic: cnic.toString()),

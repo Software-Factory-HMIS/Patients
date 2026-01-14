@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import 'dashboard_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../services/inactivity_service.dart';
 
 class OtpScreen extends StatefulWidget {
   final String cnic;
@@ -426,6 +427,9 @@ class _OtpScreenState extends State<OtpScreen> {
       );
 
       if (!mounted) return;
+
+      // Reset inactivity timer on successful OTP verification
+      InactivityService.instance.resetActivity();
 
       // OTP verified successfully - navigate to dashboard
       Navigator.of(context).pushReplacement(

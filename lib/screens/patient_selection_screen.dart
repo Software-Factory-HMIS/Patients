@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'dashboard_screen.dart';
 import '../utils/user_storage.dart';
+import '../services/inactivity_service.dart';
 
 class PatientSelectionScreen extends StatefulWidget {
   final List<Map<String, dynamic>> patients;
@@ -255,6 +256,9 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
       final identifier = mrn.isNotEmpty ? mrn : cnic;
       
       if (!mounted) return;
+      
+      // Reset inactivity timer on successful patient selection
+      InactivityService.instance.resetActivity();
       
       // Navigate to dashboard
       Navigator.of(context).pushReplacement(
