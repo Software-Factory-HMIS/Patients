@@ -116,7 +116,6 @@ class AuthService {
 
       return false;
     } catch (e) {
-      print('❌ Login error: $e');
       return false;
     }
   }
@@ -152,7 +151,6 @@ class AuthService {
 
       return false;
     } catch (e) {
-      print('❌ Token refresh error: $e');
       return false;
     }
   }
@@ -196,7 +194,6 @@ class AuthService {
         ).timeout(const Duration(seconds: 10));
       }
     } catch (e) {
-      print('⚠️ Logout API call failed: $e');
     }
 
     await clearSession();

@@ -500,7 +500,6 @@ class _SignInScreenState extends State<SignInScreen> {
       // Initialize API client
       final apiClient = EmrApiClient();
       
-      print('🔍 [SignIn] Attempting login with CNIC: $cnic');
       
       // Call login by CNIC and password API
       final patients = await apiClient.loginByCnic(cnic, password: password);
@@ -511,20 +510,16 @@ class _SignInScreenState extends State<SignInScreen> {
         _loading = false;
       });
 
-      print('✅ [SignIn] Found ${patients.length} patient(s)');
 
       // Handle different cases
       if (patients.isEmpty) {
         // No patients found - show error and suggest registration
-        print('⚠️ [SignIn] No patients found');
         _showNoPatientsFoundDialog(cnic);
       } else if (patients.length == 1) {
         // Single patient found - save and navigate directly (no OTP required for sign in)
-        print('✅ [SignIn] Single patient found, navigating to dashboard');
         await _handleSinglePatient(patients[0]);
       } else {
         // Multiple patients found - show selection screen
-        print('✅ [SignIn] Multiple patients found, showing selection screen');
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => PatientSelectionScreen(
@@ -537,7 +532,6 @@ class _SignInScreenState extends State<SignInScreen> {
     } catch (e) {
       if (!mounted) return;
       
-      print('❌ [SignIn] Error during login: $e');
       
       setState(() {
         _loading = false;

@@ -86,10 +86,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     try {
       _savedUserData = await UserStorage.getUserData();
       if (_savedUserData != null) {
-        print('✅ Loaded saved user data for appointment booking');
       }
     } catch (e) {
-      print('❌ Error loading saved user data: $e');
     }
   }
 
@@ -97,7 +95,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     try {
       _api = EmrApiClient();
     } catch (e) {
-      print('❌ Failed to initialize API client: $e');
     }
   }
 
@@ -137,7 +134,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     
     try {
       // Fetch patient data from backend using CNIC
-      print('🔍 Fetching patient data for CNIC: ${widget.cnic}');
       final patientData = await _api!.fetchPatient(widget.cnic);
       
       if (!mounted) return;
@@ -181,7 +177,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               age = years.toString();
             }
           } catch (e) {
-            print('Error calculating age: $e');
           }
         }
       }
@@ -226,7 +221,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             }
           }
         } catch (e) {
-          print('Error formatting last visit: $e');
         }
       }
       
@@ -261,14 +255,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _loading = false;
       });
       
-      print('✅ Patient data loaded successfully: $patientName (MRN: $mrn)');
       
       // Load medical records data after patient data is loaded
       if (mounted && mrn.isNotEmpty) {
         await _loadMedicalRecordsData();
       }
     } catch (e) {
-      print('❌ Error loading patient data: $e');
       if (mounted) {
         setState(() {
           _loading = false;
@@ -289,7 +281,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
     final mrn = _patient?['mrn'] as String?;
     if (mrn == null || mrn.isEmpty) {
-      print('⚠️ MRN not available, cannot load medical records');
       return;
     }
 
@@ -301,31 +292,24 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       // Load all medical records data in parallel using the same endpoints as Medical Records section
       final results = await Future.wait([
         _api!.fetchVitals(mrn).catchError((e) {
-          print('❌ Error fetching vitals: $e');
           return <dynamic>[];
         }),
         _api!.fetchMedications(mrn).catchError((e) {
-          print('❌ Error fetching medications: $e');
           return <dynamic>[];
         }),
         _api!.fetchOPD(mrn).catchError((e) {
-          print('❌ Error fetching OPD: $e');
           return <dynamic>[];
         }),
         _api!.fetchIPD(mrn).catchError((e) {
-          print('❌ Error fetching IPD: $e');
           return <dynamic>[];
         }),
         _api!.fetchLabs(mrn).catchError((e) {
-          print('❌ Error fetching labs: $e');
           return <dynamic>[];
         }),
         _api!.fetchRadiology(mrn).catchError((e) {
-          print('❌ Error fetching radiology: $e');
           return <dynamic>[];
         }),
         _api!.fetchSurgery(mrn).catchError((e) {
-          print('❌ Error fetching surgery: $e');
           return <dynamic>[];
         }),
       ]);
@@ -341,10 +325,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           _surgery = results[6];
           _loading = false;
         });
-        print('✅ Medical records data loaded successfully');
       }
     } catch (e) {
-      print('❌ Error loading medical records data: $e');
       if (mounted) {
         setState(() {
           _loading = false;
@@ -1364,7 +1346,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           appointmentDate = DateTime.parse(queueDate);
         }
       } catch (e) {
-        print('Error parsing appointment date: $e');
       }
     }
     
@@ -1502,7 +1483,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         });
       }
     } catch (e) {
-      print('Error loading recent appointments: $e');
       // Silently fail - recent appointments are optional
       if (mounted) {
         setState(() {
@@ -1576,8 +1556,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             departments.add(department);
           }
         } catch (e) {
-          print('⚠️ Error parsing department: $e');
-          print('   Department data: $item');
           // Skip invalid departments but continue processing others
         }
       }
@@ -1591,7 +1569,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _loadingDepartments = false;
         _appointmentError = 'Failed to load departments: $e';
       });
-      print('❌ Error loading departments: $e');
     }
   }
 
@@ -1623,8 +1600,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             hospitalDepartments.add(hospitalDept);
           }
         } catch (e) {
-          print('⚠️ Error parsing hospital department: $e');
-          print('   Hospital department data: $item');
           // Skip invalid departments but continue processing others
         }
       }
@@ -1638,7 +1613,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _loadingHospitalDepartments = false;
         _appointmentError = 'Failed to load hospital departments: $e';
       });
-      print('❌ Error loading hospital departments: $e');
     }
   }
 
@@ -1677,7 +1651,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       } catch (fetchError) {
         // If patient not found (400 or 404), try to register the patient
         if (_savedUserData != null && fetchError.toString().contains('400') || fetchError.toString().contains('404')) {
-          print('⚠️ Patient not found, attempting to register...');
           
           final fullName = _savedUserData!['fullName'] as String? ?? 'Unknown';
           final cnic = _savedUserData!['cnic'] as String? ?? '';
@@ -1715,7 +1688,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             throw Exception('Patient registered but ID not found in response');
           }
           
-          print('✅ Patient registered successfully with ID: $patientId');
           return patientId;
         }
         // Re-throw if it's not a 400/404 error
@@ -1748,7 +1720,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
 
       // Fetch or register patient to get patient ID
       final patientId = await _fetchPatientId();
-      print('✅ Patient ID: $patientId');
 
       // Use saved user data for appointment details
       final patientName = _savedUserData?['FullName'] as String? ?? 
@@ -1762,10 +1733,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                          widget.cnic;
 
       // Add patient to queue using the real API
-      print('📋 Adding patient to queue...');
-      print('   Patient ID: $patientId');
-      print('   Hospital ID: ${_selectedHospital!.hospitalID}');
-      print('   Hospital Department ID: ${_selectedHospitalDepartment!.hospitalDepartmentID}');
 
       final deptName = (_selectedHospitalDepartment!.departmentName ?? '').toLowerCase().trim();
       final isEmergencyDept = deptName.contains('emergency');
@@ -1781,9 +1748,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         patientSource: 'SELF_CHECKIN',
       );
 
-      print('✅ Patient added to queue successfully');
-      print('   Queue ID: ${queueResponse['queueId']}');
-      print('   Token Number: ${queueResponse['tokenNumber']}');
 
       final queueId = queueResponse['queueId'] as int?;
       final tokenNumber = queueResponse['tokenNumber'] as String? ?? 'N/A';
@@ -1801,14 +1765,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       // Print queue receipt using the real queue ID
       Map<String, dynamic> receiptData = {};
       try {
-        print('🖨️ Calling print API with queue ID: $queueId');
         receiptData = await _api!.printQueueReceipt(queueId: queueId);
-        print('✅ Queue receipt data retrieved successfully');
         if (receiptData.isNotEmpty) {
-          print('📄 Receipt data: $receiptData');
         }
       } catch (e) {
-        print('⚠️ Failed to retrieve receipt data: $e');
         // Continue anyway - will show appointment details
       }
 

@@ -194,9 +194,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _initializeApiClient() async {
     try {
       _apiClient = EmrApiClient();
-      print('✅ API client initialized for registration');
     } catch (e) {
-      print('⚠️ Failed to initialize API client: $e');
       // Continue anyway - will show error when trying to register
     }
   }
@@ -496,21 +494,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         // In a real system, this would be a dedicated "Self-Registration" system user
         const int defaultSystemUserId = 1;
         
-        print('📝 Registering patient via API...');
-        print('🔍 Registration Type: $_registrationType');
-        print('🔍 Is Add Others: ${widget.isAddOthers}');
-        print('🔍 Password controller text length: ${_passwordController.text.length}');
-        print('🔍 Password controller text (first char): ${_passwordController.text.isNotEmpty ? _passwordController.text[0] : "empty"}');
-        print('🔍 Confirm password controller text length: ${_confirmPasswordController.text.length}');
         
         // Determine password to send - only for Self registration
         String? passwordToSend;
         if (_registrationType == 'Self' && !widget.isAddOthers) {
           final passwordText = _passwordController.text.trim();
-          print('🔍 Password text trimmed length: ${passwordText.length}');
           
           if (passwordText.isEmpty) {
-            print('⚠️ Password is empty for Self registration!');
             if (mounted) {
               setState(() {
                 _isSubmitting = false;
@@ -526,12 +516,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           }
           
           passwordToSend = passwordText;
-          print('✅ Password will be sent (length: ${passwordToSend.length})');
         } else {
-          print('ℹ️ Password not required (RegistrationType: $_registrationType, isAddOthers: ${widget.isAddOthers})');
         }
         
-        print('🔍 Final passwordToSend: ${passwordToSend != null ? "*** (length: ${passwordToSend.length})" : "null"}');
         
         final registeredPatient = await _apiClient!.registerPatient(
           fullName: patientData['fullName'] as String,
@@ -548,7 +535,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           createdBy: defaultSystemUserId, // Required by database - use system user for self-registration
         );
 
-        print('✅ Patient registered successfully in database');
         
         // Merge API response with form data
         final completePatientData = {
@@ -604,7 +590,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           }
         }
       } catch (e) {
-        print('❌ Error registering patient: $e');
         
         if (mounted) {
           setState(() {

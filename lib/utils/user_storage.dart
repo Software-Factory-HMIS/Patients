@@ -24,9 +24,7 @@ class UserStorage {
         await prefs.setString(_phoneKey, userData['phone'] as String);
       }
       
-      print('✅ User data saved successfully');
     } catch (e) {
-      print('❌ Error saving user data: $e');
     }
   }
 
@@ -49,7 +47,6 @@ class UserStorage {
       
       return userData;
     } catch (e) {
-      print('❌ Error loading user data: $e');
       return null;
     }
   }
@@ -60,7 +57,6 @@ class UserStorage {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_phoneKey);
     } catch (e) {
-      print('❌ Error loading phone number: $e');
       return null;
     }
   }
@@ -71,9 +67,7 @@ class UserStorage {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userDataKey);
       await prefs.remove(_phoneKey);
-      print('✅ User data cleared');
     } catch (e) {
-      print('❌ Error clearing user data: $e');
     }
   }
 
@@ -92,9 +86,7 @@ class UserStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('recent_appointments', json.encode(appointments));
-      print('✅ Recent appointments saved successfully');
     } catch (e) {
-      print('❌ Error saving recent appointments: $e');
     }
   }
 
@@ -111,7 +103,6 @@ class UserStorage {
       final appointmentsList = json.decode(appointmentsString) as List;
       return appointmentsList.map((item) => item as Map<String, dynamic>).toList();
     } catch (e) {
-      print('❌ Error loading recent appointments: $e');
       return null;
     }
   }

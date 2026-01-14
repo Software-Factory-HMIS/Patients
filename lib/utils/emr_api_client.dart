@@ -29,7 +29,6 @@ class EmrApiClient {
           // WARNING: Only bypasses SSL for development URLs
           // This allows self-signed certificates in development environments
           // Safe for emulator and local network testing on real devices
-          print('⚠️ SSL Certificate validation bypassed for development URL: $host:$port');
           return true;
         };
       return IOClient(httpClient);
@@ -158,9 +157,7 @@ class EmrApiClient {
     
     for (final uri in uris) {
       try {
-        print('🔍 Fetching patient from: $uri');
         final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-        print('📡 Response status: ${res.statusCode}');
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body);
@@ -176,13 +173,11 @@ class EmrApiClient {
             throw Exception('Unexpected response format');
           }
           
-          print('✅ Patient loaded successfully: ${patient['FullName'] ?? patient['fullName'] ?? 'Unknown'}');
           return patient;
         }
         
         // If 400 or 404, try next format
         if (res.statusCode == 400 || res.statusCode == 404) {
-          print('⚠️ Patient not found with format: $uri');
           lastError = Exception('Failed to load patient (${res.statusCode}): ${res.body}');
           continue; // Try next format
         }
@@ -194,7 +189,6 @@ class EmrApiClient {
           lastError = e as Exception;
           continue; // Try next format
         }
-        print('❌ Error fetching patient: $e');
         rethrow;
       }
     }
@@ -219,7 +213,6 @@ class EmrApiClient {
       throw Exception('Invalid CNIC: CNIC must be exactly 13 digits');
     }
     
-    print('🔍 [loginByCnic] Original CNIC: "$cnic", Cleaned: "$cleanedCnic"');
     
     // Use POST endpoint for login with password, or GET if no password provided
     if (password != null && password.isNotEmpty) {
@@ -227,7 +220,6 @@ class EmrApiClient {
       final uri = Uri.parse('$baseUrl/api/patient-auth/login');
       
       try {
-        print('🔍 [loginByCnic] Attempting login with CNIC and password');
         
         final body = json.encode({
           'cnic': cleanedCnic,
@@ -240,7 +232,6 @@ class EmrApiClient {
           body: body,
         ).timeout(const Duration(seconds: 15));
         
-        print('📡 [loginByCnic] Response status: ${res.statusCode}');
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body) as Map<String, dynamic>;
@@ -259,7 +250,6 @@ class EmrApiClient {
               .map((p) => p as Map<String, dynamic>)
               .toList();
           
-          print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
           return patients;
         }
         
@@ -268,13 +258,11 @@ class EmrApiClient {
         }
         
         if (res.statusCode == 404) {
-          print('⚠️ No patients found with CNIC: $cnic');
           return [];
         }
         
         throw Exception('Failed to login (${res.statusCode}): ${res.body}');
       } catch (e) {
-        print('❌ Error logging in with CNIC and password: $e');
         rethrow;
       }
     } else {
@@ -283,17 +271,9 @@ class EmrApiClient {
       final uri = Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic');
       
       try {
-        print('🔍 [loginByCnic] Requesting: $uri');
-        print('🆔 [loginByCnic] CNIC being searched: "$cleanedCnic"');
         
         final res = await _client.get(uri).timeout(const Duration(seconds: 15));
         
-        print('📡 [loginByCnic] Response status: ${res.statusCode}');
-        print('📡 [loginByCnic] Response body length: ${res.body.length}');
-        
-        if (res.statusCode >= 400 && res.statusCode < 500) {
-          print('📡 [loginByCnic] Response body: ${res.body}');
-        }
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body);
@@ -316,18 +296,15 @@ class EmrApiClient {
               .map((p) => p as Map<String, dynamic>)
               .toList();
           
-          print('✅ Found ${patients.length} patient(s) with CNIC: $cnic');
           return patients;
         }
         
         if (res.statusCode == 404) {
-          print('⚠️ No patients found with CNIC: $cnic');
           return [];
         }
         
         throw Exception('Failed to login with CNIC (${res.statusCode}): ${res.body}');
       } catch (e) {
-        print('❌ Error logging in with CNIC: $e');
         rethrow;
       }
     }
@@ -342,24 +319,13 @@ class EmrApiClient {
       throw Exception('Invalid phone number: phone number cannot be empty');
     }
     
-    print('🔍 [loginByPhoneNumber] Original phone: "$phoneNumber", Cleaned: "$cleanedPhone"');
     
     // URL encode the phone number to handle special characters
     final encodedPhone = Uri.encodeComponent(cleanedPhone);
     final uri = Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone');
     
     try {
-      print('🔍 [loginByPhoneNumber] Requesting: $uri');
-      print('📱 [loginByPhoneNumber] Phone number being searched: "$cleanedPhone"');
-      
       final res = await _client.get(uri).timeout(const Duration(seconds: 15));
-      
-      print('📡 [loginByPhoneNumber] Response status: ${res.statusCode}');
-      print('📡 [loginByPhoneNumber] Response body length: ${res.body.length}');
-      
-      if (res.statusCode >= 400 && res.statusCode < 500) {
-        print('📡 [loginByPhoneNumber] Response body: ${res.body}');
-      }
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);
@@ -382,18 +348,15 @@ class EmrApiClient {
             .map((p) => p as Map<String, dynamic>)
             .toList();
         
-        print('✅ Found ${patients.length} patient(s) with phone number: $phoneNumber');
         return patients;
       }
       
       if (res.statusCode == 404) {
-        print('⚠️ No patients found with phone number: $phoneNumber');
         return [];
       }
       
       throw Exception('Failed to login with phone number (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error logging in with phone number: $e');
       rethrow;
     }
   }
@@ -423,7 +386,6 @@ class EmrApiClient {
     // Use new dedicated registration endpoint
     final uri = Uri.parse('$baseUrl/api/patient-auth/register');
     try {
-      print('🔍 Registering patient: $uri');
       
       final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
       final trimmedPassword = password?.trim();
@@ -432,7 +394,6 @@ class EmrApiClient {
       String? hashedPassword;
       if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
         hashedPassword = _hashPassword(trimmedPassword);
-        print('✅ Password hashed (length: ${hashedPassword.length})');
       }
       
       final body = <String, dynamic>{
@@ -448,7 +409,6 @@ class EmrApiClient {
         if (hashedPassword != null) 'passwordHash': hashedPassword,
       };
       
-      print('📤 Request body: ${json.encode(body)}');
       
       final res = await _client.post(
         uri,
@@ -456,8 +416,6 @@ class EmrApiClient {
         body: json.encode(body),
       ).timeout(const Duration(seconds: 15));
       
-      print('📡 Response status: ${res.statusCode}');
-      print('📡 Response body: ${res.body}');
       
       // Handle 409 Conflict - Patient already exists
       if (res.statusCode == 409) {
@@ -481,7 +439,6 @@ class EmrApiClient {
         if (response.containsKey('data')) {
           return response['data'] as Map<String, dynamic>;
         }
-        print('✅ Patient registered successfully');
         return response;
       }
       
@@ -529,24 +486,19 @@ class EmrApiClient {
       
       throw Exception('Failed to register patient (${res.statusCode}): $fullError');
     } catch (e) {
-      print('❌ Error registering patient: $e');
       rethrow;
     }
   }
 
   Future<List<dynamic>> fetchVitals(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/vitals');
-    print('📡 Fetching vitals from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 Vitals response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no vitals records - return empty list
-      print('⚠️ No vitals found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ Vitals loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load vitals (${res.statusCode})');
@@ -554,17 +506,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchMedications(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/medications');
-    print('📡 Fetching medications from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 Medications response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no medications records - return empty list
-      print('⚠️ No medications found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ Medications loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load medications (${res.statusCode})');
@@ -572,17 +520,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchOPD(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/opd');
-    print('📡 Fetching OPD from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 OPD response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no OPD records - return empty list
-      print('⚠️ No OPD found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ OPD loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load OPD records (${res.statusCode})');
@@ -590,17 +534,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchIPD(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/ipd');
-    print('📡 Fetching IPD from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 IPD response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no IPD records - return empty list
-      print('⚠️ No IPD found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ IPD loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load IPD records (${res.statusCode})');
@@ -608,17 +548,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchLabs(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/labs');
-    print('📡 Fetching labs from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 Labs response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no lab records - return empty list
-      print('⚠️ No labs found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ Labs loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load lab results (${res.statusCode})');
@@ -626,17 +562,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchRadiology(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/radiology');
-    print('📡 Fetching radiology from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 Radiology response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no radiology records - return empty list
-      print('⚠️ No radiology found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ Radiology loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load radiology records (${res.statusCode})');
@@ -644,17 +576,13 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchSurgery(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/surgery');
-    print('📡 Fetching surgery from: $uri');
     final res = await _authenticatedGet(uri);
-    print('📡 Surgery response status: ${res.statusCode}, body length: ${res.body.length}');
     if (res.statusCode == 404) {
       // Patient has no surgery records - return empty list
-      print('⚠️ No surgery found (404) for MRN: $mrn');
       return <dynamic>[];
     }
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final data = json.decode(res.body) as List<dynamic>;
-      print('✅ Surgery loaded: ${data.length} records');
       return data;
     }
     throw Exception('Failed to load surgery records (${res.statusCode})');
@@ -672,9 +600,7 @@ class EmrApiClient {
   Future<List<dynamic>> fetchHospitals() async {
     final uri = Uri.parse('$baseUrl/api/hospitals');
     try {
-      print('🔍 Fetching hospitals from: $uri');
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      print('📡 Response status: ${res.statusCode}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
@@ -686,7 +612,6 @@ class EmrApiClient {
       }
       throw Exception('Failed to load hospitals (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error fetching hospitals: $e');
       rethrow;
     }
   }
@@ -694,9 +619,7 @@ class EmrApiClient {
   Future<List<dynamic>> fetchDepartments() async {
     final uri = Uri.parse('$baseUrl/api/departments');
     try {
-      print('🔍 Fetching departments from: $uri');
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      print('📡 Response status: ${res.statusCode}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
@@ -708,7 +631,6 @@ class EmrApiClient {
       }
       throw Exception('Failed to load departments (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error fetching departments: $e');
       rethrow;
     }
   }
@@ -717,9 +639,7 @@ class EmrApiClient {
   Future<List<dynamic>> fetchHospitalDepartments(int hospitalId) async {
     final uri = Uri.parse('$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId');
     try {
-      print('🔍 Fetching hospital departments for hospital ID $hospitalId: $uri');
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      print('📡 Response status: ${res.statusCode}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);
@@ -735,7 +655,6 @@ class EmrApiClient {
       }
       throw Exception('Failed to load hospital departments (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error fetching hospital departments: $e');
       rethrow;
     }
   }
@@ -778,11 +697,8 @@ class EmrApiClient {
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         if (attempt > 0) {
-          print('🔄 Retrying to add patient to queue (attempt ${attempt + 1}/${maxRetries + 1})...');
           // Wait a bit before retrying to allow any concurrent operations to complete
           await Future.delayed(Duration(milliseconds: 300 * attempt));
-        } else {
-          print('🔍 Adding patient to queue: $uri');
         }
         
         final res = await _client.post(
@@ -790,9 +706,6 @@ class EmrApiClient {
           headers: {'Content-Type': 'application/json'},
           body: json.encode(body),
         ).timeout(const Duration(seconds: 15));
-        
-        print('📡 Response status: ${res.statusCode}');
-        print('📡 Response body: ${res.body}');
         
         if (res.statusCode == 409) {
           // Patient already in queue or other conflict - return existing queue info if available
@@ -803,14 +716,12 @@ class EmrApiClient {
           
           if (queueId != null && tokenNumber != null) {
             // Patient is already in queue - return the existing queue info
-            print('✅ Patient already in queue: Queue ID: $queueId, Token: $tokenNumber');
             return {
               'queueId': queueId,
               'tokenNumber': tokenNumber,
             };
           } else if (message.contains('Failed to generate token number') && attempt < maxRetries) {
             // Token generation failed - retry
-            print('⚠️ Token generation failed, will retry...');
             lastError = Exception('Token generation failed. Please try again.');
             continue;
           } else {
@@ -825,7 +736,6 @@ class EmrApiClient {
           if (response.containsKey('data')) {
             return response['data'] as Map<String, dynamic>;
           }
-          print('✅ Patient added to queue successfully');
           return response;
         }
         
@@ -835,7 +745,6 @@ class EmrApiClient {
         
         // If it's a token generation error and we haven't exhausted retries, continue
         if (e.toString().contains('Failed to generate token number') && attempt < maxRetries) {
-          print('⚠️ Token generation error on attempt ${attempt + 1}, will retry...');
           continue;
         }
         
@@ -847,7 +756,6 @@ class EmrApiClient {
     }
     
     // If we get here, all retries failed
-    print('❌ Error adding patient to queue after ${maxRetries + 1} attempts: $lastError');
     throw lastError ?? Exception('Failed to add patient to queue after multiple attempts');
   }
 
@@ -857,32 +765,23 @@ class EmrApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl/api/queue/$queueId/print');
     try {
-      print('🖨️ Printing queue receipt for queue ID: $queueId');
-      print('🔍 Print endpoint: $uri');
-      
       final res = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 15));
       
-      print('📡 Print response status: ${res.statusCode}');
-      print('📡 Print response body: ${res.body}');
-      
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Parse and return the receipt data
         try {
           final receiptData = json.decode(res.body) as Map<String, dynamic>;
-          print('✅ Queue receipt data retrieved successfully');
           return receiptData;
         } catch (e) {
           // If response is not JSON, return empty map
-          print('⚠️ Print API response is not JSON, returning empty receipt data');
           return {};
         }
       }
       throw Exception('Failed to print queue receipt (${res.statusCode}): ${res.body}');
     } catch (e) {
-      print('❌ Error printing queue receipt: $e');
       // Return empty map instead of throwing - allows UI to still show appointment details
       return {};
     }
@@ -892,8 +791,6 @@ class EmrApiClient {
   Future<Map<String, dynamic>> requestOtp({required String cnic}) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/otp/request');
     try {
-      print('🔍 Requesting OTP for CNIC: $cnic');
-      
       final body = {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
       };
@@ -903,9 +800,6 @@ class EmrApiClient {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       ).timeout(const Duration(seconds: 15));
-      
-      print('📡 OTP request response status: ${res.statusCode}');
-      print('📡 OTP request response body: ${res.body}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
@@ -929,7 +823,6 @@ class EmrApiClient {
       
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
-      print('❌ Error requesting OTP: $e');
       rethrow;
     }
   }
@@ -941,8 +834,6 @@ class EmrApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/verify');
     try {
-      print('🔍 Verifying OTP for CNIC: $cnic');
-      
       final body = {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
         'code': otpCode.trim(),
@@ -953,9 +844,6 @@ class EmrApiClient {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
       ).timeout(const Duration(seconds: 15));
-      
-      print('📡 OTP verify response status: ${res.statusCode}');
-      print('📡 OTP verify response body: ${res.body}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
@@ -979,7 +867,6 @@ class EmrApiClient {
       
       throw Exception(errorMessage);
     } catch (e) {
-      print('❌ Error verifying OTP: $e');
       rethrow;
     }
   }
@@ -991,7 +878,6 @@ class EmrApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
     try {
-      print('🔍 Sending registration OTP to: $phoneNumber');
       
       final body = {
         'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
@@ -1005,8 +891,6 @@ class EmrApiClient {
         body: json.encode(body),
       ).timeout(const Duration(seconds: 30));
       
-      print('📡 Registration OTP send response status: ${res.statusCode}');
-      print('📡 Registration OTP send response body: ${res.body}');
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
@@ -1015,36 +899,22 @@ class EmrApiClient {
         final smsStatus = data?['smsStatus'] as String?;
         final canProceed = data?['canProceed'] as bool? ?? false;
         
-        print('✅ Registration OTP response: $message');
-        
         // Check if we can proceed regardless of SMS status
         if (canProceed) {
-          print('✅ Can proceed to OTP entry screen (CanProceed: true)');
-          if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
-            print('⚠️ SMS delivery failed or timed out, but user can proceed');
-          }
           return; // Success - allow user to proceed
         }
         
         // Check SMS status from response (only if CanProceed is false)
         if (smsStatus != null) {
-          print('📡 SMS Status: $smsStatus');
           if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
-            print('⚠️ SMS delivery failed or timed out');
             // Extract OTP from message if available
             final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
-            if (otpMatch != null) {
-              print('📝 OTP from response: ${otpMatch.group(1)}');
-            }
             // Throw exception to indicate SMS failed (only if CanProceed is false)
             throw Exception('SMS delivery failed: $message');
-          } else if (smsStatus == 'Sent') {
-            print('✅ SMS sent successfully');
           }
         } else if (message.contains('OTP:') || message.contains('OTP generated') || 
                    message.contains('SMS delivery') || message.contains('timed out') ||
                    message.contains('not sent')) {
-          print('⚠️ SMS may have failed, but OTP is available in response');
           // Only throw if CanProceed is false
           if (!canProceed) {
             throw Exception('SMS delivery issue: $message');
@@ -1067,12 +937,8 @@ class EmrApiClient {
       
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
-      print('❌ Error sending registration OTP: $e');
       // Don't rethrow - let the fallback mechanism handle it
       // The backend now returns success even if SMS fails, with OTP in message
-      if (e.toString().contains('TimeoutException')) {
-        print('⚠️ Request timed out, but SMS may still be processing');
-      }
       rethrow;
     }
   }
@@ -1084,8 +950,6 @@ class EmrApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/set-password');
     try {
-      print('🔍 Setting password for CNIC: $cnic');
-      
       final body = {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
         'password': password,
@@ -1097,11 +961,7 @@ class EmrApiClient {
         body: json.encode(body),
       ).timeout(const Duration(seconds: 15));
       
-      print('📡 Set password response status: ${res.statusCode}');
-      print('📡 Set password response body: ${res.body}');
-      
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        print('✅ Password set successfully');
         return;
       }
       
@@ -1118,7 +978,6 @@ class EmrApiClient {
       
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
-      print('❌ Error setting password: $e');
       rethrow;
     }
   }
