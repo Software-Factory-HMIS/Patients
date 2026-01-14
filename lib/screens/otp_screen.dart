@@ -58,6 +58,20 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _requestOtp() async {
+    final cnic = widget.cnic.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (cnic.isEmpty || cnic.length != 13) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid CNIC format. CNIC must be exactly 13 digits.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
     if (_apiClient == null) {
       await _initializeApiClient();
     }
@@ -79,22 +93,57 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      await _apiClient!.requestOtp(cnic: widget.cnic);
-      if (mounted) {
+      final response = await _apiClient!.requestOtp(cnic: cnic);
+      
+      if (!mounted) return;
+      
+      final success = response['success'] as bool? ?? false;
+      final message = response['message'] as String? ?? 'OTP sent to your registered number';
+      final cooldown = response['cooldownSecondsRemaining'] as int? ?? 0;
+      
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP sent to your registered number'),
+          SnackBar(
+            content: Text(message),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        String errorMessage = message;
+        if (cooldown > 0) {
+          errorMessage = 'Please wait ${cooldown} seconds before requesting another OTP.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     } catch (e) {
       debugPrint('Error requesting OTP: $e');
       if (mounted) {
+        String errorMessage = 'Failed to send OTP';
+        final errorStr = e.toString();
+        
+        if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
+          errorMessage = 'Please wait before requesting another OTP.';
+        } else if (errorStr.contains('Invalid CNIC') || errorStr.contains('Invalid request')) {
+          errorMessage = 'Invalid CNIC format. CNIC must be exactly 13 digits.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your CNIC.';
+        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send OTP: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -177,7 +226,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                         const Gap(8),
                         Text(
-                          'Enter the 4-digit OTP sent to your registered number',
+                          'Enter the OTP sent to your registered number',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
@@ -238,7 +287,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         ),
                         const Gap(8),
                         Text(
-                          'We sent a 4-digit code to your registered number',
+                          'We sent a code to your registered number',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: Colors.grey.shade600,
                           ),
@@ -250,7 +299,7 @@ class _OtpScreenState extends State<OtpScreen> {
                           controller: _otpController,
                           keyboardType: TextInputType.number,
                           textInputAction: TextInputAction.done,
-                          maxLength: 4,
+                          maxLength: 6,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -275,14 +324,21 @@ class _OtpScreenState extends State<OtpScreen> {
                           scrollPadding: const EdgeInsets.only(bottom: 100),
                           inputFormatters: <TextInputFormatter>[
                             FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(4),
+                            LengthLimitingTextInputFormatter(6),
                           ],
                           validator: (value) {
                             final String? requiredResult = _requiredValidator(value, fieldName: 'OTP');
                             if (requiredResult != null) return requiredResult;
-                            if (value!.length != 4) {
-                              return 'OTP must be 4 digits';
+                            
+                            final otp = value!.trim();
+                            if (!RegExp(r'^\d+$').hasMatch(otp)) {
+                              return 'OTP must contain only digits';
                             }
+                            
+                            if (otp.length != 6) {
+                              return 'OTP must be exactly 6 digits';
+                            }
+                            
                             return null;
                           },
                         ),
@@ -421,8 +477,35 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final otpCode = _otpController.text.trim();
+      final cnic = widget.cnic.replaceAll(RegExp(r'[^0-9]'), '');
+      
+      // Additional validation
+      if (otpCode.isEmpty || !RegExp(r'^\d{6}$').hasMatch(otpCode)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid 6-digit OTP'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
+      if (cnic.isEmpty || cnic.length != 13) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid CNIC format'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      
       final response = await _apiClient!.verifyOtp(
-        cnic: widget.cnic,
+        cnic: cnic,
         otpCode: otpCode,
       );
 
@@ -440,10 +523,26 @@ class _OtpScreenState extends State<OtpScreen> {
     } catch (e) {
       debugPrint('Error verifying OTP: $e');
       if (mounted) {
+        String errorMessage = 'Invalid OTP';
+        final errorStr = e.toString();
+        
+        if (errorStr.contains('expired') || errorStr.contains('not requested')) {
+          errorMessage = 'OTP has expired. Please request a new one.';
+        } else if (errorStr.contains('attempts') || errorStr.contains('Too many')) {
+          errorMessage = 'Too many attempts. Please request a new OTP.';
+        } else if (errorStr.contains('Invalid') || errorStr.contains('401') || errorStr.contains('Unauthorized')) {
+          errorMessage = 'Invalid OTP. Please check and try again.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your input.';
+        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Invalid OTP: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -456,7 +555,21 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  void _handleResendOtp() {
-    _requestOtp();
+  Future<void> _handleResendOtp() async {
+    final cnic = widget.cnic.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (cnic.isEmpty || cnic.length != 13) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid CNIC format'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    await _requestOtp();
   }
 }

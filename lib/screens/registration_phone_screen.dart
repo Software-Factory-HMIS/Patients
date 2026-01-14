@@ -18,7 +18,6 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
-  String? _storedOtp; // Store OTP for verification
 
   @override
   void initState() {
@@ -123,7 +122,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                       textInputAction: TextInputAction.done,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
+                        LengthLimitingTextInputFormatter(15),
                       ],
                       style: const TextStyle(
                         fontSize: 18,
@@ -131,7 +130,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                       ),
                       decoration: InputDecoration(
                         labelText: 'Mobile Number',
-                        hintText: 'Enter 11 digit mobile number',
+                        hintText: 'Enter mobile number',
                         prefixIcon: const Icon(Icons.phone_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -142,7 +141,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                           horizontal: 20,
                           vertical: 20,
                         ),
-                        helperText: 'Mobile number must be exactly 11 digits',
+                        helperText: 'Mobile number must be 7-15 digits',
                         helperStyle: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -153,14 +152,18 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                         final String? requiredResult = _requiredValidator(value, fieldName: 'Mobile number');
                         if (requiredResult != null) return requiredResult;
                         
-                        // Validate mobile number format (numbers only, exactly 11 digits)
+                        // Validate mobile number format (numbers only, 7-15 digits)
                         final mobileNumber = value!.trim();
+                        if (mobileNumber.isEmpty) {
+                          return 'Mobile number is required';
+                        }
+                        
                         if (!RegExp(r'^\d+$').hasMatch(mobileNumber)) {
                           return 'Mobile number must contain only digits';
                         }
                         
-                        if (mobileNumber.length != 11) {
-                          return 'Mobile number must be exactly 11 digits';
+                        if (mobileNumber.length < 7 || mobileNumber.length > 15) {
+                          return 'Mobile number must be 7-15 digits';
                         }
                         
                         return null;
@@ -228,7 +231,20 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   Future<void> _handleContinue() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
-    final phoneNumber = _phoneController.text.trim();
+    final phoneNumber = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Additional validation
+    if (phoneNumber.isEmpty || phoneNumber.length < 7 || phoneNumber.length > 15) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid mobile number (7-15 digits)'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     
     if (_apiClient == null) {
       await _initializeApiClient();
@@ -251,102 +267,71 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     });
 
     try {
-      // Generate a simple OTP for registration (4 digits)
-      final otp = _generateRegistrationOtp();
-      _storedOtp = otp;
+      // Request OTP from server (server generates and sends via SMS)
+      final response = await _apiClient!.requestRegistrationOtp(phoneNumber: phoneNumber);
       
-      // Send OTP via SMS API
-      bool smsSentSuccessfully = false;
-      try {
-        await _apiClient!.sendRegistrationOtp(
-          phoneNumber: phoneNumber,
-          otp: otp,
+      if (!mounted) return;
+      
+      // Check response for success
+      final success = response['success'] as bool? ?? false;
+      final message = response['message'] as String? ?? 'OTP sent to your phone number';
+      final cooldown = response['cooldownSecondsRemaining'] as int? ?? 0;
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
         );
         
-        // If we get here without exception, the API call succeeded
-        // This means either SMS was sent OR CanProceed=true (allowing manual OTP entry)
-        smsSentSuccessfully = true;
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent to your phone number'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      } catch (smsError) {
-        debugPrint('Failed to send OTP via SMS: $smsError');
-        final errorMsg = smsError.toString();
-        
-        // Check if error message indicates we can still proceed
-        // Backend returns CanProceed=true even when SMS fails, so API client shouldn't throw
-        // But if it does throw, check if we can extract OTP and proceed
-        if (errorMsg.contains('OTP:') || 
-            errorMsg.contains('proceed to enter') ||
-            errorMsg.contains('CanProceed')) {
-          // SMS failed but we can proceed with manual OTP entry
-          smsSentSuccessfully = true; // Allow navigation
-          
-          // Show warning message
-          String warningMessage;
-          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
-            warningMessage = 'SMS delivery timed out. You can still enter the OTP manually.';
-          } else if (errorMsg.contains('Invalid sender IP')) {
-            warningMessage = 'SMS service temporarily unavailable. Please enter the OTP manually.';
-          } else {
-            warningMessage = 'SMS delivery failed. Please enter the OTP manually.';
-          }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(warningMessage),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        } else {
-          // True error - cannot proceed
-          String errorMessage;
-          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
-            errorMessage = 'SMS delivery timed out. Please try again.';
-          } else {
-            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
-          }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-          return; // Don't navigate - true error
-        }
-      }
-
-      // Navigate to OTP entry screen if SMS was sent successfully OR if we can proceed
-      if (smsSentSuccessfully && mounted) {
+        // Navigate to OTP entry screen
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => RegistrationOtpScreen(
               phoneNumber: phoneNumber,
-              expectedOtp: otp, // Pass OTP for verification
             ),
+          ),
+        );
+      } else {
+        String errorMessage = message;
+        if (cooldown > 0) {
+          errorMessage = 'Please wait ${cooldown} seconds before requesting another OTP.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     } catch (e) {
-      debugPrint('Error in registration phone verification: $e');
+      debugPrint('Error requesting registration OTP: $e');
       if (mounted) {
+        String errorMessage = 'Failed to send OTP';
+        final errorStr = e.toString();
+        
+        // Check for cooldown message
+        if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
+          errorMessage = 'Please wait before requesting another OTP.';
+        } else if (errorStr.contains('Invalid phone') || errorStr.contains('Invalid request')) {
+          errorMessage = 'Invalid phone number format.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your phone number.';
+        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = 'Failed to send OTP. Please check your phone number and try again.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -357,12 +342,6 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         });
       }
     }
-  }
-
-  String _generateRegistrationOtp() {
-    // Generate a 4-digit OTP
-    final random = DateTime.now().millisecondsSinceEpoch % 10000;
-    return random.toString().padLeft(4, '0');
   }
 }
 

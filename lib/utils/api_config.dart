@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+// Conditional import for dart:io (not available on web)
+import 'dart:io' show Platform if (dart.library.html) 'dart:html';
 
 /// API Configuration for EMR Backend Service
 /// 
@@ -31,17 +32,25 @@ String resolveEmrBaseUrl() {
   if (kIsWeb) {
     // Web platform - use localhost
     return 'https://localhost:7287';
-  } else if (Platform.isAndroid) {
-    // Android - use 10.0.2.2 which maps to host machine's localhost in emulator
-    // For physical devices, you'll need to use your machine's actual IP address
-    return 'https://10.0.2.2:7287';
-  } else if (Platform.isIOS) {
-    // iOS Simulator - use localhost
-    // For physical devices, you'll need to use your machine's actual IP address
-    return 'https://localhost:7287';
   } else {
-    // Desktop platforms (Windows, macOS, Linux) - use localhost
-    return 'https://localhost:7287';
+    // For non-web platforms, check Platform
+    try {
+      if (Platform.isAndroid) {
+        // Android - use 10.0.2.2 which maps to host machine's localhost in emulator
+        // For physical devices, you'll need to use your machine's actual IP address
+        return 'https://10.0.2.2:7287';
+      } else if (Platform.isIOS) {
+        // iOS Simulator - use localhost
+        // For physical devices, you'll need to use your machine's actual IP address
+        return 'https://localhost:7287';
+      } else {
+        // Desktop platforms (Windows, macOS, Linux) - use localhost
+        return 'https://localhost:7287';
+      }
+    } catch (e) {
+      // Fallback if Platform is not available
+      return 'https://localhost:7287';
+    }
   }
 }
 

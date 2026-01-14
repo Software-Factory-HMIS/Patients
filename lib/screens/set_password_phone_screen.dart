@@ -22,7 +22,6 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
-  String? _storedOtp; // Store OTP for verification
 
   @override
   void initState() {
@@ -127,7 +126,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                       textInputAction: TextInputAction.done,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(11),
+                        LengthLimitingTextInputFormatter(15),
                       ],
                       style: const TextStyle(
                         fontSize: 18,
@@ -135,7 +134,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                       ),
                       decoration: InputDecoration(
                         labelText: 'Mobile Number',
-                        hintText: 'Enter 11 digit mobile number',
+                        hintText: 'Enter mobile number',
                         prefixIcon: const Icon(Icons.phone_outlined),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -146,7 +145,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                           horizontal: 20,
                           vertical: 20,
                         ),
-                        helperText: 'Mobile number must be exactly 11 digits',
+                        helperText: 'Mobile number must be 7-15 digits',
                         helperStyle: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -157,14 +156,18 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                         final String? requiredResult = _requiredValidator(value, fieldName: 'Mobile number');
                         if (requiredResult != null) return requiredResult;
                         
-                        // Validate mobile number format (numbers only, exactly 11 digits)
+                        // Validate mobile number format (numbers only, 7-15 digits)
                         final mobileNumber = value!.trim();
+                        if (mobileNumber.isEmpty) {
+                          return 'Mobile number is required';
+                        }
+                        
                         if (!RegExp(r'^\d+$').hasMatch(mobileNumber)) {
                           return 'Mobile number must contain only digits';
                         }
                         
-                        if (mobileNumber.length != 11) {
-                          return 'Mobile number must be exactly 11 digits';
+                        if (mobileNumber.length < 7 || mobileNumber.length > 15) {
+                          return 'Mobile number must be 7-15 digits';
                         }
                         
                         return null;
@@ -232,7 +235,34 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
   Future<void> _handleContinue() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
-    final phoneNumber = _phoneController.text.trim();
+    final phoneNumber = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    final cnic = widget.cnic.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    // Validate CNIC
+    if (cnic.isEmpty || cnic.length != 13) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid CNIC format. CNIC must be exactly 13 digits.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Validate phone number
+    if (phoneNumber.isEmpty || phoneNumber.length < 7 || phoneNumber.length > 15) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid mobile number (7-15 digits)'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     
     if (_apiClient == null) {
       await _initializeApiClient();
@@ -255,104 +285,72 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
     });
 
     try {
-      // Generate a 4-digit OTP (same as registration flow)
-      final otp = _generateOtp();
-      _storedOtp = otp;
+      // Request OTP from server using CNIC (server generates and sends via SMS)
+      final response = await _apiClient!.requestOtp(cnic: cnic);
       
-      // Send OTP via SMS API (same endpoint as registration)
-      bool smsSentSuccessfully = false;
-      try {
-        await _apiClient!.sendRegistrationOtp(
-          phoneNumber: phoneNumber,
-          otp: otp,
+      if (!mounted) return;
+      
+      // Check response for success
+      final success = response['success'] as bool? ?? false;
+      final message = response['message'] as String? ?? 'OTP sent to your registered phone number';
+      final cooldown = response['cooldownSecondsRemaining'] as int? ?? 0;
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
         );
         
-        // If we get here without exception, the API call succeeded
-        smsSentSuccessfully = true;
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent to your phone number'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      } catch (smsError) {
-        debugPrint('Failed to send OTP via SMS: $smsError');
-        final errorMsg = smsError.toString();
-        
-        // Check if error message indicates we can still proceed
-        if (errorMsg.contains('OTP:') || 
-            errorMsg.contains('proceed to enter') ||
-            errorMsg.contains('CanProceed')) {
-          // SMS failed but we can proceed with manual OTP entry
-          smsSentSuccessfully = true;
-          
-          // Show warning message
-          String warningMessage;
-          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
-            warningMessage = 'SMS delivery timed out. You can still enter the OTP manually.';
-          } else if (errorMsg.contains('Invalid sender IP')) {
-            warningMessage = 'SMS service temporarily unavailable. Please enter the OTP manually.';
-          } else {
-            warningMessage = 'SMS delivery failed. Please enter the OTP manually.';
-          }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(warningMessage),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        } else {
-          // True error - cannot proceed
-          String errorMessage;
-          if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
-            errorMessage = 'SMS delivery timed out. Please try again.';
-          } else {
-            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
-          }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-          return; // Don't navigate - true error
-        }
-      }
-
-      // Navigate to OTP entry screen if SMS was sent successfully OR if we can proceed
-      if (smsSentSuccessfully && mounted) {
+        // Navigate to OTP entry screen
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => SetPasswordOtpScreen(
               cnic: widget.cnic,
               phoneNumber: phoneNumber,
-              expectedOtp: otp, // Pass OTP for verification
             ),
+          ),
+        );
+      } else {
+        String errorMessage = message;
+        if (cooldown > 0) {
+          errorMessage = 'Please wait ${cooldown} seconds before requesting another OTP.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     } catch (e) {
       debugPrint('Error requesting OTP: $e');
       if (mounted) {
-        setState(() {
-          _loading = false;
-        });
+        String errorMessage = 'Failed to send OTP';
+        final errorStr = e.toString();
+        
+        // Check for cooldown message
+        if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
+          errorMessage = 'Please wait before requesting another OTP.';
+        } else if (errorStr.contains('Invalid CNIC') || errorStr.contains('Invalid request')) {
+          errorMessage = 'Invalid CNIC format. CNIC must be exactly 13 digits.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your CNIC.';
+        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = 'Failed to send OTP. Please try again.';
+        }
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -363,12 +361,6 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
         });
       }
     }
-  }
-
-  String _generateOtp() {
-    // Generate a 4-digit OTP (same as registration)
-    final random = DateTime.now().millisecondsSinceEpoch % 10000;
-    return random.toString().padLeft(4, '0');
   }
 }
 

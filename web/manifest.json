@@ -1,12 +1,12 @@
 {
-    "name": "patients",
-    "short_name": "patients",
+    "name": "Healthcare Management System",
+    "short_name": "HMS Patient",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "landscape",
+    "description": "Healthcare Management System - Patient App",
+    "orientation": "portrait",
     "prefer_related_applications": false,
     "icons": [
         {

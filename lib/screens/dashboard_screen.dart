@@ -11,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/inactivity_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
+import 'appointment_details_screen.dart';
 import 'patient_file_screen.dart';
 import 'signin_screen.dart';
 
@@ -1364,7 +1365,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // Could navigate to appointment details
+          // Navigate to appointment details screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AppointmentDetailsScreen(
+                appointment: appointment,
+              ),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(16),

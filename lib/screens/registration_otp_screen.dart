@@ -3,17 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../utils/emr_api_client.dart';
 
 class RegistrationOtpScreen extends StatefulWidget {
   final String phoneNumber;
-  final String? expectedOtp; // OTP to verify against
-  final String? errorMessage; // Error message to display if SMS failed
   
   const RegistrationOtpScreen({
     super.key, 
     required this.phoneNumber,
-    this.expectedOtp,
-    this.errorMessage,
   });
 
   @override
@@ -24,6 +21,21 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _otpController = TextEditingController();
   bool _loading = false;
+  EmrApiClient? _apiClient;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApiClient();
+  }
+
+  Future<void> _initializeApiClient() async {
+    try {
+      _apiClient = EmrApiClient();
+    } catch (e) {
+      debugPrint('Error initializing API client: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -98,7 +110,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                     const Gap(8),
                     
                     Text(
-                      'We sent a 4-digit code to\n${widget.phoneNumber}',
+                      'We sent a code to\n${widget.phoneNumber}',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Colors.grey.shade600,
                       ),
@@ -112,7 +124,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                       controller: _otpController,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
-                      maxLength: 4,
+                      maxLength: 6,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
@@ -137,14 +149,21 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                       scrollPadding: const EdgeInsets.only(bottom: 100),
                       inputFormatters: <TextInputFormatter>[
                         FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
+                        LengthLimitingTextInputFormatter(6),
                       ],
                       validator: (value) {
                         final String? requiredResult = _requiredValidator(value, fieldName: 'OTP');
                         if (requiredResult != null) return requiredResult;
-                        if (value!.length != 4) {
-                          return 'OTP must be 4 digits';
+                        
+                        final otp = value!.trim();
+                        if (!RegExp(r'^\d+$').hasMatch(otp)) {
+                          return 'OTP must contain only digits';
                         }
+                        
+                        if (otp.length != 6) {
+                          return 'OTP must be exactly 6 digits';
+                        }
+                        
                         return null;
                       },
                     ),
@@ -227,12 +246,12 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     
     final otpCode = _otpController.text.trim();
     
-    // Basic validation - OTP must be 4 digits
-    if (otpCode.length != 4 || !RegExp(r'^\d{4}$').hasMatch(otpCode)) {
+    // Additional validation
+    if (otpCode.isEmpty || !RegExp(r'^\d{6}$').hasMatch(otpCode)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please enter a valid 4-digit OTP'),
+            content: Text('Please enter a valid 6-digit OTP'),
             backgroundColor: Colors.red,
           ),
         );
@@ -240,12 +259,28 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
       return;
     }
     
-    // Verify OTP matches expected value
-    if (widget.expectedOtp != null && otpCode != widget.expectedOtp) {
+    final phoneNumber = widget.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phoneNumber.isEmpty || phoneNumber.length < 7 || phoneNumber.length > 15) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid OTP. Please check and try again.'),
+            content: Text('Invalid phone number'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
             backgroundColor: Colors.red,
           ),
         );
@@ -257,15 +292,23 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
       _loading = true;
     });
 
-    // OTP verified - proceed to registration
-    // Small delay for UX feedback
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-      if (mounted) {
+    try {
+      // Verify OTP on server
+      final response = await _apiClient!.verifyRegistrationOtp(
+        phoneNumber: phoneNumber,
+        otpCode: otpCode,
+      );
+      
+      if (!mounted) return;
+      
+      // Check response for success
+      final verified = response['verified'] as bool? ?? false;
+      
+      if (verified) {
         setState(() {
           _loading = false;
         });
-      
+        
         // Navigate to registration screen after OTP verification
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
@@ -273,16 +316,128 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
           ),
           (route) => false, // Remove all previous routes
         );
+      } else {
+        throw Exception('OTP verification failed');
       }
+    } catch (e) {
+      debugPrint('Error verifying registration OTP: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+        
+        String errorMessage = 'Invalid OTP';
+        final errorStr = e.toString();
+        
+        if (errorStr.contains('expired') || errorStr.contains('not requested')) {
+          errorMessage = 'OTP has expired. Please request a new one.';
+        } else if (errorStr.contains('attempts') || errorStr.contains('Too many')) {
+          errorMessage = 'Too many attempts. Please request a new OTP.';
+        } else if (errorStr.contains('Invalid') || errorStr.contains('401') || errorStr.contains('Unauthorized')) {
+          errorMessage = 'Invalid OTP. Please check and try again.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your input.';
+        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
-  void _handleResendOtp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP resent to your registered number'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  Future<void> _handleResendOtp() async {
+    final phoneNumber = widget.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phoneNumber.isEmpty || phoneNumber.length < 7 || phoneNumber.length > 15) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid phone number'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final response = await _apiClient!.requestRegistrationOtp(phoneNumber: phoneNumber);
+      
+      if (!mounted) return;
+      
+      final success = response['success'] as bool? ?? false;
+      final message = response['message'] as String? ?? 'OTP resent to your phone number';
+      final cooldown = response['cooldownSecondsRemaining'] as int? ?? 0;
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        String errorMessage = message;
+        if (cooldown > 0) {
+          errorMessage = 'Please wait ${cooldown} seconds before requesting another OTP.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error resending OTP: $e');
+      if (mounted) {
+        String errorMessage = 'Failed to resend OTP';
+        final errorStr = e.toString();
+        
+        if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
+          errorMessage = 'Please wait before requesting another OTP.';
+        } else if (errorStr.contains('Invalid phone') || errorStr.contains('Invalid request')) {
+          errorMessage = 'Invalid phone number format.';
+        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+          errorMessage = 'Invalid request. Please check your phone number.';
+        } else {
+          errorMessage = 'Failed to resend OTP. Please try again.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 }
 

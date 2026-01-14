@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/splash_screen.dart';
 import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
@@ -7,10 +8,13 @@ import 'services/inactivity_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // SystemChrome.setPreferredOrientations doesn't work on web
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
   
   await AuthService.instance.init();
   

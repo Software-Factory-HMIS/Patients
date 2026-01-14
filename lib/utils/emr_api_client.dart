@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'api_config.dart';
+import 'http_client_factory.dart';
 import '../services/auth_service.dart';
 
 class EmrApiClient {
@@ -12,80 +11,7 @@ class EmrApiClient {
 
   EmrApiClient({String? baseUrl, http.Client? client})
       : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
-        _client = client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl());
-
-  /// Creates an HTTP client with appropriate SSL certificate handling
-  /// - For development URLs (localhost, private IPs): Bypasses SSL validation
-  /// - For production URLs: Uses standard certificate validation
-  static http.Client _createHttpClient(String url) {
-    // Check if this is a development/local URL
-    // Matches: localhost, 127.0.0.1, 10.0.2.2 (emulator), and private IP ranges
-    final isDevelopmentUrl = _isDevelopmentUrl(url);
-    
-    // For development URLs with HTTPS, create a client that bypasses SSL validation
-    if (isDevelopmentUrl && url.startsWith('https://')) {
-      final httpClient = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) {
-          // WARNING: Only bypasses SSL for development URLs
-          // This allows self-signed certificates in development environments
-          // Safe for emulator and local network testing on real devices
-          return true;
-        };
-      return IOClient(httpClient);
-    }
-    
-    // For production URLs, use standard HTTP client with proper certificate validation
-    return http.Client();
-  }
-  
-  /// Determines if a URL is a development/local URL
-  /// Returns true for localhost, loopback, emulator, and private IP ranges
-  static bool _isDevelopmentUrl(String url) {
-    // Extract host from URL
-    try {
-      final uri = Uri.parse(url);
-      final host = uri.host.toLowerCase();
-      
-      // Check for localhost variants
-      if (host == 'localhost' || host == '127.0.0.1' || host == '::1') {
-        return true;
-      }
-      
-      // Check for Android emulator host
-      if (host == '10.0.2.2') {
-        return true;
-      }
-      
-      // Check for private IP ranges (RFC 1918)
-      // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-      final parts = host.split('.');
-      if (parts.length == 4) {
-        try {
-          final octet1 = int.parse(parts[0]);
-          final octet2 = int.parse(parts[1]);
-          
-          // 10.0.0.0/8
-          if (octet1 == 10) return true;
-          
-          // 172.16.0.0/12
-          if (octet1 == 172 && octet2 >= 16 && octet2 <= 31) return true;
-          
-          // 192.168.0.0/16
-          if (octet1 == 192 && octet2 == 168) return true;
-        } catch (e) {
-          // Not a valid IP, continue
-        }
-      }
-      
-      return false;
-    } catch (e) {
-      // If URL parsing fails, check string contains common development patterns
-      return url.contains('localhost') || 
-             url.contains('127.0.0.1') || 
-             url.contains('10.0.2.2') ||
-             url.contains('192.168.');
-    }
-  }
+        _client = client ?? createHttpClient(baseUrl ?? resolveEmrBaseUrl());
 
   Future<Map<String, String>> _getAuthHeaders() async {
     return await AuthService.instance.getAuthHeaders();
@@ -871,61 +797,33 @@ class EmrApiClient {
     }
   }
 
-  // Send registration OTP SMS
-  Future<void> sendRegistrationOtp({
+  // Request registration OTP (server-side generation)
+  Future<Map<String, dynamic>> requestRegistrationOtp({
     required String phoneNumber,
-    required String otp,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/request-registration');
     try {
-      
       final body = {
         'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
-        'otp': otp,
       };
       
-      // Increase timeout to 30 seconds for SMS operations
       final res = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode(body),
-      ).timeout(const Duration(seconds: 30));
-      
+      ).timeout(const Duration(seconds: 15));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
-        final data = response['data'] as Map<String, dynamic>?;
-        final message = response['message'] as String? ?? 'OTP sent successfully';
-        final smsStatus = data?['smsStatus'] as String?;
-        final canProceed = data?['canProceed'] as bool? ?? false;
-        
-        // Check if we can proceed regardless of SMS status
-        if (canProceed) {
-          return; // Success - allow user to proceed
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
         }
-        
-        // Check SMS status from response (only if CanProceed is false)
-        if (smsStatus != null) {
-          if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
-            // Extract OTP from message if available
-            final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
-            // Throw exception to indicate SMS failed (only if CanProceed is false)
-            throw Exception('SMS delivery failed: $message');
-          }
-        } else if (message.contains('OTP:') || message.contains('OTP generated') || 
-                   message.contains('SMS delivery') || message.contains('timed out') ||
-                   message.contains('not sent')) {
-          // Only throw if CanProceed is false
-          if (!canProceed) {
-            throw Exception('SMS delivery issue: $message');
-          }
-        }
-        
-        return;
+        return response;
       }
       
       // Parse error message
-      String errorMessage = 'Failed to send registration OTP';
+      String errorMessage = 'Failed to request registration OTP';
       try {
         final errorResponse = json.decode(res.body) as Map<String, dynamic>;
         errorMessage = errorResponse['message'] as String? ?? 
@@ -937,8 +835,94 @@ class EmrApiClient {
       
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
-      // Don't rethrow - let the fallback mechanism handle it
-      // The backend now returns success even if SMS fails, with OTP in message
+      rethrow;
+    }
+  }
+
+  // Verify registration OTP (server-side verification)
+  Future<Map<String, dynamic>> verifyRegistrationOtp({
+    required String phoneNumber,
+    required String otpCode,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/verify-registration');
+    try {
+      final body = {
+        'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
+        'code': otpCode.trim(),
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Invalid OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception(errorMessage);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Verify set-password OTP (server-side verification)
+  Future<Map<String, dynamic>> verifySetPasswordOtp({
+    required String cnic,
+    required String otpCode,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/otp/verify-set-password');
+    try {
+      final body = {
+        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+        'code': otpCode.trim(),
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Invalid OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception(errorMessage);
+    } catch (e) {
       rethrow;
     }
   }
