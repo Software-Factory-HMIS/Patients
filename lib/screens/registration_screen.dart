@@ -1099,24 +1099,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primaryContainer.withOpacity(0.3),
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: KeyboardInsetPadding(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 16),
                 child: _showDetailsCard
                     ? _buildDetailsCard()
                     : Form(
@@ -1132,7 +1121,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
-                                  color: colorScheme.outline.withOpacity(0.1),
+                                  color: colorScheme.outline.withOpacity(0.4),
+                                  width: 1.5,
                                 ),
                               ),
                               child: Container(
@@ -1147,7 +1137,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(10),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -1180,7 +1170,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                             ),
-                            const Gap(24),
+                            const Gap(7),
                           // Registration type radio buttons - only show for first registration (not "Add Others")
                           if (!widget.isAddOthers) ...[
                             Card(
@@ -1188,7 +1178,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
-                                  color: colorScheme.outline.withOpacity(0.1),
+                                  color: colorScheme.outline.withOpacity(0.4),
+                                  width: 1.5,
                                 ),
                               ),
                               child: Container(
@@ -1203,7 +1194,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(10),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
@@ -1233,90 +1224,32 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       ],
                                     ),
                                     const Gap(16),
-                                    Row(
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              setState(() {
-                                                _registrationType = 'Self';
-                                                _parentType = null;
-                                              });
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                                              decoration: BoxDecoration(
-                                                color: _registrationType == 'Self' 
-                                                    ? colorScheme.primary 
-                                                    : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(14),
-                                                border: Border.all(
-                                                  color: _registrationType == 'Self' 
-                                                      ? colorScheme.primary 
-                                                      : colorScheme.outline.withOpacity(0.3),
-                                                  width: 2,
-                                                ),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  _translations['self']!,
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: _registrationType == 'Self' 
-                                                        ? Colors.white 
-                                                        : colorScheme.onSurface,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.primary,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          _translations['self']!,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
                                           ),
                                         ),
-                                        const Gap(12),
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              setState(() {
-                                                _registrationType = 'Others';
-                                                _parentType = _parentType ?? 'Father';
-                                              });
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                                              decoration: BoxDecoration(
-                                                color: _registrationType == 'Others' 
-                                                    ? colorScheme.primary 
-                                                    : Colors.transparent,
-                                                borderRadius: BorderRadius.circular(14),
-                                                border: Border.all(
-                                                  color: _registrationType == 'Others' 
-                                                      ? colorScheme.primary 
-                                                      : colorScheme.outline.withOpacity(0.3),
-                                                  width: 2,
-                                                ),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  _translations['others']!,
-                                                  style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: _registrationType == 'Others' 
-                                                        ? Colors.white 
-                                                        : colorScheme.onSurface,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            const Gap(24),
+                            const Gap(7),
                             // Parent Type selection - only show when Others is selected
                             if (_registrationType == 'Others') ...[
                               Card(
@@ -1324,7 +1257,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(
-                                    color: colorScheme.outline.withOpacity(0.1),
+                                    color: colorScheme.outline.withOpacity(0.4),
+                                    width: 1.5,
                                   ),
                                 ),
                                 child: Container(
@@ -1339,7 +1273,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       ],
                                     ),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.all(10),
                                   child: DropdownButtonFormField<String>(
                                     value: _parentType,
                                     decoration: InputDecoration(
@@ -1399,7 +1333,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   ),
                                 ),
                               ),
-                              const Gap(24),
+                              const Gap(7),
                             ],
                           ],
                           // Registration type radio buttons - only show for "Add Others"
@@ -1409,7 +1343,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
-                                  color: colorScheme.outline.withOpacity(0.1),
+                                  color: colorScheme.outline.withOpacity(0.4),
+                                  width: 1.5,
                                 ),
                               ),
                               child: Container(
@@ -1424,7 +1359,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     ],
                                   ),
                                 ),
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(10),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
@@ -1482,7 +1417,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                             ),
-                            const Gap(24),
+                            const Gap(7),
                           ],
                     
                     // Form Fields Card
@@ -1491,7 +1426,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: colorScheme.outline.withOpacity(0.1),
+                          color: colorScheme.outline.withOpacity(0.4),
+                          width: 1.5,
                         ),
                       ),
                       child: Container(
@@ -1506,7 +1442,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             ],
                           ),
                         ),
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -2039,7 +1975,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                       ),
                     ),
-                    const Gap(24),
+                    const Gap(7),
                     
                     // Password fields - only show for Self registration (not for "Add Others")
                     if (!widget.isAddOthers && _registrationType == 'Self') ...[
@@ -2048,7 +1984,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.1),
+                            color: colorScheme.outline.withOpacity(0.4),
+                            width: 1.5,
                           ),
                         ),
                         child: Container(
@@ -2063,7 +2000,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               ],
                             ),
                           ),
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -2233,7 +2170,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           ),
                         ),
                       ),
-                      const Gap(24),
+                      const Gap(7),
                     ],
                     
                     // Submit button
@@ -2268,7 +2205,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               ),
                             ),
                     ),
-                    const Gap(24),
+                    const Gap(7),
                   ],
                 ),
               ),

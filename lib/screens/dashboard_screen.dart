@@ -33,7 +33,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   List<dynamic>? _labs;
   List<dynamic>? _radiology;
   List<dynamic>? _surgery;
-  List<dynamic>? _pregnancy;
   bool _loading = false;
   String? _error;
   bool _showOverlay = false;
@@ -71,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 7, vsync: this); // Removed pregnancy tab
     _initializeApi();
     _loadData();
     _loadSavedUserData();
@@ -259,17 +258,96 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _labs = [];
         _radiology = [];
         _surgery = [];
-        _pregnancy = [];
         _loading = false;
       });
       
       print('✅ Patient data loaded successfully: $patientName (MRN: $mrn)');
+      
+      // Load medical records data after patient data is loaded
+      if (mounted && mrn.isNotEmpty) {
+        await _loadMedicalRecordsData();
+      }
     } catch (e) {
       print('❌ Error loading patient data: $e');
       if (mounted) {
         setState(() {
           _loading = false;
           _error = 'Failed to load patient data: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  /// Loads all medical records data using the same endpoints as Medical Records section
+  Future<void> _loadMedicalRecordsData() async {
+    if (_api == null) {
+      await _initializeApi();
+      if (_api == null) {
+        return;
+      }
+    }
+
+    final mrn = _patient?['mrn'] as String?;
+    if (mrn == null || mrn.isEmpty) {
+      print('⚠️ MRN not available, cannot load medical records');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      // Load all medical records data in parallel using the same endpoints as Medical Records section
+      final results = await Future.wait([
+        _api!.fetchVitals(mrn).catchError((e) {
+          print('❌ Error fetching vitals: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchMedications(mrn).catchError((e) {
+          print('❌ Error fetching medications: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchOPD(mrn).catchError((e) {
+          print('❌ Error fetching OPD: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchIPD(mrn).catchError((e) {
+          print('❌ Error fetching IPD: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchLabs(mrn).catchError((e) {
+          print('❌ Error fetching labs: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchRadiology(mrn).catchError((e) {
+          print('❌ Error fetching radiology: $e');
+          return <dynamic>[];
+        }),
+        _api!.fetchSurgery(mrn).catchError((e) {
+          print('❌ Error fetching surgery: $e');
+          return <dynamic>[];
+        }),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _vitals = results[0];
+          _medications = results[1];
+          _opd = results[2];
+          _ipd = results[3];
+          _labs = results[4];
+          _radiology = results[5];
+          _surgery = results[6];
+          _loading = false;
+        });
+        print('✅ Medical records data loaded successfully');
+      }
+    } catch (e) {
+      print('❌ Error loading medical records data: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
         });
       }
     }
@@ -316,7 +394,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                       _buildDebugSection('Labs Data', _labs),
                       _buildDebugSection('Radiology Data', _radiology),
                       _buildDebugSection('Surgery Data', _surgery),
-                      _buildDebugSection('Pregnancy Data', _pregnancy),
                       _buildDebugSection('Error', _error),
                     ],
                   ),
@@ -398,16 +475,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         title: Text(
           _currentNavIndex == 0 
               ? 'Appointments' 
-              : _currentNavIndex == 1 
-                  ? 'Patient Dashboard' 
-                  : 'My Medical Records',
+              : 'My Medical Records',
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
           ),
         ),
         actions: [
-          if (_currentNavIndex == 1 || _currentNavIndex == 2) ...[
+          if (_currentNavIndex == 1) ...[
+            // Debug button for Medical Records
             IconButton(
               icon: const Icon(Icons.bug_report_outlined),
               onPressed: _showDebugDialog,
@@ -434,60 +510,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
       body: _currentNavIndex == 0
           ? _buildAppointmentsScreen()
-          : _currentNavIndex == 2
-              ? _buildFileScreen()
-              : Stack(
-              children: [
-                _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
-                                const Gap(16),
-                                Text('Error loading patient data', style: Theme.of(context).textTheme.headlineSmall),
-                                const Gap(8),
-                                Text(_error!, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
-                                const Gap(16),
-                                ElevatedButton(
-                                  onPressed: _loadData,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : KeyboardInsetPadding(
-                            child: SingleChildScrollView(
-                              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                              child: Column(
-                                children: [
-                                  // Patient Header Section
-                                  _buildPatientHeader(),
-                                  
-                                  // Vertical spacing between sections (responsive)
-                                  Gap(MediaQuery.of(context).size.width < 768 ? 8 : 6),
-                                  
-                                  // Chronic Conditions Section
-                                  _buildChronicConditionsSection(),
-                                  
-                                  // Vertical spacing between sections (responsive)
-                                  Gap(MediaQuery.of(context).size.width < 768 ? 12 : 12),
-                                  
-                                  // Collapsible Tab Section
-                                  _buildCollapsibleTabSection(),
-                                ],
-                              ),
-                            ),
-                          ),
-                // Overlay for section details
-                if (_showOverlay) _buildSectionOverlay(),
-                
-                // Pinned toggle button (only when expanded)
-                if (_isTabSectionExpanded && _currentNavIndex == 1) _buildPinnedToggleButton(),
-              ],
-            ),
+          : _buildFileScreen(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -522,6 +545,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               // Reload recent appointments when switching to appointments tab
               _loadRecentAppointments();
             }
+            // Load medical records data when switching to medical records tab (index 1)
+            if (index == 1) {
+              // Medical records are loaded via PatientFileScreen
+            }
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
@@ -541,15 +568,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               activeIcon: Icon(Icons.calendar_today),
               label: 'Appointment',
             ),
+            // BottomNavigationBarItem(
+            //   icon: Icon(Icons.dashboard_outlined),
+            //   activeIcon: Icon(Icons.dashboard),
+            //   label: 'Dashboard',
+            // ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.folder_outlined),
-              activeIcon: Icon(Icons.folder),
-              label: 'File',
+              icon: Icon(Icons.medical_information_outlined),
+              activeIcon: Icon(Icons.medical_information),
+              label: 'Medical Records',
             ),
           ],
         ),
@@ -1450,9 +1477,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       // Try to load from local storage first
       final savedAppointments = await UserStorage.getRecentAppointments();
       if (savedAppointments != null && savedAppointments.isNotEmpty) {
+        // Filter appointments by current patient's CNIC
+        // Only show appointments that have a matching CNIC (ignore old appointments without patientCnic)
+        final patientAppointments = savedAppointments
+            .where((appointment) => 
+                appointment['patientCnic'] != null && 
+                appointment['patientCnic'] == widget.cnic)
+            .toList();
+        
         if (mounted) {
           setState(() {
-            _recentAppointments = savedAppointments;
+            _recentAppointments = patientAppointments;
             _loadingRecentAppointments = false;
           });
         }
@@ -1806,18 +1841,26 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         'tokenNumber': tokenNumber,
         'queueId': queueId,
         'appointmentDate': appointmentDetails.appointmentDate.toIso8601String(),
+        'patientCnic': widget.cnic, // Include patient CNIC for filtering
       };
       
-      // Update in-memory list
+      // Update in-memory list for current patient
       _recentAppointments ??= [];
       _recentAppointments!.insert(0, appointmentMap); // Add to beginning
-      // Keep only last 5 appointments
+      // Keep only last 5 appointments for current patient
       if (_recentAppointments!.length > 5) {
         _recentAppointments = _recentAppointments!.take(5).toList();
       }
       
-      // Save to local storage
-      await UserStorage.saveRecentAppointments(_recentAppointments!);
+      // Save to local storage - merge with existing appointments from all patients
+      final allSavedAppointments = await UserStorage.getRecentAppointments() ?? [];
+      // Remove any existing appointments for this patient (to avoid duplicates)
+      final otherPatientsAppointments = allSavedAppointments
+          .where((apt) => apt['patientCnic'] != widget.cnic)
+          .toList();
+      // Combine: current patient's appointments + other patients' appointments
+      final appointmentsToSave = [..._recentAppointments!, ...otherPatientsAppointments];
+      await UserStorage.saveRecentAppointments(appointmentsToSave);
       
       setState(() {
         // State already updated above
@@ -2225,17 +2268,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 // Navigation Items
                 _buildDrawerTile(
                   context,
-                  Icons.dashboard_outlined,
-                  'Dashboard',
-                  _currentNavIndex == 1,
-                  () {
-                    setState(() => _currentNavIndex = 1);
-                    Navigator.pop(context);
-                  },
-                  colorScheme,
-                ),
-                _buildDrawerTile(
-                  context,
                   Icons.calendar_today_outlined,
                   'Appointments',
                   _currentNavIndex == 0,
@@ -2247,11 +2279,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 ),
                 _buildDrawerTile(
                   context,
-                  Icons.folder_outlined,
+                  Icons.medical_information_outlined,
                   'Medical Records',
-                  _currentNavIndex == 2,
+                  _currentNavIndex == 1,
                   () {
-                    setState(() => _currentNavIndex = 2);
+                    setState(() => _currentNavIndex = 1);
                     Navigator.pop(context);
                   },
                   colorScheme,
@@ -2431,125 +2463,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildChronicConditionsSection() {
-    final isMobile = MediaQuery.of(context).size.width < 768;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: colorScheme.errorContainer.withOpacity(0.5),
-            width: 1,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                colorScheme.errorContainer.withOpacity(0.3),
-                colorScheme.errorContainer.withOpacity(0.1),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20, vertical: isMobile ? 12 : 16),
-            child: isMobile
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.health_and_safety,
-                            size: 20,
-                            color: Colors.red.shade600,
-                          ),
-                          const Gap(8),
-                          Text(
-                            'Chronic Conditions:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade800,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Gap(10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
-                          _buildSimpleConditionChip('Hypertension', 'I10'),
-                          _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Icon(
-                        Icons.health_and_safety,
-                        size: 20,
-                        color: Colors.red.shade600,
-                      ),
-                      const Gap(8),
-                      Text(
-                        'Chronic Conditions:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red.shade800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const Gap(8),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            _buildSimpleConditionChip('Type 2 Diabetes', 'E11.9'),
-                            const Gap(6),
-                            _buildSimpleConditionChip('Hypertension', 'I10'),
-                            const Gap(6),
-                            _buildSimpleConditionChip('Hyperlipidemia', 'E78.2'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSimpleConditionChip(String condition, String code) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200, width: 1),
-      ),
-      child: Text(
-        '$condition ($code)',
-        style: TextStyle(
-          color: Colors.red.shade800,
-          fontWeight: FontWeight.w600,
-          fontSize: 11,
-        ),
       ),
     );
   }
@@ -3296,8 +3209,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         return Icons.image_search_outlined;
       case 'surgery':
         return Icons.health_and_safety_outlined;
-      case 'pregnancy':
-        return Icons.pregnant_woman;
       default:
         return Icons.info;
     }
@@ -3317,8 +3228,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         return Colors.cyan;
       case 'surgery':
         return Colors.red;
-      case 'pregnancy':
-        return Colors.pink;
       default:
         return Colors.blue;
     }
@@ -3338,8 +3247,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         return 'Radiology';
       case 'surgery':
         return 'Surgery';
-      case 'pregnancy':
-        return 'Pregnancy Registration';
       default:
         return 'Section Details';
     }
@@ -3359,8 +3266,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         return _radiology?.length ?? 0;
       case 'surgery':
         return _surgery?.length ?? 0;
-      case 'pregnancy':
-        return _pregnancy?.length ?? 0;
       default:
         return 0;
     }
@@ -3396,6 +3301,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         data = _vitals;
         searchController = _vitalsSearchController;
         columns = ['Date/Time', 'Blood Pressure', 'Heart Rate', 'Temperature', 'Respiratory Rate', 'SpO2', 'Weight', 'BMI', 'Location'];
+        dataColumns = columns.map((col) => DataColumn(
+          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        )).toList();
+        break;
+      case 'medications':
+        data = _medications;
+        searchController = _medicationsSearchController;
+        columns = ['Start Date', 'Medication', 'Dosage', 'Frequency', 'Indication', 'Status', 'Prescriber'];
         dataColumns = columns.map((col) => DataColumn(
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
@@ -3440,14 +3353,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         )).toList();
         break;
-      case 'pregnancy':
-        data = _pregnancy;
-        searchController = null;
-        columns = ['Registration Date', 'LMP', 'EDD', 'Gravida', 'Para', 'Status'];
-        dataColumns = columns.map((col) => DataColumn(
-          label: Text(col, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        )).toList();
-        break;
     }
 
     if (data == null) {
@@ -3460,6 +3365,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       switch (section) {
         case 'vitals':
           filteredData = _filterVitals(searchController.text);
+          break;
+        case 'medications':
+          filteredData = _filterMedications(searchController.text);
           break;
         case 'opd':
           filteredData = _filterOPD(searchController.text);
@@ -3476,17 +3384,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         case 'surgery':
           filteredData = _filterSurgery(searchController.text);
           break;
-        case 'pregnancy':
-          filteredData = data; // No filtering for now
-          break;
       }
     }
 
     if (filteredData.isEmpty) {
-      // Special handling for pregnancy registration
-      if (section == 'pregnancy') {
-        return _buildPregnancyRegistrationForm();
-      }
       
       return Center(
         child: Padding(
@@ -3591,6 +3492,16 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           (item['weight'] ?? '').toString(),
           (item['bmi'] ?? '').toString(),
           (item['location'] ?? '').toString(),
+        ];
+      case 'medications':
+        return [
+          (item['startDate'] ?? '').toString(),
+          (item['medication'] ?? '').toString(),
+          (item['dosage'] ?? '').toString(),
+          (item['frequency'] ?? '').toString(),
+          (item['indication'] ?? '').toString(),
+          (item['status'] ?? '').toString(),
+          (item['prescriber'] ?? '').toString(),
         ];
       case 'opd':
         return [
@@ -3757,8 +3668,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                 _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology'),
                 const Gap(12),
                 _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery'),
-                const Gap(12),
-                _buildSectionCard('Pregnancy Registration', Icons.pregnant_woman, Colors.pink, _pregnancy?.length ?? 0, 'pregnancy'),
               ],
             )
           : Column(
@@ -3780,13 +3689,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                     Expanded(child: _buildSectionCard('Radiology', Icons.image_search_outlined, Colors.cyan, _radiology?.length ?? 0, 'radiology')),
                     const Gap(16),
                     Expanded(child: _buildSectionCard('Surgery', Icons.health_and_safety_outlined, Colors.red, _surgery?.length ?? 0, 'surgery')),
-                  ],
-                ),
-                const Gap(20),
-                Row(
-                  children: [
-                    Expanded(child: _buildSectionCard('Pregnancy Registration', Icons.pregnant_woman, Colors.pink, _pregnancy?.length ?? 0, 'pregnancy')),
-                    const Spacer(),
                   ],
                 ),
               ],
@@ -3919,7 +3821,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           Tab(text: 'Labs'),
           Tab(text: 'Radiology'),
           Tab(text: 'Surgery'),
-          Tab(text: 'Pregnancy'),
         ],
       ),
     );
@@ -3937,7 +3838,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         _buildLabsTab(),
         _buildRadiologyTab(),
         _buildSurgeryTab(),
-        _buildPregnancyTab(),
       ],
     );
   }
@@ -4142,28 +4042,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildPregnancyTab() {
-    return _buildGenericTab(
-      title: 'Pregnancy Registration',
-      icon: Icons.pregnant_woman,
-      heroColor: Colors.pink,
-      searchController: null,
-      searchHint: 'Search pregnancy records by date, LMP, EDD, or status...',
-      approxMinColWidth: 120,
-      columns: const [
-        DataColumn(label: Text('Registration Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        DataColumn(label: Text('LMP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        DataColumn(label: Text('EDD', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        DataColumn(label: Text('Gravida', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        DataColumn(label: Text('Para', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-      ],
-      data: _pregnancy,
-      filterFunction: null,
-      noDataMessage: 'No pregnancy records available',
-    );
-  }
-
   // Generic builder to copy Vital Signs style
   Widget _buildGenericTab({
     required String title,
@@ -4254,13 +4132,15 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 rows: () {
                                   if (filterFunction != null && searchController != null && data != null) {
                                     final filteredData = filterFunction(searchController.text);
+                                    // Create empty cells to match the number of columns
+                                    final emptyCells = List.filled(columns.length - 1, '-');
                                     if (data.isEmpty) {
                                       return [
-                                        _buildEnhancedDataRow([noDataMessage ?? 'No data available', '-', '-', '-', '-', '-', '-', '-', '-']),
+                                        _buildEnhancedDataRow([noDataMessage ?? 'No data available', ...emptyCells]),
                                       ];
                                     } else if (filteredData.isEmpty && searchController.text.isNotEmpty) {
                                       return [
-                                        _buildEnhancedDataRow(['No results found matching "${searchController.text}"', '-', '-', '-', '-', '-', '-', '-', '-']),
+                                        _buildEnhancedDataRow(['No results found matching "${searchController.text}"', ...emptyCells]),
                                       ];
                                     } else {
                                       return filteredData.map((item) {
@@ -4380,24 +4260,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                             outcome,
                                             complications,
                                           ]);
-                                        } else if (title == 'Pregnancy Registration') {
-                                          final registrationDate = (item['registrationDate'] ?? '').toString();
-                                          final lmp = (item['lmp'] ?? '').toString();
-                                          final edd = (item['edd'] ?? '').toString();
-                                          final gravida = (item['gravida'] ?? '').toString();
-                                          final para = (item['para'] ?? '').toString();
-                                          final status = (item['status'] ?? '').toString();
-                                          
-                                          return _buildEnhancedDataRow([
-                                            registrationDate,
-                                            lmp,
-                                            edd,
-                                            gravida,
-                                            para,
-                                            status,
-                                          ]);
                                         }
-                                        return _buildEnhancedDataRow(['Unknown data type', '-', '-', '-', '-', '-', '-', '-', '-']);
+                                        // Create empty cells to match the number of columns
+                                        final emptyCells = List.filled(columns.length - 1, '-');
+                                        return _buildEnhancedDataRow(['Unknown data type', ...emptyCells]);
                                       }).toList();
                                     }
                                   }
@@ -4460,176 +4326,4 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildPregnancyRegistrationForm() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Icon(
-                Icons.pregnant_woman,
-                color: Colors.pink,
-                size: 28,
-              ),
-              const Gap(12),
-              Text(
-                'Pregnancy Registration',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.pink.shade700,
-                ),
-              ),
-            ],
-          ),
-          const Gap(24),
-          
-          // Form fields
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // LMP (Last Menstrual Period)
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Last Menstrual Period (LMP)',
-                      hintText: 'DD/MM/YYYY',
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                  ),
-                  const Gap(16),
-                  
-                  // EDD (Expected Due Date) - Auto-calculated
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Expected Due Date (EDD)',
-                      hintText: 'Auto-calculated from LMP',
-                      prefixIcon: const Icon(Icons.event),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                    ),
-                    enabled: false,
-                  ),
-                  const Gap(16),
-                  
-                  // Gravida
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Gravida (Number of pregnancies)',
-                      hintText: 'Enter number',
-                      prefixIcon: const Icon(Icons.numbers),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const Gap(16),
-                  
-                  // Para
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Para (Number of births)',
-                      hintText: 'Enter number',
-                      prefixIcon: const Icon(Icons.child_care),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const Gap(16),
-                  
-                  // Pregnancy Status
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Pregnancy Status',
-                      prefixIcon: const Icon(Icons.pregnant_woman),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'active', child: Text('Active')),
-                      DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                      DropdownMenuItem(value: 'miscarriage', child: Text('Miscarriage')),
-                      DropdownMenuItem(value: 'terminated', child: Text('Terminated')),
-                    ],
-                    onChanged: (value) {},
-                  ),
-                  const Gap(24),
-                  
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            // TODO: Implement save functionality
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Pregnancy registration saved successfully!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.save),
-                          label: const Text('Register Pregnancy'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.pink,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Gap(12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            // TODO: Implement clear functionality
-                          },
-                          icon: const Icon(Icons.clear),
-                          label: const Text('Clear Form'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.pink,
-                            side: BorderSide(color: Colors.pink),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

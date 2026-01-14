@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:gap/gap.dart';
 import '../utils/emr_api_client.dart';
 
 class PatientFileScreen extends StatefulWidget {
@@ -445,126 +446,235 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   }
 
   Widget _buildPatientInfoCard() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    // Extract patient data with fallbacks for different field name variations
     final nameValue = widget.patient['fullName'] ?? 
                      widget.patient['FullName'] ?? 
-                     widget.patient['name'];
-    final String name = nameValue?.toString() ?? 'Unknown';
+                     widget.patient['name'] ??
+                     widget.patient['Name'];
+    final String name = nameValue?.toString() ?? 'Loading...';
     
-    final mrnValue = widget.patient['mrn'] ?? widget.patient['MRN'];
+    final mrnValue = widget.patient['mrn'] ?? 
+                     widget.patient['MRN'] ?? 
+                     widget.patient['Mrn'];
     final String mrn = mrnValue?.toString() ?? 'N/A';
     
-    final genderValue = widget.patient['gender'] ?? widget.patient['Gender'];
-    final String gender = genderValue?.toString() ?? '';
+    final genderValue = widget.patient['gender'] ?? 
+                       widget.patient['Gender'] ??
+                       widget.patient['genderName'];
+    final String gender = genderValue?.toString() ?? 'N/A';
     
-    final ageValue = widget.patient['age'] ?? widget.patient['Age'];
-    final String age = (ageValue != null) ? '${ageValue.toString()}y' : '';
+    final ageValue = widget.patient['age'] ?? 
+                     widget.patient['Age'];
+    final String age = ageValue != null ? '${ageValue.toString()} years' : 'N/A';
     
-    final bloodValue = widget.patient['bloodGroup'] ?? widget.patient['BloodGroup'];
-    final String blood = bloodValue?.toString() ?? '';
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        return Transform.translate(
-          offset: const Offset(-12.0, 0),
-          child: SizedBox(
-            width: screenWidth,
+    final bloodValue = widget.patient['bloodGroup'] ?? 
+                      widget.patient['BloodGroup'] ??
+                      widget.patient['bloodType'];
+    final String bloodType = bloodValue?.toString() ?? 'N/A';
+    
+    final lastVisitValue = widget.patient['lastVisit'] ?? 
+                          widget.patient['LastVisit'] ??
+                          widget.patient['lastVisitDate'];
+    final String lastVisit = lastVisitValue?.toString() ?? 'N/A';
+    
+    return Container(
+      color: Colors.grey.shade50,
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
+      child: Column(
+        children: [
+          // Patient Profile - Full Width Card
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: colorScheme.outline.withOpacity(0.2),
+              ),
+            ),
             child: Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF6366F1),
-                    Color(0xFF8B5CF6),
-                    Color(0xFFA855F7),
+                    colorScheme.surface,
+                    colorScheme.surfaceContainerHighest,
                   ],
-                  stops: [0.0, 0.5, 1.0],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.purple.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
+                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                child: isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      colorScheme.primary,
+                                      colorScheme.secondary,
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: colorScheme.primary.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.person,
+                                  size: 28,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const Gap(12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                    const Gap(4),
+                                    Text(
+                                      'MRN: $mrn',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'MRN: $mrn',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.95),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        '$gender, $age',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.95),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      if (blood.isNotEmpty) ...[
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red[400],
-                            borderRadius: BorderRadius.circular(4),
+                          const Gap(12),
+                          Divider(height: 1, color: Colors.grey.shade300),
+                          const Gap(12),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 8,
+                            children: [
+                              _buildInfoChip(Icons.person_outline, 'Gender', gender),
+                              _buildInfoChip(Icons.cake_outlined, 'Age', age),
+                              _buildInfoChip(Icons.bloodtype, 'Blood Type', bloodType),
+                              _buildInfoChip(Icons.calendar_today, 'Last Visit', lastVisit),
+                            ],
                           ),
-                          child: Text(
-                            blood,
-                            style: const TextStyle(
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  colorScheme.primary,
+                                  colorScheme.secondary,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.primary.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.person,
+                              size: 32,
                               color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                          const Gap(16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                ),
+                                const Gap(8),
+                                Text(
+                                  'MRN: $mrn • $gender • $age • $bloodType • Last Visit: $lastVisit',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String label, String value) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: colorScheme.onPrimaryContainer,
+          ),
+          const Gap(6),
+          Text(
+            '$label: $value',
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
