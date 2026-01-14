@@ -63,264 +63,398 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
-      body: SafeArea(
-        child: KeyboardInsetPadding(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const Gap(40),
-                    
-                    // Logo area
-                    Center(
-                      child: SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: Image.asset(
-                          'assets/images/punjab.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              Icons.local_hospital,
-                              size: 60,
-                              color: Colors.blue.shade600,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    
-                    const Gap(32),
-                    
-                    // Welcome text
-                    Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const Gap(8),
-                    
-                    Text(
-                      'Enter your CNIC and password to continue',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    const Gap(48),
-                    
-                    // CNIC input field - larger and more touch-friendly
-                    TextFormField(
-                      controller: _cnicController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      inputFormatters: [
-                        _CnicInputFormatter(),
-                      ],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'CNIC',
-                        hintText: '12345-1234567-1 or 1234512345671',
-                        prefixIcon: const Icon(Icons.badge_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
-                        ),
-                        helperText: 'CNIC: 13 digits (with or without dashes)',
-                        helperStyle: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      scrollPadding: const EdgeInsets.only(bottom: 100),
-                      validator: (value) {
-                        final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
-                        if (requiredResult != null) return requiredResult;
-                        
-                        // Validate CNIC format - accept with or without dashes
-                        final cnic = value!.trim();
-                        // Remove dashes and non-digits for validation
-                        final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
-                        
-                        if (digitsOnly.isEmpty) {
-                          return 'CNIC must contain digits';
-                        }
-                        
-                        if (digitsOnly.length != 13) {
-                          return 'CNIC must be exactly 13 digits (format: 12345-1234567-1 or 1234512345671)';
-                        }
-                        
-                        return null;
-                      },
-                    ),
-                    
-                    const Gap(16),
-                    
-                    // Password input field
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Enter your password',
-                        prefixIcon: const Icon(Icons.lock_outlined),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.3),
+              colorScheme.surface,
+              colorScheme.surfaceContainerHighest,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: KeyboardInsetPadding(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Gap(20),
+                      
+                      // Logo area with modern styling
+                      Center(
+                        child: Container(
+                          width: 200,
+                          height: 200,
+                          padding: const EdgeInsets.all(20),
+                          child: Image.asset(
+                            'assets/images/punjab.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.local_hospital_rounded,
+                                size: 100,
+                                color: colorScheme.primary,
+                              );
+                            },
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
                         ),
                       ),
-                      scrollPadding: const EdgeInsets.only(bottom: 100),
-                      validator: (value) {
-                        final String? requiredResult = _requiredValidator(value, fieldName: 'Password');
-                        if (requiredResult != null) return requiredResult;
-                        return null;
-                      },
-                    ),
-                    
-                    const Gap(16),
-                    
-                    // Set Password button for existing users without password
-                    OutlinedButton.icon(
-                      onPressed: _handleSetPassword,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(color: Colors.blue.shade300),
-                      ),
-                      icon: Icon(Icons.lock_reset, color: Colors.blue.shade700),
-                      label: Text(
-                        'Set Password',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ),
-                    
-                    const Gap(16),
-                    
-                    // Registration option for new users
-                    Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'New user? ',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _handleRegister,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Register',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const Gap(16),
-                    
-                    // Continue button - larger and more touch-friendly
-                    SizedBox(
-                      height: 56,
-                      child: FilledButton(
-                        onPressed: _loading ? null : _handleSignIn,
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: _loading
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator.adaptive(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Continue',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                      ),
-                    ),
-                    
-                    const Gap(24),
-                    
-                    // Terms and Privacy
-                    Center(
-                      child: Text(
-                        'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                          height: 1.4,
+                      
+                      const Gap(11),
+                      
+                      // Welcome text with modern styling
+                      Text(
+                        'Welcome back',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                          letterSpacing: -0.5,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                    ),
+                      
+                      const Gap(6),
+                      
+                      Text(
+                        'Enter your CNIC and password to continue',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      
+                      const Gap(28),
+                      
+                      // Modern card container for form
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          side: BorderSide(
+                            color: colorScheme.outline.withOpacity(0.1),
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white,
+                                Colors.white.withOpacity(0.95),
+                              ],
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                     
-                    const Gap(40),
-                  ],
+                              // CNIC input field with modern styling
+                              TextFormField(
+                                controller: _cnicController,
+                                keyboardType: TextInputType.number,
+                                textInputAction: TextInputAction.next,
+                                inputFormatters: [
+                                  _CnicInputFormatter(),
+                                ],
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: 'CNIC',
+                                  hintText: '12345-1234567-1',
+                                  prefixIcon: Container(
+                                    margin: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.badge_outlined,
+                                      color: colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.error,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 18,
+                                  ),
+                                  helperText: '13 digits (with or without dashes)',
+                                  helperStyle: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                scrollPadding: const EdgeInsets.only(bottom: 100),
+                                validator: (value) {
+                                  final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
+                                  if (requiredResult != null) return requiredResult;
+                                  
+                                  final cnic = value!.trim();
+                                  final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
+                                  
+                                  if (digitsOnly.isEmpty) {
+                                    return 'CNIC must contain digits';
+                                  }
+                                  
+                                  if (digitsOnly.length != 13) {
+                                    return 'CNIC must be exactly 13 digits';
+                                  }
+                                  
+                                  return null;
+                                },
+                              ),
+                              
+                              const Gap(20),
+                              
+                              // Password input field with modern styling
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                textInputAction: TextInputAction.done,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  hintText: 'Enter your password',
+                                  prefixIcon: Container(
+                                    margin: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.lock_outlined,
+                                      color: colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword 
+                                          ? Icons.visibility_outlined 
+                                          : Icons.visibility_off_outlined,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscurePassword = !_obscurePassword;
+                                      });
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.error,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 18,
+                                  ),
+                                ),
+                                scrollPadding: const EdgeInsets.only(bottom: 100),
+                                validator: (value) {
+                                  final String? requiredResult = _requiredValidator(value, fieldName: 'Password');
+                                  if (requiredResult != null) return requiredResult;
+                                  return null;
+                                },
+                                onFieldSubmitted: (_) => _handleSignIn(),
+                              ),
+                              
+                              const Gap(20),
+                              
+                              // Set Password button with modern styling
+                              OutlinedButton.icon(
+                                onPressed: _handleSetPassword,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  side: BorderSide(
+                                    color: colorScheme.primary.withOpacity(0.5),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                icon: Icon(
+                                  Icons.lock_reset_outlined,
+                                  color: colorScheme.primary,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  'Set Password',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                              
+                              const Gap(24),
+                              
+                              // Continue button with modern styling
+                              FilledButton.icon(
+                                onPressed: _loading ? null : _handleSignIn,
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  minimumSize: const Size(double.infinity, 56),
+                                ),
+                                icon: _loading
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            colorScheme.onPrimary,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.arrow_forward, size: 20),
+                                label: _loading
+                                    ? const Text('Signing in...')
+                                    : const Text(
+                                        'Sign In',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const Gap(24),
+                      
+                      // Registration option with modern styling
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'New user? ',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _handleRegister,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                'Register Now',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const Gap(24),
+                      
+                      // Terms and Privacy with modern styling
+                      Center(
+                        child: Text(
+                          'By continuing, you agree to our\nTerms of Service and Privacy Policy',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      const Gap(20),
+                    ],
+                  ),
                 ),
               ),
             ),

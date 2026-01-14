@@ -320,6 +320,51 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     return value;
   }
   
+  Widget _buildRelationshipChip({
+    required String label,
+    required String value,
+    required IconData icon,
+    required ColorScheme colorScheme,
+  }) {
+    final isSelected = widget.relationshipType == value;
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected 
+            ? colorScheme.primaryContainer 
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected 
+              ? colorScheme.primary 
+              : colorScheme.outline.withOpacity(0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+            ),
+            const Gap(6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
 
   // Formats numeric input into 12345-1234567-1 as the user types.
   static final RegExp _nonDigit = RegExp(r'[^0-9]');
@@ -1038,10 +1083,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        elevation: 0,
         title: Text(
           widget.isAddOthers 
               ? (_isUrdu ? 'دوسرے کی رجسٹریشن' : 'Add Others Registration')
@@ -1049,463 +1098,1132 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      body: SafeArea(
-        child: KeyboardInsetPadding(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: _showDetailsCard
-                  ? _buildDetailsCard()
-                  : Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          // Language Toggle
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'اردو',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: _isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
-                                  ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.3),
+              colorScheme.surface,
+              colorScheme.surfaceContainerHighest,
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: KeyboardInsetPadding(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: _showDetailsCard
+                    ? _buildDetailsCard()
+                    : Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            const Gap(8),
+                            
+                            // Language Toggle - Modern Card
+                            Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: colorScheme.outline.withOpacity(0.1),
                                 ),
-                                Switch(
-                                  value: _isUrdu,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _isUrdu = value;
-                                    });
-                                  },
-                                  activeColor: Colors.blue.shade700,
-                                ),
-                                Text(
-                                  'English',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: !_isUrdu ? Colors.blue.shade900 : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Gap(24),
-                          // Registration type radio buttons - only show for first registration (not "Add Others")
-                          if (!widget.isAddOthers) ...[
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    _translations['registerAs']!,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const Gap(12),
-                                  Row(
-                                    children: <Widget>[
-                                      Expanded(
-                                        child: InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              _registrationType = 'Self';
-                                              _parentType = null;
-                                            });
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                            decoration: BoxDecoration(
-                                              color: _registrationType == 'Self' 
-                                                  ? Colors.blue.shade700 
-                                                  : Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: _registrationType == 'Self' 
-                                                    ? Colors.blue.shade700 
-                                                    : Colors.grey.shade300,
-                                                width: 2,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                _translations['self']!,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _registrationType == 'Self' 
-                                                      ? Colors.white 
-                                                      : Colors.grey.shade700,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const Gap(12),
-                                      Expanded(
-                                        child: InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              _registrationType = 'Others';
-                                              _parentType = _parentType ?? 'Father';
-                                            });
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                            decoration: BoxDecoration(
-                                              color: _registrationType == 'Others' 
-                                                  ? Colors.blue.shade700 
-                                                  : Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: _registrationType == 'Others' 
-                                                    ? Colors.blue.shade700 
-                                                    : Colors.grey.shade300,
-                                                width: 2,
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                _translations['others']!,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _registrationType == 'Others' 
-                                                      ? Colors.white 
-                                                      : Colors.grey.shade700,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white,
+                                      Colors.white.withOpacity(0.95),
                                     ],
                                   ),
-                                ],
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'اردو',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: _isUrdu ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    Switch(
+                                      value: _isUrdu,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _isUrdu = value;
+                                        });
+                                      },
+                                      activeColor: colorScheme.primary,
+                                    ),
+                                    Text(
+                                      'English',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: !_isUrdu ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Gap(24),
+                          // Registration type radio buttons - only show for first registration (not "Add Others")
+                          if (!widget.isAddOthers) ...[
+                            Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: colorScheme.outline.withOpacity(0.1),
+                                ),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white,
+                                      Colors.white.withOpacity(0.95),
+                                    ],
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primaryContainer.withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.person_outline,
+                                            color: colorScheme.primary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const Gap(12),
+                                        Text(
+                                          _translations['registerAs']!,
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w600,
+                                            color: colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Gap(16),
+                                    Row(
+                                      children: <Widget>[
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                _registrationType = 'Self';
+                                                _parentType = null;
+                                              });
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                              decoration: BoxDecoration(
+                                                color: _registrationType == 'Self' 
+                                                    ? colorScheme.primary 
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(14),
+                                                border: Border.all(
+                                                  color: _registrationType == 'Self' 
+                                                      ? colorScheme.primary 
+                                                      : colorScheme.outline.withOpacity(0.3),
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  _translations['self']!,
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _registrationType == 'Self' 
+                                                        ? Colors.white 
+                                                        : colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const Gap(12),
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                _registrationType = 'Others';
+                                                _parentType = _parentType ?? 'Father';
+                                              });
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                              decoration: BoxDecoration(
+                                                color: _registrationType == 'Others' 
+                                                    ? colorScheme.primary 
+                                                    : Colors.transparent,
+                                                borderRadius: BorderRadius.circular(14),
+                                                border: Border.all(
+                                                  color: _registrationType == 'Others' 
+                                                      ? colorScheme.primary 
+                                                      : colorScheme.outline.withOpacity(0.3),
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  _translations['others']!,
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _registrationType == 'Others' 
+                                                        ? Colors.white 
+                                                        : colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const Gap(24),
                             // Parent Type selection - only show when Others is selected
                             if (_registrationType == 'Others') ...[
-                              DropdownButtonFormField<String>(
-                                value: _parentType,
-                                decoration: InputDecoration(
-                                  labelText: _translations['parentType'],
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 16,
+                              Card(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: colorScheme.outline.withOpacity(0.1),
                                   ),
                                 ),
-                                items: _parentTypeOptions.map((type) {
-                                  return DropdownMenuItem<String>(
-                                    value: _getParentTypeValue(type),
-                                    child: Text(type),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _parentType = value;
-                                  });
-                                },
-                                validator: (v) => v == null || v.isEmpty 
-                                    ? _translations['selectParentType'] 
-                                    : null,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Colors.white,
+                                        Colors.white.withOpacity(0.95),
+                                      ],
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: DropdownButtonFormField<String>(
+                                    value: _parentType,
+                                    decoration: InputDecoration(
+                                      labelText: _translations['parentType'],
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.family_restroom_outlined,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    items: _parentTypeOptions.map((type) {
+                                      return DropdownMenuItem<String>(
+                                        value: _getParentTypeValue(type),
+                                        child: Text(type),
+                                      );
+                                    }).toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _parentType = value;
+                                      });
+                                    },
+                                    validator: (v) => v == null || v.isEmpty 
+                                        ? _translations['selectParentType'] 
+                                        : null,
+                                  ),
+                                ),
                               ),
                               const Gap(24),
                             ],
                           ],
                           // Registration type radio buttons - only show for "Add Others"
                           if (widget.isAddOthers) ...[
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white,
+                            Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: colorScheme.outline.withOpacity(0.1),
+                                ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(
-                                    _isUrdu ? 'رشتہ کی قسم' : 'Relationship Type',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const Gap(12),
-                                  Row(
-                                    children: <Widget>[
-                                      Expanded(
-                                        child: RadioListTile<String>(
-                                          title: Text(_isUrdu ? 'شریک حیات' : 'Spouse'),
-                                          value: 'Spouse',
-                                          groupValue: widget.relationshipType,
-                                          onChanged: null, // Disabled - set from parent
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: RadioListTile<String>(
-                                          title: Text(_isUrdu ? 'والدین' : 'Parent'),
-                                          value: 'Parent',
-                                          groupValue: widget.relationshipType,
-                                          onChanged: null, // Disabled - set from parent
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: RadioListTile<String>(
-                                          title: Text(_isUrdu ? 'اولاد' : 'Child'),
-                                          value: 'Child',
-                                          groupValue: widget.relationshipType,
-                                          onChanged: null, // Disabled - set from parent
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                      ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white,
+                                      Colors.white.withOpacity(0.95),
                                     ],
                                   ),
-                                ],
+                                ),
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primaryContainer.withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.people_outline,
+                                            color: colorScheme.primary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const Gap(12),
+                                        Text(
+                                          _isUrdu ? 'رشتہ کی قسم' : 'Relationship Type',
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w600,
+                                            color: colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Gap(16),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: <Widget>[
+                                        _buildRelationshipChip(
+                                          label: _isUrdu ? 'شریک حیات' : 'Spouse',
+                                          value: 'Spouse',
+                                          icon: Icons.favorite_outline,
+                                          colorScheme: colorScheme,
+                                        ),
+                                        _buildRelationshipChip(
+                                          label: _isUrdu ? 'والدین' : 'Parent',
+                                          value: 'Parent',
+                                          icon: Icons.family_restroom_outlined,
+                                          colorScheme: colorScheme,
+                                        ),
+                                        _buildRelationshipChip(
+                                          label: _isUrdu ? 'اولاد' : 'Child',
+                                          value: 'Child',
+                                          icon: Icons.child_care_outlined,
+                                          colorScheme: colorScheme,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const Gap(24),
                           ],
                     
-                    // Full name and CNIC row
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: TextFormField(
-                            controller: _fullNameController,
-                            textInputAction: TextInputAction.next,
-                            style: const TextStyle(fontSize: 16),
-                            decoration: InputDecoration(
-                              labelText: _translations['fullName'],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            validator: (v) =>
-                                _requiredValidator(v, fieldName: _translations['fullName']!),
-                          ),
+                    // Form Fields Card
+                    Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        side: BorderSide(
+                          color: colorScheme.outline.withOpacity(0.1),
                         ),
-                        const Gap(16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _cnicController,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.next,
-                            style: const TextStyle(fontSize: 16),
-                            readOnly: widget.isAddOthers && widget.relationshipType == 'Child' && widget.parentCnic != null,
-                            decoration: InputDecoration(
-                              labelText: _getCnicLabel(),
-                              hintText: '12345-1234567-1',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            inputFormatters: <TextInputFormatter>[
-                              _CnicInputFormatter(),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white,
+                              Colors.white.withOpacity(0.95),
                             ],
-                            validator: (value) {
-                              // Skip validation for children as CNIC is pre-filled
-                              if (widget.isAddOthers && widget.relationshipType == 'Child') {
-                                return null;
-                              }
-                              final String? requiredResult =
-                                  _requiredValidator(value, fieldName: _translations['cnic']!);
-                              if (requiredResult != null) return requiredResult;
-                              final RegExp pattern =
-                                  RegExp(r'^\d{5}-\d{7}-\d{1}$');
-                              if (!pattern.hasMatch(value!.trim())) {
-                                return _translations['enterCnicFormat']!;
-                              }
-                              return null;
-                            },
                           ),
                         ),
-                      ],
-                    ),
-                    const Gap(16),
-                    
-                    // Date of birth and Gender row
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
-                              final DateTime now = DateTime.now();
-                              final DateTime first = DateTime(now.year - 120);
-                              final DateTime last = now;
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate:
-                                    _dateOfBirth ?? DateTime(now.year - 30, 1, 1),
-                                firstDate: first,
-                                lastDate: last,
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _dateOfBirth = picked;
-                                });
-                              }
-                            },
-                            child: InputDecorator(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Full name and CNIC row
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _fullNameController,
+                                    textInputAction: TextInputAction.next,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: _translations['fullName'],
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.person_outline,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    validator: (v) =>
+                                        _requiredValidator(v, fieldName: _translations['fullName']!),
+                                  ),
+                                ),
+                                const Gap(16),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _cnicController,
+                                    keyboardType: TextInputType.number,
+                                    textInputAction: TextInputAction.next,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    readOnly: widget.isAddOthers && widget.relationshipType == 'Child' && widget.parentCnic != null,
+                                    decoration: InputDecoration(
+                                      labelText: _getCnicLabel(),
+                                      hintText: '12345-1234567-1',
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.badge_outlined,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    inputFormatters: <TextInputFormatter>[
+                                      _CnicInputFormatter(),
+                                    ],
+                                    validator: (value) {
+                                      // Skip validation for children as CNIC is pre-filled
+                                      if (widget.isAddOthers && widget.relationshipType == 'Child') {
+                                        return null;
+                                      }
+                                      final String? requiredResult =
+                                          _requiredValidator(value, fieldName: _translations['cnic']!);
+                                      if (requiredResult != null) return requiredResult;
+                                      final RegExp pattern =
+                                          RegExp(r'^\d{5}-\d{7}-\d{1}$');
+                                      if (!pattern.hasMatch(value!.trim())) {
+                                        return _translations['enterCnicFormat']!;
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Gap(20),
+                            
+                            // Date of birth and Gender row
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () async {
+                                      final DateTime now = DateTime.now();
+                                      final DateTime first = DateTime(now.year - 120);
+                                      final DateTime last = now;
+                                      final DateTime? picked = await showDatePicker(
+                                        context: context,
+                                        initialDate:
+                                            _dateOfBirth ?? DateTime(now.year - 30, 1, 1),
+                                        firstDate: first,
+                                        lastDate: last,
+                                      );
+                                      if (picked != null) {
+                                        setState(() {
+                                          _dateOfBirth = picked;
+                                        });
+                                      }
+                                    },
+                                    child: InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: _translations['dateOfBirth'],
+                                        prefixIcon: Container(
+                                          margin: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primaryContainer.withOpacity(0.5),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.calendar_today_outlined,
+                                            color: colorScheme.primary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: colorScheme.outline.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: colorScheme.outline.withOpacity(0.3),
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                          borderSide: BorderSide(
+                                            color: colorScheme.primary,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        filled: true,
+                                        fillColor: colorScheme.surfaceContainerHighest,
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 18,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _dateOfBirth == null
+                                            ? _translations['selectDate']!
+                                            : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const Gap(16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        _translations['gender']!,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const Gap(8),
+                                      Wrap(
+                                        spacing: 12,
+                                        children: <Widget>[
+                                          FilterChip(
+                                            label: Text(_translations['male']!),
+                                            selected: _gender == 'Male',
+                                            onSelected: (selected) {
+                                              setState(() =>
+                                                  _gender = selected ? 'Male' : null);
+                                            },
+                                            selectedColor: colorScheme.primaryContainer,
+                                            checkmarkColor: colorScheme.primary,
+                                          ),
+                                          FilterChip(
+                                            label: Text(_translations['female']!),
+                                            selected: _gender == 'Female',
+                                            onSelected: (selected) {
+                                              setState(() =>
+                                                  _gender = selected ? 'Female' : null);
+                                            },
+                                            selectedColor: colorScheme.primaryContainer,
+                                            checkmarkColor: colorScheme.primary,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Gap(20),
+                            
+                            // Email and Phone row
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    textInputAction: TextInputAction.next,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: _translations['emailOptional'],
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.email_outlined,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      // Only validate format if value is provided
+                                      if (value != null && value.trim().isNotEmpty) {
+                                        final String trimmed = value.trim();
+                                        final bool looksValid = RegExp(
+                                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                            .hasMatch(trimmed);
+                                        if (!looksValid) {
+                                          return _translations['enterValidEmail']!;
+                                        }
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const Gap(16),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    textInputAction: TextInputAction.next,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(11),
+                                    ],
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: _translations['phone'],
+                                      hintText: '03001234567',
+                                      prefixIcon: Container(
+                                        margin: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.primaryContainer.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.phone_outlined,
+                                          color: colorScheme.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.outline.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 18,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      final String? requiredResult =
+                                          _requiredValidator(value, fieldName: _translations['phone']!);
+                                      if (requiredResult != null) return requiredResult;
+                                      final String digits =
+                                          value!.replaceAll(RegExp(r'[^0-9]'), '');
+                                      if (digits.length != 11) {
+                                        return _translations['enterValidPhone']!;
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Gap(20),
+                            
+                            // Address field
+                            TextFormField(
+                              controller: _addressController,
+                              keyboardType: TextInputType.streetAddress,
+                              textInputAction: TextInputAction.next,
+                              readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurface,
+                              ),
                               decoration: InputDecoration(
-                                labelText: _translations['dateOfBirth'],
+                                labelText: _translations['addressOptional'],
+                                prefixIcon: Container(
+                                  margin: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    Icons.location_on_outlined,
+                                    color: colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                ),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.outline.withOpacity(0.3),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.outline.withOpacity(0.3),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.primary,
+                                    width: 2,
+                                  ),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: colorScheme.surfaceContainerHighest,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
-                                  vertical: 16,
+                                  vertical: 18,
+                                ),
+                                helperText: _translations['optional'],
+                                helperStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
-                              child: Text(
-                                _dateOfBirth == null
-                                    ? _translations['selectDate']!
-                                    : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
-                                style: const TextStyle(fontSize: 16),
+                              // No validator - field is optional
+                            ),
+                            const Gap(20),
+                            
+                            // Blood group field
+                            DropdownButtonFormField<String>(
+                              value: _bloodGroup,
+                              decoration: InputDecoration(
+                                labelText: _translations['bloodGroupOptional'],
+                                prefixIcon: Container(
+                                  margin: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    Icons.bloodtype_outlined,
+                                    color: colorScheme.primary,
+                                    size: 20,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.outline.withOpacity(0.3),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.outline.withOpacity(0.3),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: colorScheme.primary,
+                                    width: 2,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surfaceContainerHighest,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 18,
+                                ),
+                                helperText: _translations['optional'],
+                                helperStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
+                              items: [
+                                // Add a null option for "Not Selected"
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text(
+                                    _isUrdu ? 'منتخب نہیں کیا' : 'Not Selected',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                  ),
+                                ),
+                                const DropdownMenuItem<String>(value: 'A+', child: Text('A+')),
+                                const DropdownMenuItem<String>(value: 'A-', child: Text('A-')),
+                                const DropdownMenuItem<String>(value: 'B+', child: Text('B+')),
+                                const DropdownMenuItem<String>(value: 'B-', child: Text('B-')),
+                                const DropdownMenuItem<String>(value: 'AB+', child: Text('AB+')),
+                                const DropdownMenuItem<String>(value: 'AB-', child: Text('AB-')),
+                                const DropdownMenuItem<String>(value: 'O+', child: Text('O+')),
+                                const DropdownMenuItem<String>(value: 'O-', child: Text('O-')),
+                              ],
+                              onChanged: (value) => setState(() => _bloodGroup = value),
+                              // No validator - field is optional
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Gap(24),
+                    
+                    // Password fields - only show for Self registration (not for "Add Others")
+                    if (!widget.isAddOthers && _registrationType == 'Self') ...[
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: colorScheme.outline.withOpacity(0.1),
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white,
+                                Colors.white.withOpacity(0.95),
+                              ],
                             ),
                           ),
-                        ),
-                        const Gap(16),
-                        Expanded(
+                          padding: const EdgeInsets.all(24),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                _translations['gender']!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const Gap(8),
-                              Wrap(
-                                spacing: 12,
-                                children: <Widget>[
-                                  ChoiceChip(
-                                    label: Text(_translations['male']!),
-                                    selected: _gender == 'Male',
-                                    onSelected: (selected) {
-                                      setState(() =>
-                                          _gender = selected ? 'Male' : null);
-                                    },
-                                  ),
-                                  ChoiceChip(
-                                    label: Text(_translations['female']!),
-                                    selected: _gender == 'Female',
-                                    onSelected: (selected) {
-                                      setState(() =>
-                                          _gender = selected ? 'Female' : null);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    
-                    // Email and Phone row
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              // Password field
                               TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
                                 textInputAction: TextInputAction.next,
-                                style: const TextStyle(fontSize: 16),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurface,
+                                ),
                                 decoration: InputDecoration(
-                                  labelText: _translations['emailOptional'],
+                                  labelText: _translations['password'],
+                                  prefixIcon: Container(
+                                    margin: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.lock_outlined,
+                                      color: colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword 
+                                          ? Icons.visibility_outlined 
+                                          : Icons.visibility_off_outlined,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscurePassword = !_obscurePassword;
+                                      });
+                                    },
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                      width: 2,
+                                    ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: colorScheme.surfaceContainerHighest,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
-                                    vertical: 16,
+                                    vertical: 18,
                                   ),
                                 ),
-                                validator: (value) {
-                                  // Only validate format if value is provided
-                                  if (value != null && value.trim().isNotEmpty) {
-                                    final String trimmed = value.trim();
-                                    final bool looksValid = RegExp(
-                                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                        .hasMatch(trimmed);
-                                    if (!looksValid) {
-                                      return _translations['enterValidEmail']!;
-                                    }
-                                  }
-                                  return null;
-                                },
+                                validator: _validatePassword,
                               ),
-                              const Gap(4),
-                              Padding(
-                                padding: const EdgeInsets.only(left: 16),
+                              const Gap(20),
+                              
+                              // Confirm Password field
+                              TextFormField(
+                                controller: _confirmPasswordController,
+                                obscureText: _obscureConfirmPassword,
+                                textInputAction: TextInputAction.done,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme.onSurface,
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: _translations['confirmPassword'],
+                                  prefixIcon: Container(
+                                    margin: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.primaryContainer.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.lock_outlined,
+                                      color: colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirmPassword 
+                                          ? Icons.visibility_outlined 
+                                          : Icons.visibility_off_outlined,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                                      });
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.outline.withOpacity(0.3),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  filled: true,
+                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 18,
+                                  ),
+                                ),
+                                validator: _validateConfirmPassword,
+                              ),
+                              const Gap(12),
+                              
+                              // Password requirements hint
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Icon(
                                       Icons.info_outline,
-                                      size: 14,
-                                      color: Colors.grey.shade600,
+                                      size: 16,
+                                      color: colorScheme.primary,
                                     ),
-                                    const Gap(4),
-                                    Text(
-                                      _translations['optional']!,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                        fontStyle: FontStyle.italic,
+                                    const Gap(8),
+                                    Expanded(
+                                      child: Text(
+                                        _translations['passwordRequirements']!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -1514,295 +2232,50 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             ],
                           ),
                         ),
-                        const Gap(16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.next,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(11),
-                            ],
-                            style: const TextStyle(fontSize: 16),
-                            decoration: InputDecoration(
-                              labelText: _translations['phone'],
-                              hintText: '03001234567',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            validator: (value) {
-                              final String? requiredResult =
-                                  _requiredValidator(value, fieldName: _translations['phone']!);
-                              if (requiredResult != null) return requiredResult;
-                              final String digits =
-                                  value!.replaceAll(RegExp(r'[^0-9]'), '');
-                              if (digits.length != 11) {
-                                return _translations['enterValidPhone']!;
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    
-                    // Address field
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextFormField(
-                          controller: _addressController,
-                          keyboardType: TextInputType.streetAddress,
-                          textInputAction: TextInputAction.next,
-                          readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
-                          style: const TextStyle(fontSize: 16),
-                          decoration: InputDecoration(
-                            labelText: _translations['addressOptional'],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                          ),
-                          // No validator - field is optional
-                        ),
-                        const Gap(4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                              const Gap(4),
-                              Text(
-                                _translations['optional']!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    
-                    // Blood group field
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        DropdownButtonFormField<String>(
-                          value: _bloodGroup,
-                          decoration: InputDecoration(
-                            labelText: _translations['bloodGroupOptional'],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                          ),
-                          items: [
-                            // Add a null option for "Not Selected"
-                            DropdownMenuItem<String>(
-                              value: null,
-                              child: Text(
-                                _isUrdu ? 'منتخب نہیں کیا' : 'Not Selected',
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                            ),
-                            const DropdownMenuItem<String>(value: 'A+', child: Text('A+')),
-                            const DropdownMenuItem<String>(value: 'A-', child: Text('A-')),
-                            const DropdownMenuItem<String>(value: 'B+', child: Text('B+')),
-                            const DropdownMenuItem<String>(value: 'B-', child: Text('B-')),
-                            const DropdownMenuItem<String>(value: 'AB+', child: Text('AB+')),
-                            const DropdownMenuItem<String>(value: 'AB-', child: Text('AB-')),
-                            const DropdownMenuItem<String>(value: 'O+', child: Text('O+')),
-                            const DropdownMenuItem<String>(value: 'O-', child: Text('O-')),
-                          ],
-                          onChanged: (value) => setState(() => _bloodGroup = value),
-                          // No validator - field is optional
-                        ),
-                        const Gap(4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                              const Gap(4),
-                              Text(
-                                _translations['optional']!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Gap(16),
-                    
-                    // Password fields - only show for Self registration (not for "Add Others")
-                    if (!widget.isAddOthers && _registrationType == 'Self') ...[
-                      // Password field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.next,
-                        style: const TextStyle(fontSize: 16),
-                        decoration: InputDecoration(
-                          labelText: _translations['password'],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                        ),
-                        validator: _validatePassword,
                       ),
-                      const Gap(16),
-                      
-                      // Confirm Password field
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        textInputAction: TextInputAction.done,
-                        style: const TextStyle(fontSize: 16),
-                        decoration: InputDecoration(
-                          labelText: _translations['confirmPassword'],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                        ),
-                        validator: _validateConfirmPassword,
-                      ),
-                      const Gap(8),
-                      
-                      // Password requirements hint
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            const Gap(4),
-                            Expanded(
-                              child: Text(
-                                _translations['passwordRequirements']!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Gap(16),
+                      const Gap(24),
                     ],
                     
-                    const Gap(32),
-                    
                     // Submit button
-                    SizedBox(
-                      height: 56,
-                      child: FilledButton(
-                        onPressed: _isSubmitting ? null : _handleSubmit,
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                    FilledButton.icon(
+                      onPressed: _isSubmitting ? null : _handleSubmit,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator.adaptive(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Text(
-                                _translations['completeRegistration']!,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
+                        minimumSize: const Size(double.infinity, 56),
+                      ),
+                      icon: _isSubmitting
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  colorScheme.onPrimary,
                                 ),
                               ),
-                      ),
+                            )
+                          : const Icon(Icons.check_circle_outline, size: 20),
+                      label: _isSubmitting
+                          ? const Text('Registering...')
+                          : Text(
+                              _translations['completeRegistration']!,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
-                    const Gap(40),
+                    const Gap(24),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
       ),
     );
   }

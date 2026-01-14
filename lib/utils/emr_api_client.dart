@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'api_config.dart';
 import '../services/auth_service.dart';
 
@@ -10,7 +12,81 @@ class EmrApiClient {
 
   EmrApiClient({String? baseUrl, http.Client? client})
       : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
-        _client = client ?? http.Client();
+        _client = client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl());
+
+  /// Creates an HTTP client with appropriate SSL certificate handling
+  /// - For development URLs (localhost, private IPs): Bypasses SSL validation
+  /// - For production URLs: Uses standard certificate validation
+  static http.Client _createHttpClient(String url) {
+    // Check if this is a development/local URL
+    // Matches: localhost, 127.0.0.1, 10.0.2.2 (emulator), and private IP ranges
+    final isDevelopmentUrl = _isDevelopmentUrl(url);
+    
+    // For development URLs with HTTPS, create a client that bypasses SSL validation
+    if (isDevelopmentUrl && url.startsWith('https://')) {
+      final httpClient = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+          // WARNING: Only bypasses SSL for development URLs
+          // This allows self-signed certificates in development environments
+          // Safe for emulator and local network testing on real devices
+          print('⚠️ SSL Certificate validation bypassed for development URL: $host:$port');
+          return true;
+        };
+      return IOClient(httpClient);
+    }
+    
+    // For production URLs, use standard HTTP client with proper certificate validation
+    return http.Client();
+  }
+  
+  /// Determines if a URL is a development/local URL
+  /// Returns true for localhost, loopback, emulator, and private IP ranges
+  static bool _isDevelopmentUrl(String url) {
+    // Extract host from URL
+    try {
+      final uri = Uri.parse(url);
+      final host = uri.host.toLowerCase();
+      
+      // Check for localhost variants
+      if (host == 'localhost' || host == '127.0.0.1' || host == '::1') {
+        return true;
+      }
+      
+      // Check for Android emulator host
+      if (host == '10.0.2.2') {
+        return true;
+      }
+      
+      // Check for private IP ranges (RFC 1918)
+      // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+      final parts = host.split('.');
+      if (parts.length == 4) {
+        try {
+          final octet1 = int.parse(parts[0]);
+          final octet2 = int.parse(parts[1]);
+          
+          // 10.0.0.0/8
+          if (octet1 == 10) return true;
+          
+          // 172.16.0.0/12
+          if (octet1 == 172 && octet2 >= 16 && octet2 <= 31) return true;
+          
+          // 192.168.0.0/16
+          if (octet1 == 192 && octet2 == 168) return true;
+        } catch (e) {
+          // Not a valid IP, continue
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      // If URL parsing fails, check string contains common development patterns
+      return url.contains('localhost') || 
+             url.contains('127.0.0.1') || 
+             url.contains('10.0.2.2') ||
+             url.contains('192.168.');
+    }
+  }
 
   Future<Map<String, String>> _getAuthHeaders() async {
     return await AuthService.instance.getAuthHeaders();
