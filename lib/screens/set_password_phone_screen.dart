@@ -22,7 +22,6 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
-  String? _storedOtp; // Store OTP for verification
 
   @override
   void initState() {
@@ -255,16 +254,11 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
     });
 
     try {
-      // Generate a 4-digit OTP (same as registration flow)
-      final otp = _generateOtp();
-      _storedOtp = otp;
-      
-      // Send OTP via SMS API (same endpoint as registration)
+      // Request OTP from backend (backend generates and sends OTP)
       bool smsSentSuccessfully = false;
       try {
-        await _apiClient!.sendRegistrationOtp(
+        await _apiClient!.requestRegistrationOtp(
           phoneNumber: phoneNumber,
-          otp: otp,
         );
         
         // If we get here without exception, the API call succeeded
@@ -337,7 +331,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
             builder: (context) => SetPasswordOtpScreen(
               cnic: widget.cnic,
               phoneNumber: phoneNumber,
-              expectedOtp: otp, // Pass OTP for verification
+              expectedOtp: null, // OTP is now verified via backend
             ),
           ),
         );
@@ -365,11 +359,6 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
     }
   }
 
-  String _generateOtp() {
-    // Generate a 4-digit OTP (same as registration)
-    final random = DateTime.now().millisecondsSinceEpoch % 10000;
-    return random.toString().padLeft(4, '0');
-  }
 }
 
 

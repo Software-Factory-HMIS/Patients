@@ -871,17 +871,15 @@ class EmrApiClient {
     }
   }
 
-  // Send registration OTP SMS
-  Future<void> sendRegistrationOtp({
+  // Request registration OTP (backend generates and sends OTP)
+  Future<void> requestRegistrationOtp({
     required String phoneNumber,
-    required String otp,
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
     try {
       
       final body = {
         'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
-        'otp': otp,
       };
       
       // Increase timeout to 30 seconds for SMS operations
@@ -939,6 +937,50 @@ class EmrApiClient {
     } catch (e) {
       // Don't rethrow - let the fallback mechanism handle it
       // The backend now returns success even if SMS fails, with OTP in message
+      rethrow;
+    }
+  }
+
+  // Verify registration OTP
+  Future<Map<String, dynamic>> verifyRegistrationOtp({
+    required String phoneNumber,
+    required String otpCode,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/verify-registration');
+    try {
+      final body = {
+        'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
+        'code': otpCode.trim(),
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Invalid OTP';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception(errorMessage);
+    } catch (e) {
       rethrow;
     }
   }

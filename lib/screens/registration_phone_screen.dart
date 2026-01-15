@@ -18,7 +18,6 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
-  String? _storedOtp; // Store OTP for verification
 
   @override
   void initState() {
@@ -251,16 +250,11 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     });
 
     try {
-      // Generate a simple OTP for registration (4 digits)
-      final otp = _generateRegistrationOtp();
-      _storedOtp = otp;
-      
-      // Send OTP via SMS API
+      // Request OTP from backend (backend generates and sends OTP)
       bool smsSentSuccessfully = false;
       try {
-        await _apiClient!.sendRegistrationOtp(
+        await _apiClient!.requestRegistrationOtp(
           phoneNumber: phoneNumber,
-          otp: otp,
         );
         
         // If we get here without exception, the API call succeeded
@@ -335,7 +329,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           MaterialPageRoute(
             builder: (context) => RegistrationOtpScreen(
               phoneNumber: phoneNumber,
-              expectedOtp: otp, // Pass OTP for verification
+              expectedOtp: null, // OTP is now verified via backend
             ),
           ),
         );
@@ -359,10 +353,5 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     }
   }
 
-  String _generateRegistrationOtp() {
-    // Generate a 4-digit OTP
-    final random = DateTime.now().millisecondsSinceEpoch % 10000;
-    return random.toString().padLeft(4, '0');
-  }
 }
 

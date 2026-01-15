@@ -259,7 +259,7 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
       return;
     }
     
-    // Verify OTP matches expected value or verify via API
+    // If expectedOtp is provided (legacy support), verify locally first
     if (widget.expectedOtp != null && otpCode != widget.expectedOtp) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -272,15 +272,20 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
       return;
     }
     
-    // If expectedOtp is null, verify via API
-    if (widget.expectedOtp == null && _apiClient != null) {
+    // Verify OTP via backend API
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+    
+    if (_apiClient != null) {
       setState(() {
         _loading = true;
       });
       
       try {
-        await _apiClient!.verifyOtp(
-          cnic: widget.cnic,
+        // Use verifyRegistrationOtp for registration OTP verification
+        await _apiClient!.verifyRegistrationOtp(
+          phoneNumber: widget.phoneNumber,
           otpCode: otpCode,
         );
       } catch (e) {
@@ -292,6 +297,19 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Invalid OTP: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    } else {
+      // Fallback: if API client failed to initialize and expectedOtp is null, show error
+      if (widget.expectedOtp == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to verify OTP. Please try again.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -321,13 +339,46 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
     }
   }
 
-  void _handleResendOtp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('OTP resent to your registered number'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  Future<void> _handleResendOtp() async {
+    if (_apiClient == null) {
+      await _initializeApiClient();
+    }
+    
+    if (_apiClient == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initialize API client'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    try {
+      await _apiClient!.requestRegistrationOtp(
+        phoneNumber: widget.phoneNumber,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('OTP resent to your registered number'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to resend OTP: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
