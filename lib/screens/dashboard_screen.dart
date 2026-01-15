@@ -338,114 +338,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     }
   }
 
-  void _showDebugDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'API Debug Data',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const Divider(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDebugSection('MRN', widget.cnic),
-                      _buildDebugSection('Patient Data', _patient),
-                      _buildDebugSection('Vitals Data', _vitals),
-                      _buildDebugSection('Medications Data', _medications),
-                      _buildDebugSection('OPD Data', _opd),
-                      _buildDebugSection('IPD Data', _ipd),
-                      _buildDebugSection('Labs Data', _labs),
-                      _buildDebugSection('Radiology Data', _radiology),
-                      _buildDebugSection('Surgery Data', _surgery),
-                      _buildDebugSection('Error', _error),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDebugSection(String title, dynamic data) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue.shade700,
-            ),
-          ),
-          const Gap(8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              data == null
-                  ? 'No data'
-                  : data is String
-                      ? data
-                      : _formatJson(data),
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatJson(dynamic data) {
-    try {
-      if (data is Map || data is List) {
-        // Convert to pretty-printed JSON
-        const encoder = JsonEncoder.withIndent('  ');
-        return encoder.convert(data);
-      }
-      return data.toString();
-    } catch (e) {
-      return data.toString();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -467,14 +359,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
           ),
         ),
         actions: [
-          if (_currentNavIndex == 1) ...[
-            // Debug button for Medical Records
-            IconButton(
-              icon: const Icon(Icons.bug_report_outlined),
-              onPressed: _showDebugDialog,
-              tooltip: 'Debug API Data',
-            ),
-          ],
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             onPressed: () async {
