@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import 'registration_otp_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/api_config.dart';
 
 class RegistrationPhoneScreen extends StatefulWidget {
   const RegistrationPhoneScreen({super.key});
@@ -217,6 +218,47 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                       ),
                     ),
                     
+                    // Debug info (only in debug mode)
+                    if (kDebugMode) ...[
+                      const Gap(16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Debug Info',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'API Base URL: ${resolveEmrBaseUrl()}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                                color: Colors.blue.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    
                     const Gap(40),
                   ],
                 ),
@@ -266,6 +308,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
       _loading = true;
     });
 
+    // First, test connection if we get a network error
     try {
       // Request OTP from server (server generates and sends via SMS)
       final response = await _apiClient!.requestRegistrationOtp(phoneNumber: phoneNumber);
@@ -309,31 +352,86 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error requesting registration OTP: $e');
+      debugPrint('❌ Error requesting registration OTP: $e');
       if (mounted) {
-        String errorMessage = 'Failed to send OTP';
         final errorStr = e.toString();
+        String userMessage = 'Failed to send OTP';
+        String? debugDetails;
+        bool isNetworkError = errorStr.contains('Network error') || 
+                             errorStr.contains('ClientException') ||
+                             errorStr.contains('Connection failed');
         
-        // Check for cooldown message
-        if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
-          errorMessage = 'Please wait before requesting another OTP.';
-        } else if (errorStr.contains('Invalid phone') || errorStr.contains('Invalid request')) {
-          errorMessage = 'Invalid phone number format.';
-        } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
-          errorMessage = 'Invalid request. Please check your phone number.';
-        } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
-          errorMessage = 'Server error. Please try again later.';
+        // If it's a network error, test the connection first
+        if (isNetworkError && _apiClient != null) {
+          try {
+            debugPrint('🔍 Testing server connection...');
+            final connectionTest = await _apiClient!.testConnection();
+            debugPrint('📊 Connection test result: $connectionTest');
+            
+            if (connectionTest['connected'] == false) {
+              // Build detailed connection diagnostics
+              final buffer = StringBuffer();
+              buffer.writeln('Connection Test Failed');
+              buffer.writeln('====================');
+              buffer.writeln('Base URL: ${connectionTest['baseUrl']}');
+              buffer.writeln('Test Endpoint: ${connectionTest['testEndpoint']}');
+              buffer.writeln('Message: ${connectionTest['message']}');
+              
+              if (connectionTest.containsKey('testEndpointError')) {
+                buffer.writeln('\nTest Endpoint Error:');
+                buffer.writeln('  ${connectionTest['testEndpointError']}');
+              }
+              if (connectionTest.containsKey('healthEndpointError')) {
+                buffer.writeln('\nHealth Endpoint Error:');
+                buffer.writeln('  ${connectionTest['healthEndpointError']}');
+              }
+              if (connectionTest.containsKey('timeout')) {
+                buffer.writeln('\n⚠️ Connection timeout - server may be unreachable');
+              }
+              if (connectionTest.containsKey('networkError')) {
+                buffer.writeln('\n⚠️ Network error - check internet connection');
+              }
+              
+              debugDetails = buffer.toString();
+              userMessage = 'Cannot connect to server. See diagnostics below.';
+            } else {
+              // Connection test passed, so the error is something else
+              debugDetails = errorStr;
+            }
+          } catch (testError) {
+            debugPrint('⚠️ Connection test also failed: $testError');
+            debugDetails = 'Original Error:\n$errorStr\n\nConnection Test Error:\n$testError';
+          }
         } else {
-          errorMessage = 'Failed to send OTP. Please check your phone number and try again.';
+          // Extract user-friendly message and debug details
+          if (errorStr.contains('Debug Info:')) {
+            final parts = errorStr.split('Debug Info:');
+            userMessage = parts[0].trim();
+            debugDetails = parts.length > 1 ? parts[1].trim() : null;
+          } else {
+            // Check for specific error types
+            if (errorStr.contains('wait') || errorStr.contains('cooldown')) {
+              userMessage = 'Please wait before requesting another OTP.';
+            } else if (errorStr.contains('Invalid phone') || errorStr.contains('Invalid request')) {
+              userMessage = 'Invalid phone number format.';
+            } else if (errorStr.contains('400') || errorStr.contains('Bad Request')) {
+              userMessage = 'Invalid request. Please check your phone number.';
+              debugDetails = errorStr;
+            } else if (errorStr.contains('500') || errorStr.contains('Internal Server')) {
+              userMessage = 'Server error occurred. See details below.';
+              debugDetails = errorStr;
+            } else if (errorStr.contains('timeout') || errorStr.contains('Timeout')) {
+              userMessage = 'Request timed out. Please check your internet connection.';
+              debugDetails = errorStr;
+            } else {
+              userMessage = 'Failed to send OTP. See error details below.';
+              debugDetails = errorStr;
+            }
+          }
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        // Show detailed error dialog for debugging
+        _showErrorDialog(context, userMessage, debugDetails ?? errorStr);
       }
     } finally {
       if (mounted) {
@@ -342,6 +440,110 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         });
       }
     }
+  }
+
+  void _showErrorDialog(BuildContext context, String userMessage, String debugDetails) {
+    final baseUrl = resolveEmrBaseUrl();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade700),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Error',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                userMessage,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.link, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Base URL: $baseUrl',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              ExpansionTile(
+                title: const Text(
+                  'Debug Information',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                initiallyExpanded: true, // Expanded by default for easier debugging
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: SelectableText(
+                      debugDetails,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Copy to clipboard
+              Clipboard.setData(ClipboardData(text: debugDetails));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Error details copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Copy Details'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

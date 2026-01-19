@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -12,6 +13,164 @@ class EmrApiClient {
   EmrApiClient({String? baseUrl, http.Client? client})
       : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
         _client = client ?? createHttpClient(baseUrl ?? resolveEmrBaseUrl());
+
+  /// Test connection to the server
+  /// Returns a map with connection status and diagnostic information
+  Future<Map<String, dynamic>> testConnection() async {
+    final testUri = Uri.parse('$baseUrl/api/test');
+    final healthUri = Uri.parse('$baseUrl/api/test/health');
+    
+    final diagnostics = <String, dynamic>{
+      'baseUrl': baseUrl,
+      'testEndpoint': testUri.toString(),
+      'healthEndpoint': healthUri.toString(),
+      'timestamp': DateTime.now().toIso8601String(),
+      'alternativesTested': <String>[],
+    };
+    
+    try {
+      print('🔍 Testing connection to: $testUri');
+      
+      // Try the test endpoint first
+      try {
+        final testRes = await _client
+            .get(testUri, headers: {'Content-Type': 'application/json'})
+            .timeout(const Duration(seconds: 10));
+        
+        diagnostics['testEndpointStatus'] = testRes.statusCode;
+        diagnostics['testEndpointSuccess'] = testRes.statusCode >= 200 && testRes.statusCode < 300;
+        
+        if (testRes.statusCode >= 200 && testRes.statusCode < 300) {
+          try {
+            final response = json.decode(testRes.body) as Map<String, dynamic>;
+            diagnostics['testResponse'] = response;
+            diagnostics['connected'] = true;
+            diagnostics['message'] = 'Successfully connected to server';
+            return diagnostics;
+          } catch (e) {
+            diagnostics['testResponseParseError'] = e.toString();
+          }
+        } else {
+          diagnostics['testResponseBody'] = testRes.body.length > 200 
+              ? testRes.body.substring(0, 200) + '...' 
+              : testRes.body;
+        }
+      } catch (e) {
+        diagnostics['testEndpointError'] = e.toString();
+        print('⚠️ Test endpoint failed: $e');
+        
+        // If it's a socket error, try alternative URL formats
+        if (e.toString().contains('Socket') || e.toString().contains('Connection failed')) {
+          diagnostics['socketError'] = true;
+          await _testAlternativeUrls(diagnostics);
+        }
+      }
+      
+      // Try the health endpoint as fallback
+      try {
+        final healthRes = await _client
+            .get(healthUri, headers: {'Content-Type': 'application/json'})
+            .timeout(const Duration(seconds: 10));
+        
+        diagnostics['healthEndpointStatus'] = healthRes.statusCode;
+        diagnostics['healthEndpointSuccess'] = healthRes.statusCode >= 200 && healthRes.statusCode < 300;
+        
+        if (healthRes.statusCode >= 200 && healthRes.statusCode < 300) {
+          diagnostics['connected'] = true;
+          diagnostics['message'] = 'Server is reachable (health check)';
+          return diagnostics;
+        }
+      } catch (e) {
+        diagnostics['healthEndpointError'] = e.toString();
+        print('⚠️ Health endpoint failed: $e');
+      }
+      
+      // If we get here, connection failed
+      diagnostics['connected'] = false;
+      if (!diagnostics.containsKey('message')) {
+        diagnostics['message'] = 'Failed to connect to server';
+      }
+      
+      return diagnostics;
+    } on TimeoutException {
+      diagnostics['connected'] = false;
+      diagnostics['timeout'] = true;
+      diagnostics['message'] = 'Connection timeout - server may be unreachable or slow';
+      return diagnostics;
+    } on http.ClientException catch (e) {
+      diagnostics['connected'] = false;
+      diagnostics['networkError'] = true;
+      diagnostics['socketError'] = e.toString().contains('Socket') || e.toString().contains('Connection failed');
+      diagnostics['error'] = e.toString();
+      diagnostics['message'] = 'Network error: ${e.message}';
+      
+      // Test alternative URLs if socket error
+      if (diagnostics['socketError'] == true) {
+        await _testAlternativeUrls(diagnostics);
+      }
+      
+      return diagnostics;
+    } catch (e) {
+      diagnostics['connected'] = false;
+      diagnostics['error'] = e.toString();
+      diagnostics['message'] = 'Unexpected error: $e';
+      
+      // Test alternative URLs if socket error
+      if (e.toString().contains('Socket') || e.toString().contains('Connection failed')) {
+        diagnostics['socketError'] = true;
+        await _testAlternativeUrls(diagnostics);
+      }
+      
+      return diagnostics;
+    }
+  }
+
+  /// Test alternative URL formats when socket connection fails
+  Future<void> _testAlternativeUrls(Map<String, dynamic> diagnostics) async {
+    final alternatives = <String>[];
+    final baseUri = Uri.parse(baseUrl);
+    final host = baseUri.host;
+    final path = baseUri.path;
+    
+    // Try different URL variations
+    final urlVariations = [
+      'http://$host:80$path',           // Explicit port 80
+      'http://$host$path',               // Current (already tested)
+      'http://$host:5287$path',         // HTTP port from config
+      'http://$host:7287$path',         // HTTPS port (as HTTP)
+      'https://$host:7287$path',         // HTTPS
+      'http://$host',                    // Without path
+      'http://$host:80',                 // Without path, explicit port
+    ];
+    
+    for (final altUrl in urlVariations) {
+      if (altUrl == baseUrl) continue; // Skip the one we already tested
+      
+      try {
+        final testUri = Uri.parse('$altUrl/api/test/health');
+        alternatives.add('Testing: $testUri');
+        print('🔄 Trying alternative URL: $testUri');
+        
+        final testClient = createHttpClient(altUrl);
+        final res = await testClient
+            .get(testUri, headers: {'Content-Type': 'application/json'})
+            .timeout(const Duration(seconds: 5));
+        
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          alternatives.add('✅ SUCCESS: $altUrl');
+          diagnostics['workingUrl'] = altUrl;
+          diagnostics['message'] = 'Found working URL: $altUrl';
+          break;
+        } else {
+          alternatives.add('❌ Failed ($altUrl): Status ${res.statusCode}');
+        }
+      } catch (e) {
+        alternatives.add('❌ Failed ($altUrl): ${e.toString().split('\n').first}');
+      }
+    }
+    
+    diagnostics['alternativesTested'] = alternatives;
+  }
 
   Future<Map<String, String>> _getAuthHeaders() async {
     return await AuthService.instance.getAuthHeaders();
@@ -146,6 +305,9 @@ class EmrApiClient {
       final uri = Uri.parse('$baseUrl/api/patient-auth/login');
       
       try {
+        print('📤 Login Request');
+        print('   URL: $uri');
+        print('   CNIC: $cleanedCnic');
         
         final body = json.encode({
           'cnic': cleanedCnic,
@@ -157,6 +319,9 @@ class EmrApiClient {
           headers: {'Content-Type': 'application/json'},
           body: body,
         ).timeout(const Duration(seconds: 15));
+        
+        print('📥 Login Response Status: ${res.statusCode}');
+        print('   Body: ${res.body.length > 200 ? res.body.substring(0, 200) + "..." : res.body}');
         
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -188,7 +353,29 @@ class EmrApiClient {
         }
         
         throw Exception('Failed to login (${res.statusCode}): ${res.body}');
+      } on TimeoutException {
+        print('⏱️ Login timeout');
+        throw Exception('Login request timeout. Please check your internet connection and try again.\n\nURL: $uri');
+      } on http.ClientException catch (e) {
+        print('🌐 Login network error: $e');
+        final errorMsg = e.toString();
+        if (errorMsg.contains('Socket') || errorMsg.contains('Connection failed')) {
+          throw Exception('Cannot connect to server. Socket connection failed.\n\n'
+              'This usually means:\n'
+              '- Server is not running\n'
+              '- Wrong server address\n'
+              '- Network/firewall blocking connection\n'
+              '- Incorrect URL path\n\n'
+              'URL: $uri\n'
+              'Error: ${e.message}');
+        }
+        throw Exception('Network error during login: ${e.message}\n\nPlease check your internet connection.\nURL: $uri');
       } catch (e) {
+        if (e.toString().contains('Socket') || e.toString().contains('Connection failed')) {
+          throw Exception('Cannot connect to server. Socket connection failed.\n\n'
+              'URL: $uri\n'
+              'Error: $e');
+        }
         rethrow;
       }
     } else {
@@ -807,35 +994,87 @@ class EmrApiClient {
         'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
       };
       
+      final bodyJson = json.encode(body);
+      print('📤 Request Registration OTP');
+      print('   URL: $uri');
+      print('   Body: $bodyJson');
+      
       final res = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
+        body: bodyJson,
       ).timeout(const Duration(seconds: 15));
       
+      print('📥 Response Status: ${res.statusCode}');
+      print('   Headers: ${res.headers}');
+      print('   Body: ${res.body}');
+      
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as Map<String, dynamic>;
+        try {
+          final response = json.decode(res.body) as Map<String, dynamic>;
+          // Handle API response wrapper if present
+          if (response.containsKey('data')) {
+            return response['data'] as Map<String, dynamic>;
+          }
+          return response;
+        } catch (e) {
+          print('⚠️ Error parsing success response: $e');
+          throw Exception('Invalid response format from server');
         }
-        return response;
       }
       
-      // Parse error message
+      // Parse error message with detailed information
       String errorMessage = 'Failed to request registration OTP';
+      String? detailedError;
+      Map<String, dynamic>? errorData;
+      
       try {
         final errorResponse = json.decode(res.body) as Map<String, dynamic>;
         errorMessage = errorResponse['message'] as String? ?? 
                       errorResponse['error'] as String? ?? 
                       errorMessage;
+        
+        // Extract detailed error information
+        if (errorResponse.containsKey('data')) {
+          errorData = errorResponse['data'] as Map<String, dynamic>?;
+        }
+        
+        // Build detailed error message
+        final buffer = StringBuffer();
+        buffer.writeln('HTTP ${res.statusCode} Error');
+        buffer.writeln('URL: $uri');
+        buffer.writeln('Message: $errorMessage');
+        
+        if (errorData != null) {
+          buffer.writeln('Error Details:');
+          errorData.forEach((key, value) {
+            buffer.writeln('  $key: $value');
+          });
+        }
+        
+        if (res.body.length < 500) {
+          buffer.writeln('Response Body: ${res.body}');
+        }
+        
+        detailedError = buffer.toString();
       } catch (e) {
-        errorMessage = res.body;
+        detailedError = 'Status: ${res.statusCode}\nURL: $uri\nResponse: ${res.body.length > 200 ? res.body.substring(0, 200) + "..." : res.body}';
       }
       
-      throw Exception('$errorMessage (${res.statusCode})');
+      final fullError = '${errorMessage}\n\nDebug Info:\n$detailedError';
+      throw Exception(fullError);
+    } on TimeoutException {
+      print('⏱️ Request timeout');
+      throw Exception('Request timeout. Please check your internet connection and try again.\n\nURL: $uri');
+    } on http.ClientException catch (e) {
+      print('🌐 Network error: $e');
+      throw Exception('Network error: ${e.message}\n\nPlease check your internet connection.\nURL: $uri');
     } catch (e) {
-      rethrow;
+      print('❌ Error: $e');
+      if (e is Exception && e.toString().contains('Debug Info:')) {
+        rethrow; // Already has detailed info
+      }
+      throw Exception('Unexpected error: ${e.toString()}\n\nURL: $uri');
     }
   }
 

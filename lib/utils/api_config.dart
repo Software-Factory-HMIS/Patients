@@ -14,12 +14,23 @@ import 'dart:io' show Platform if (dart.library.html) 'dart:html';
 /// - Android Physical Device: Use your machine's IP address (e.g., https://192.168.1.100:7287)
 /// - iOS Simulator: https://localhost:7287
 /// - iOS Physical Device: Use your machine's IP address
+/// 
+/// For server deployment (Tailscale):
+/// - Set TAILSCALE_IP constant below, or
+/// - Use --dart-define=EMR_BASE_URL=http://YOUR_TAILSCALE_IP/HMIS
+
+/// Tailscale IP address for server deployment
+/// Replace with your actual Tailscale IP (e.g., '100.98.154.101')
+/// Leave empty to use environment variable or localhost defaults
+const String TAILSCALE_IP = '100.98.154.101'; // Server Tailscale IP
+const String SERVER_PATH = '/HMIS'; // Server path prefix
 
 /// Resolves the EMR base URL for API connections.
 /// 
 /// Priority:
 /// 1. EMR_BASE_URL environment variable (if set during build)
-/// 2. Platform-specific default URL
+/// 2. Server deployment URL (Tailscale IP) - for demo/production
+/// 3. Platform-specific default URL
 /// 
 /// Returns the base URL string for the EMR API service.
 String resolveEmrBaseUrl() {
@@ -28,7 +39,20 @@ String resolveEmrBaseUrl() {
     return defined;
   }
 
-  // Platform-specific defaults
+  // For server deployment: Use Tailscale IP
+  // Priority: TAILSCALE_IP constant > EMR_BASE_URL env var > localhost defaults
+  if (TAILSCALE_IP.isNotEmpty) {
+    // Use HTTP with /HMIS path prefix for server deployment
+    return 'http://$TAILSCALE_IP$SERVER_PATH';
+  }
+  
+  // Also check SERVER_IP environment variable as fallback
+  const String serverIp = String.fromEnvironment('SERVER_IP', defaultValue: '');
+  if (serverIp.isNotEmpty) {
+    return 'http://$serverIp$SERVER_PATH';
+  }
+
+  // Platform-specific defaults (for local development)
   if (kIsWeb) {
     // Web platform - use localhost
     return 'https://localhost:7287';

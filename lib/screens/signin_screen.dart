@@ -533,48 +533,79 @@ class _SignInScreenState extends State<SignInScreen> {
     } catch (e) {
       if (!mounted) return;
       
-      
       setState(() {
         _loading = false;
       });
       
       // Extract error message
       String errorMessage = e.toString();
+      String? debugDetails;
+      bool isNetworkError = false;
+      
       if (errorMessage.contains('Exception: ')) {
         errorMessage = errorMessage.replaceAll('Exception: ', '');
       }
+      
       if (errorMessage.contains('No patients found')) {
         // If it's a "not found" error, show the dialog instead
         _showNoPatientsFoundDialog(cnic);
         return;
       }
       
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+      // Check for socket/network errors
+      if (errorMessage.contains('Socket') || 
+          errorMessage.contains('Connection failed') ||
+          errorMessage.contains('Operation not permitted') ||
+          errorMessage.contains('ClientException')) {
+        isNetworkError = true;
+        debugDetails = errorMessage;
+        
+        // Provide user-friendly message with troubleshooting
+        errorMessage = 'Cannot connect to server.\n\n'
+            'Possible causes:\n'
+            '• Server is not running\n'
+            '• Network connection issue\n'
+            '• Firewall blocking connection\n'
+            '• Incorrect server address\n\n'
+            'Tap for details';
+      } else if (errorMessage.contains('timeout') || errorMessage.contains('Timeout')) {
+        errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+      } else if (errorMessage.contains('Network error')) {
+        isNetworkError = true;
+        errorMessage = 'Network error. Please check your internet connection.';
+        debugDetails = e.toString();
+      }
+      
+      // Show error message with option to see details
+      if (isNetworkError && debugDetails != null) {
+        _showNetworkErrorDialog(context, errorMessage, debugDetails);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorMessage,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _handleSignIn(),
+            ),
           ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => _handleSignIn(),
-          ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -612,6 +643,116 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
       );
     }
+  }
+
+  void _showNetworkErrorDialog(BuildContext context, String userMessage, String debugDetails) {
+    final baseUrl = resolveEmrBaseUrl();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade700),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Connection Error',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                userMessage,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.link, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Server URL: $baseUrl',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              ExpansionTile(
+                title: const Text(
+                  'Technical Details',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                initiallyExpanded: false,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: SelectableText(
+                      debugDetails,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Clipboard.setData(ClipboardData(text: debugDetails));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Error details copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Copy Details'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _handleSignIn();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showNoPatientsFoundDialog(String cnic) {
