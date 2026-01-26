@@ -4,8 +4,10 @@
 			"path": "../.."
 		},
 		{
-			"path": "../../../../EMR"
+			"path": "../../../../App-Security-and-HR"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"powershell.cwd": "patients"
+	}
 }
