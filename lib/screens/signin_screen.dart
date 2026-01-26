@@ -83,63 +83,63 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
         child: SafeArea(
-          child: KeyboardInsetPadding(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Padding(
+        child: KeyboardInsetPadding(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
                       const Gap(20),
-                      
+                    
                       // Logo area with modern styling
-                      Center(
+                    Center(
                         child: Container(
                           width: 200,
                           height: 200,
                           padding: const EdgeInsets.all(20),
-                          child: Image.asset(
-                            'assets/images/punjab.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
+                        child: Image.asset(
+                          'assets/images/punjab.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
                                 Icons.local_hospital_rounded,
                                 size: 100,
                                 color: colorScheme.primary,
-                              );
-                            },
-                          ),
+                            );
+                          },
                         ),
                       ),
-                      
+                    ),
+                    
                       const Gap(11),
-                      
+                    
                       // Welcome text with modern styling
-                      Text(
-                        'Welcome back',
+                    Text(
+                      'Welcome back',
                         style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                           color: colorScheme.onSurface,
                           letterSpacing: -0.5,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
-                      
+                      textAlign: TextAlign.center,
+                    ),
+                    
                       const Gap(6),
-                      
-                      Text(
-                        'Enter your CNIC and password to continue',
+                    
+                    Text(
+                      'Enter your CNIC and password to continue',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
-                      
+                      textAlign: TextAlign.center,
+                    ),
+                    
                       const Gap(28),
-                      
+                    
                       // Modern card container for form
                       Card(
                         elevation: 0,
@@ -167,20 +167,20 @@ class _SignInScreenState extends State<SignInScreen> {
                             children: [
                     
                               // CNIC input field with modern styling
-                              TextFormField(
-                                controller: _cnicController,
-                                keyboardType: TextInputType.number,
+                    TextFormField(
+                      controller: _cnicController,
+                      keyboardType: TextInputType.number,
                                 textInputAction: TextInputAction.next,
-                                inputFormatters: [
-                                  _CnicInputFormatter(),
-                                ],
+                      inputFormatters: [
+                        _CnicInputFormatter(),
+                      ],
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w500,
                                   color: colorScheme.onSurface,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'CNIC',
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'CNIC',
                                   hintText: '12345-1234567-1',
                                   prefixIcon: Container(
                                     margin: const EdgeInsets.all(12),
@@ -194,7 +194,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                       size: 20,
                                     ),
                                   ),
-                                  border: OutlineInputBorder(
+                        border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: BorderSide(
                                       color: colorScheme.outline.withOpacity(0.3),
@@ -218,54 +218,54 @@ class _SignInScreenState extends State<SignInScreen> {
                                     borderSide: BorderSide(
                                       color: colorScheme.error,
                                     ),
-                                  ),
-                                  filled: true,
+                        ),
+                        filled: true,
                                   fillColor: colorScheme.surfaceContainerHighest,
-                                  contentPadding: const EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 18,
-                                  ),
+                        ),
                                   helperText: '13 digits (with or without dashes)',
-                                  helperStyle: TextStyle(
+                        helperStyle: TextStyle(
                                     fontSize: 12,
                                     color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                scrollPadding: const EdgeInsets.only(bottom: 100),
-                                validator: (value) {
-                                  final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
-                                  if (requiredResult != null) return requiredResult;
-                                  
-                                  final cnic = value!.trim();
-                                  final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
-                                  
-                                  if (digitsOnly.isEmpty) {
-                                    return 'CNIC must contain digits';
-                                  }
-                                  
-                                  if (digitsOnly.length != 13) {
+                        ),
+                      ),
+                      scrollPadding: const EdgeInsets.only(bottom: 100),
+                      validator: (value) {
+                        final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
+                        if (requiredResult != null) return requiredResult;
+                        
+                        final cnic = value!.trim();
+                        final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
+                        
+                        if (digitsOnly.isEmpty) {
+                          return 'CNIC must contain digits';
+                        }
+                        
+                        if (digitsOnly.length != 13) {
                                     return 'CNIC must be exactly 13 digits';
-                                  }
-                                  
-                                  return null;
-                                },
-                              ),
-                              
+                        }
+                        
+                        return null;
+                      },
+                    ),
+                    
                               const Gap(20),
-                              
+                    
                               // Password input field with modern styling
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.done,
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w500,
                                   color: colorScheme.onSurface,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  hintText: 'Enter your password',
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'Enter your password',
                                   prefixIcon: Container(
                                     margin: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
@@ -278,20 +278,20 @@ class _SignInScreenState extends State<SignInScreen> {
                                       size: 20,
                                     ),
                                   ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
+                        suffixIcon: IconButton(
+                          icon: Icon(
                                       _obscurePassword 
                                           ? Icons.visibility_outlined 
                                           : Icons.visibility_off_outlined,
                                       color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                  ),
-                                  border: OutlineInputBorder(
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: BorderSide(
                                       color: colorScheme.outline.withOpacity(0.3),
@@ -315,23 +315,23 @@ class _SignInScreenState extends State<SignInScreen> {
                                     borderSide: BorderSide(
                                       color: colorScheme.error,
                                     ),
-                                  ),
-                                  filled: true,
+                        ),
+                        filled: true,
                                   fillColor: colorScheme.surfaceContainerHighest,
-                                  contentPadding: const EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 18,
-                                  ),
-                                ),
-                                scrollPadding: const EdgeInsets.only(bottom: 100),
-                                validator: (value) {
-                                  final String? requiredResult = _requiredValidator(value, fieldName: 'Password');
-                                  if (requiredResult != null) return requiredResult;
-                                  return null;
-                                },
+                        ),
+                      ),
+                      scrollPadding: const EdgeInsets.only(bottom: 100),
+                      validator: (value) {
+                        final String? requiredResult = _requiredValidator(value, fieldName: 'Password');
+                        if (requiredResult != null) return requiredResult;
+                        return null;
+                      },
                                 onFieldSubmitted: (_) => _handleSignIn(),
-                              ),
-                              
+                    ),
+                    
                               const Gap(20),
                               
                               // Set Password button with modern styling
@@ -410,51 +410,51 @@ class _SignInScreenState extends State<SignInScreen> {
                           color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'New user? ',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'New user? ',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
-                              ),
                             ),
-                            TextButton(
-                              onPressed: _handleRegister,
-                              style: TextButton.styleFrom(
+                          ),
+                          TextButton(
+                            onPressed: _handleRegister,
+                            style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                              child: Text(
+                            ),
+                            child: Text(
                                 'Register Now',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      
-                      const Gap(24),
-                      
+                    ),
+                    
+                    const Gap(24),
+                    
                       // Terms and Privacy with modern styling
-                      Center(
-                        child: Text(
+                    Center(
+                      child: Text(
                           'By continuing, you agree to our\nTerms of Service and Privacy Policy',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                             height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      
+                    ),
+                    
                       const Gap(20),
-                    ],
+                  ],
                   ),
                 ),
               ),

@@ -1,19 +1,21 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
+import 'services/app_settings.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   await AuthService.instance.init();
-  
+  await AppSettings.instance.init();
+
   runApp(const MyApp());
 }
 
@@ -46,68 +48,78 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      // When app resumes, check if user should be logged out due to inactivity
       InactivityService.instance.checkInactivity();
-    } else if (state == AppLifecycleState.paused) {
-      // App is going to background - timer will continue running
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = AppSettings.instance;
+
     return Listener(
       onPointerDown: (_) => InactivityService.instance.resetActivity(),
       onPointerMove: (_) => InactivityService.instance.resetActivity(),
       onPointerUp: (_) => InactivityService.instance.resetActivity(),
-      child: MaterialApp(
-        navigatorKey: _navigatorKey,
-        title: 'Healthcare Management System',
-        useInheritedMediaQuery: true,
-        navigatorObservers: [
-          _InactivityObserver(),
-        ],
-        theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB), // Modern blue
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+      child: ValueListenableBuilder(
+        valueListenable: settings.themeMode,
+        builder: (context, themeMode, _) {
+          return MaterialApp(
+            navigatorKey: _navigatorKey,
+            title: 'Healthcare Management System',
+            navigatorObservers: [
+              _InactivityObserver(),
+            ],
+            themeMode: themeMode,
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF2563EB),
+                brightness: Brightness.light,
+              ),
+              useMaterial3: true,
+              appBarTheme: const AppBarTheme(
+                centerTitle: false,
+                elevation: 0,
+                scrolledUnderElevation: 1,
+              ),
+              cardTheme: CardThemeData(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
             ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-      ),
-        home: const SplashScreen(),
-        debugShowCheckedModeBanner: false,
+            darkTheme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF2563EB),
+                brightness: Brightness.dark,
+              ),
+              useMaterial3: true,
+            ),
+            home: const SplashScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }
 }
 
-/// NavigatorObserver that tracks user interactions to reset inactivity timer
 class _InactivityObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -133,4 +145,3 @@ class _InactivityObserver extends NavigatorObserver {
     InactivityService.instance.resetActivity();
   }
 }
-

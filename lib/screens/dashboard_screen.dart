@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:printing/printing.dart';
@@ -697,6 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                       _hospitalDepartments = null;
                                     });
                                     if (hospital != null) {
+                                      UserStorage.saveLastHospitalSelection(hospitalId: hospital.hospitalID);
                                       _loadHospitalDepartments(hospital.hospitalID);
                                     }
                                   },
@@ -826,6 +827,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                           setState(() {
                                             _selectedHospitalDepartment = hospitalDept;
                                           });
+                                          if (hospitalDept != null) {
+                                            UserStorage.saveLastHospitalSelection(
+                                              hospitalId: hospitalDept.hospitalID,
+                                              departmentId: hospitalDept.departmentID,
+                                              hospitalDepartmentId: hospitalDept.hospitalDepartmentID,
+                                            );
+                                          }
                                         },
                                 ),
                               ),
@@ -1891,7 +1899,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                               ),
                               const Gap(8),
                               Text(
-                                'MRN: ${_patient?['mrn'] ?? 'N/A'} • ${_patient?['gender'] ?? 'N/A'} • ${_patient?['age'] ?? 'N/A'} years • ${_patient?['bloodType'] ?? 'N/A'} • Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}',
+                                'MRN: ${_patient?['mrn'] ?? 'N/A'} â€¢ ${_patient?['gender'] ?? 'N/A'} â€¢ ${_patient?['age'] ?? 'N/A'} years â€¢ ${_patient?['bloodType'] ?? 'N/A'} â€¢ Last Visit: ${_patient?['lastVisit'] ?? 'N/A'}',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: Colors.grey.shade600,
                                 ),
@@ -2556,7 +2564,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             padding: const pw.EdgeInsets.all(8),
             child: pw.Text(
               col,
-              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
           )).toList(),
         ),
@@ -2564,7 +2572,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         ...data.map((item) => pw.TableRow(
           children: _getPDFRowData(section, item).map((cell) => pw.Padding(
             padding: const pw.EdgeInsets.all(8),
-            child: pw.Text(cell, style: const pw.TextStyle(fontSize: 10)),
+            child: pw.Text(cell, style: pw.TextStyle(fontSize: 10)),
           )).toList(),
         )).toList(),
       ],
@@ -4174,3 +4182,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
 }
+
+
+

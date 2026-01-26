@@ -1,12 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
-import 'registration_phone_screen.dart';
 import 'signin_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/user_storage.dart';
 import '../utils/emr_api_client.dart';
-import '../utils/api_config.dart';
+import '../services/app_settings.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String? phoneNumber;
@@ -108,63 +107,64 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   };
   
   static const Map<String, String> _urduTranslations = {
-    'appBarTitle': 'مریض کی رجسٹریشن',
-    'registerAs': 'رجسٹر کریں بطور:',
-    'self': 'خود',
-    'others': 'دوسرے',
-    'parentType': 'والدین کی قسم',
-    'selectParentType': 'والدین کی قسم منتخب کریں',
-    'father': 'والد',
-    'mother': 'والدہ',
-    'fullName': 'مکمل نام',
-    'cnic': 'قومی شناختی کارڈ',
-    'fathersCnic': 'والد کا قومی شناختی کارڈ',
-    'mothersCnic': 'والدہ کا قومی شناختی کارڈ',
-    'parentsCnic': 'والدین کا قومی شناختی کارڈ',
-    'dateOfBirth': 'تاریخ پیدائش',
-    'selectDate': 'تاریخ منتخب کریں',
-    'gender': 'جنس',
-    'male': 'مرد',
-    'female': 'عورت',
-    'email': 'ای میل',
-    'emailOptional': 'ای میل (اختیاری)',
-    'phone': 'فون',
-    'address': 'پتہ',
-    'addressOptional': 'پتہ (اختیاری)',
-    'bloodGroup': 'خون کا گروپ',
-    'bloodGroupOptional': 'خون کا گروپ (اختیاری)',
-    'selectBloodGroup': 'خون کا گروپ منتخب کریں',
-    'selectRelation': 'رشتہ منتخب کریں',
-    'completeRegistration': 'رجسٹریشن مکمل کریں',
-    'required': 'درکار ہے',
-    'optional': '(اختیاری)',
-    'selectRegistrationType': 'براہ کرم رجسٹریشن کی قسم منتخب کریں (خود یا دوسرے)',
-    'selectDateOfBirth': 'براہ کرم تاریخ پیدائش منتخب کریں',
-    'selectGender': 'براہ کرم جنس منتخب کریں',
-    'enterValidEmail': 'درست ای میل ایڈریس درج کریں',
-    'enterValidPhone': 'درست فون نمبر درج کریں',
-    'enterCnicFormat': 'قومی شناختی کارڈ 12345-1234567-1 کی شکل میں درج کریں',
-    'registrationSuccessful': 'رجسٹریشن کامیاب!',
-    'languageToggle': 'اردو',
-    'password': 'پاس ورڈ',
-    'confirmPassword': 'پاس ورڈ کی تصدیق',
-    'passwordRequirements': 'پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے اور بڑے حروف، چھوٹے حروف، نمبر اور خاص علامت شامل ہونی چاہیے',
-    'passwordsDoNotMatch': 'پاس ورڈ میل نہیں کھاتے',
+    'appBarTitle': 'Ù…Ø±ÛŒØ¶ Ú©ÛŒ Ø±Ø¬Ø³Ù¹Ø±ÛŒØ´Ù†',
+    'registerAs': 'Ø±Ø¬Ø³Ù¹Ø± Ú©Ø±ÛŒÚº Ø¨Ø·ÙˆØ±:',
+    'self': 'Ø®ÙˆØ¯',
+    'others': 'Ø¯ÙˆØ³Ø±Û’',
+    'parentType': 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©ÛŒ Ù‚Ø³Ù…',
+    'selectParentType': 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©ÛŒ Ù‚Ø³Ù… Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'father': 'ÙˆØ§Ù„Ø¯',
+    'mother': 'ÙˆØ§Ù„Ø¯Û',
+    'fullName': 'Ù…Ú©Ù…Ù„ Ù†Ø§Ù…',
+    'cnic': 'Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ',
+    'fathersCnic': 'ÙˆØ§Ù„Ø¯ Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ',
+    'mothersCnic': 'ÙˆØ§Ù„Ø¯Û Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ',
+    'parentsCnic': 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ',
+    'dateOfBirth': 'ØªØ§Ø±ÛŒØ® Ù¾ÛŒØ¯Ø§Ø¦Ø´',
+    'selectDate': 'ØªØ§Ø±ÛŒØ® Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'gender': 'Ø¬Ù†Ø³',
+    'male': 'Ù…Ø±Ø¯',
+    'female': 'Ø¹ÙˆØ±Øª',
+    'email': 'Ø§ÛŒ Ù…ÛŒÙ„',
+    'emailOptional': 'Ø§ÛŒ Ù…ÛŒÙ„ (Ø§Ø®ØªÛŒØ§Ø±ÛŒ)',
+    'phone': 'ÙÙˆÙ†',
+    'address': 'Ù¾ØªÛ',
+    'addressOptional': 'Ù¾ØªÛ (Ø§Ø®ØªÛŒØ§Ø±ÛŒ)',
+    'bloodGroup': 'Ø®ÙˆÙ† Ú©Ø§ Ú¯Ø±ÙˆÙ¾',
+    'bloodGroupOptional': 'Ø®ÙˆÙ† Ú©Ø§ Ú¯Ø±ÙˆÙ¾ (Ø§Ø®ØªÛŒØ§Ø±ÛŒ)',
+    'selectBloodGroup': 'Ø®ÙˆÙ† Ú©Ø§ Ú¯Ø±ÙˆÙ¾ Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'selectRelation': 'Ø±Ø´ØªÛ Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'completeRegistration': 'Ø±Ø¬Ø³Ù¹Ø±ÛŒØ´Ù† Ù…Ú©Ù…Ù„ Ú©Ø±ÛŒÚº',
+    'required': 'Ø¯Ø±Ú©Ø§Ø± ÛÛ’',
+    'optional': '(Ø§Ø®ØªÛŒØ§Ø±ÛŒ)',
+    'selectRegistrationType': 'Ø¨Ø±Ø§Û Ú©Ø±Ù… Ø±Ø¬Ø³Ù¹Ø±ÛŒØ´Ù† Ú©ÛŒ Ù‚Ø³Ù… Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº (Ø®ÙˆØ¯ ÛŒØ§ Ø¯ÙˆØ³Ø±Û’)',
+    'selectDateOfBirth': 'Ø¨Ø±Ø§Û Ú©Ø±Ù… ØªØ§Ø±ÛŒØ® Ù¾ÛŒØ¯Ø§Ø¦Ø´ Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'selectGender': 'Ø¨Ø±Ø§Û Ú©Ø±Ù… Ø¬Ù†Ø³ Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº',
+    'enterValidEmail': 'Ø¯Ø±Ø³Øª Ø§ÛŒ Ù…ÛŒÙ„ Ø§ÛŒÚˆØ±ÛŒØ³ Ø¯Ø±Ø¬ Ú©Ø±ÛŒÚº',
+    'enterValidPhone': 'Ø¯Ø±Ø³Øª ÙÙˆÙ† Ù†Ù…Ø¨Ø± Ø¯Ø±Ø¬ Ú©Ø±ÛŒÚº',
+    'enterCnicFormat': 'Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ 12345-1234567-1 Ú©ÛŒ Ø´Ú©Ù„ Ù…ÛŒÚº Ø¯Ø±Ø¬ Ú©Ø±ÛŒÚº',
+    'registrationSuccessful': 'Ø±Ø¬Ø³Ù¹Ø±ÛŒØ´Ù† Ú©Ø§Ù…ÛŒØ§Ø¨!',
+    'languageToggle': 'Ø§Ø±Ø¯Ùˆ',
+    'password': 'Ù¾Ø§Ø³ ÙˆØ±Úˆ',
+    'confirmPassword': 'Ù¾Ø§Ø³ ÙˆØ±Úˆ Ú©ÛŒ ØªØµØ¯ÛŒÙ‚',
+    'passwordRequirements': 'Ù¾Ø§Ø³ ÙˆØ±Úˆ Ú©Ù… Ø§Ø² Ú©Ù… 8 Ø­Ø±ÙˆÙ Ú©Ø§ ÛÙˆÙ†Ø§ Ú†Ø§ÛÛŒÛ’ Ø§ÙˆØ± Ø¨Ú‘Û’ Ø­Ø±ÙˆÙØŒ Ú†Ú¾ÙˆÙ¹Û’ Ø­Ø±ÙˆÙØŒ Ù†Ù…Ø¨Ø± Ø§ÙˆØ± Ø®Ø§Øµ Ø¹Ù„Ø§Ù…Øª Ø´Ø§Ù…Ù„ ÛÙˆÙ†ÛŒ Ú†Ø§ÛÛŒÛ’',
+    'passwordsDoNotMatch': 'Ù¾Ø§Ø³ ÙˆØ±Úˆ Ù…ÛŒÙ„ Ù†ÛÛŒÚº Ú©Ú¾Ø§ØªÛ’',
   };
   
   // Dropdown options translations
   List<String> get _parentTypeOptions => _isUrdu 
-      ? ['والد', 'والدہ']
+      ? ['ÙˆØ§Ù„Ø¯', 'ÙˆØ§Ù„Ø¯Û']
       : ['Father', 'Mother'];
   
   List<String> get _genderOptions => _isUrdu
-      ? ['مرد', 'عورت']
+      ? ['Ù…Ø±Ø¯', 'Ø¹ÙˆØ±Øª']
       : ['Male', 'Female'];
   
 
   @override
   void initState() {
     super.initState();
+    _isUrdu = AppSettings.instance.languageCode.value == 'ur';
     // Set default registration type to 'Self' for first registration
     if (!widget.isAddOthers) {
       _registrationType = 'Self';
@@ -265,18 +265,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String _getCnicLabel() {
     if (widget.isAddOthers) {
       if (widget.relationshipType == 'Spouse') {
-        return _isUrdu ? 'شریک حیات کا قومی شناختی کارڈ' : 'Spouse\'s CNIC';
+        return _isUrdu ? 'Ø´Ø±ÛŒÚ© Ø­ÛŒØ§Øª Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ' : 'Spouse\'s CNIC';
       } else if (widget.relationshipType == 'Parent') {
-        return _isUrdu ? 'والدین کا قومی شناختی کارڈ' : 'Parent\'s CNIC';
+        return _isUrdu ? 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ' : 'Parent\'s CNIC';
       } else if (widget.relationshipType == 'Child') {
-        return _isUrdu ? 'والدین کا قومی شناختی کارڈ' : 'Parent\'s CNIC';
+        return _isUrdu ? 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©Ø§ Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ' : 'Parent\'s CNIC';
       }
     }
     // For first registration, check registration type
     if (_registrationType == 'Others') {
-      if (_parentType == 'Father' || _parentType == 'والد') {
+      if (_parentType == 'Father' || _parentType == 'ÙˆØ§Ù„Ø¯') {
         return _translations['fathersCnic']!;
-      } else if (_parentType == 'Mother' || _parentType == 'والدہ') {
+      } else if (_parentType == 'Mother' || _parentType == 'ÙˆØ§Ù„Ø¯Û') {
         return _translations['mothersCnic']!;
       } else {
         return _translations['parentsCnic']!;
@@ -288,8 +288,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   
   String _getGenderValue(String displayText) {
     if (_isUrdu) {
-      if (displayText == 'مرد') return 'Male';
-      if (displayText == 'عورت') return 'Female';
+      if (displayText == 'Ù…Ø±Ø¯') return 'Male';
+      if (displayText == 'Ø¹ÙˆØ±Øª') return 'Female';
     }
     return displayText;
   }
@@ -297,15 +297,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String _getGenderDisplay(String? value) {
     if (value == null) return '';
     if (_isUrdu) {
-      return value == 'Male' ? 'مرد' : 'عورت';
+      return value == 'Male' ? 'Ù…Ø±Ø¯' : 'Ø¹ÙˆØ±Øª';
     }
     return value;
   }
   
   String _getParentTypeValue(String displayText) {
     if (_isUrdu) {
-      if (displayText == 'والد') return 'Father';
-      if (displayText == 'والدہ') return 'Mother';
+      if (displayText == 'ÙˆØ§Ù„Ø¯') return 'Father';
+      if (displayText == 'ÙˆØ§Ù„Ø¯Û') return 'Mother';
     }
     return displayText;
   }
@@ -313,7 +313,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   String _getParentTypeDisplay(String? value) {
     if (value == null) return '';
     if (_isUrdu) {
-      return value == 'Father' ? 'والد' : 'والدہ';
+      return value == 'Father' ? 'ÙˆØ§Ù„Ø¯' : 'ÙˆØ§Ù„Ø¯Û';
     }
     return value;
   }
@@ -601,11 +601,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           
           // If it's a database trigger error, provide more helpful message
           if (errorMessage.toLowerCase().contains('trigger')) {
-            errorMessage = 'Database error: $errorMessage\n\n'
-                'This might be due to:\n'
-                '- Missing required fields\n'
-                '- Data validation issues\n'
-                '- Database constraint violations\n\n'
+            errorMessage = 'Database error: $errorMessage\\n\\n'
+                'This might be due to:\\n'
+                '- Missing required fields\\n'
+                '- Data validation issues\\n'
+                '- Database constraint violations\\n\\n'
                 'Please check the console for details.';
           }
           
@@ -625,7 +625,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       title: const Text('Registration Error'),
                       content: SingleChildScrollView(
                         child: Text(
-                          'Full error details:\n\n$e',
+                          'Full error details:\\n\\n$e',
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -664,7 +664,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'اردو',
+                'Ø§Ø±Ø¯Ùˆ',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -676,6 +676,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 onChanged: (value) {
                   setState(() {
                     _isUrdu = value;
+                    AppSettings.instance.setLanguageCode(value ? 'ur' : 'en');
                   });
                 },
                 activeColor: Colors.blue.shade700,
@@ -722,7 +723,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         
         // Original Patient Details Card (Self)
         _buildPatientCard(
-          title: _isUrdu ? 'آپ کی تفصیلات' : 'Your Details',
+          title: _isUrdu ? 'Ø¢Ù¾ Ú©ÛŒ ØªÙØµÛŒÙ„Ø§Øª' : 'Your Details',
           patientData: _registeredPatientData!,
           isSelf: true,
         ),
@@ -747,7 +748,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             onPressed: () => _showAddOthersDialog(),
             icon: const Icon(Icons.person_add),
             label: Text(
-              _isUrdu ? 'دوسرے شامل کریں' : 'Add Others',
+              _isUrdu ? 'Ø¯ÙˆØ³Ø±Û’ Ø´Ø§Ù…Ù„ Ú©Ø±ÛŒÚº' : 'Add Others',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -778,7 +779,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             },
             icon: const Icon(Icons.calendar_today),
             label: Text(
-              _isUrdu ? 'اپائنٹمنٹ بک کریں' : 'Book Appointment',
+              _isUrdu ? 'Ø§Ù¾Ø§Ø¦Ù†Ù¹Ù…Ù†Ù¹ Ø¨Ú© Ú©Ø±ÛŒÚº' : 'Book Appointment',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -810,7 +811,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
             child: Text(
-              _isUrdu ? 'سائن ان پر واپس جائیں' : 'Back to Sign In',
+              _isUrdu ? 'Ø³Ø§Ø¦Ù† Ø§Ù† Ù¾Ø± ÙˆØ§Ù¾Ø³ Ø¬Ø§Ø¦ÛŒÚº' : 'Back to Sign In',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -826,13 +827,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (_isUrdu) {
       switch (relationshipType) {
         case 'Spouse':
-          return 'شریک حیات کی تفصیلات';
+          return 'Ø´Ø±ÛŒÚ© Ø­ÛŒØ§Øª Ú©ÛŒ ØªÙØµÛŒÙ„Ø§Øª';
         case 'Parent':
-          return 'والدین کی تفصیلات';
+          return 'ÙˆØ§Ù„Ø¯ÛŒÙ† Ú©ÛŒ ØªÙØµÛŒÙ„Ø§Øª';
         case 'Child':
-          return 'اولاد کی تفصیلات';
+          return 'Ø§ÙˆÙ„Ø§Ø¯ Ú©ÛŒ ØªÙØµÛŒÙ„Ø§Øª';
         default:
-          return 'مریض کی تفصیلات';
+          return 'Ù…Ø±ÛŒØ¶ Ú©ÛŒ ØªÙØµÛŒÙ„Ø§Øª';
       }
     } else {
       switch (relationshipType) {
@@ -852,13 +853,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (_isUrdu) {
       switch (relationshipType) {
         case 'Spouse':
-          return 'شریک حیات';
+          return 'Ø´Ø±ÛŒÚ© Ø­ÛŒØ§Øª';
         case 'Parent':
-          return 'والدین';
+          return 'ÙˆØ§Ù„Ø¯ÛŒÙ†';
         case 'Child':
-          return 'اولاد';
+          return 'Ø§ÙˆÙ„Ø§Ø¯';
         default:
-          return 'مریض';
+          return 'Ù…Ø±ÛŒØ¶';
       }
     } else {
       switch (relationshipType) {
@@ -913,7 +914,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _isUrdu ? 'خود' : 'Self',
+                      _isUrdu ? 'Ø®ÙˆØ¯' : 'Self',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -943,24 +944,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ],
             ),
             const Gap(20),
-            _buildDetailRow(_isUrdu ? 'مکمل نام' : 'Full Name', patientData['fullName'] ?? ''),
-            _buildDetailRow(_isUrdu ? 'قومی شناختی کارڈ' : 'CNIC', patientData['cnic'] ?? ''),
-            _buildDetailRow(_isUrdu ? 'فون' : 'Phone', patientData['phone'] ?? ''),
-            _buildDetailRow(_isUrdu ? 'ای میل' : 'Email', patientData['email'] ?? ''),
+            _buildDetailRow(_isUrdu ? 'Ù…Ú©Ù…Ù„ Ù†Ø§Ù…' : 'Full Name', patientData['fullName'] ?? ''),
+            _buildDetailRow(_isUrdu ? 'Ù‚ÙˆÙ…ÛŒ Ø´Ù†Ø§Ø®ØªÛŒ Ú©Ø§Ø±Úˆ' : 'CNIC', patientData['cnic'] ?? ''),
+            _buildDetailRow(_isUrdu ? 'ÙÙˆÙ†' : 'Phone', patientData['phone'] ?? ''),
+            _buildDetailRow(_isUrdu ? 'Ø§ÛŒ Ù…ÛŒÙ„' : 'Email', patientData['email'] ?? ''),
             if (patientData['dateOfBirth'] != null)
               _buildDetailRow(
-                _isUrdu ? 'تاریخ پیدائش' : 'Date of Birth',
+                _isUrdu ? 'ØªØ§Ø±ÛŒØ® Ù¾ÛŒØ¯Ø§Ø¦Ø´' : 'Date of Birth',
                 '${(patientData['dateOfBirth'] as DateTime).year}-${(patientData['dateOfBirth'] as DateTime).month.toString().padLeft(2, '0')}-${(patientData['dateOfBirth'] as DateTime).day.toString().padLeft(2, '0')}',
               ),
             if (patientData['gender'] != null)
               _buildDetailRow(
-                _isUrdu ? 'جنس' : 'Gender',
-                patientData['gender'] == 'Male' ? (_isUrdu ? 'مرد' : 'Male') : (_isUrdu ? 'عورت' : 'Female'),
+                _isUrdu ? 'Ø¬Ù†Ø³' : 'Gender',
+                patientData['gender'] == 'Male' ? (_isUrdu ? 'Ù…Ø±Ø¯' : 'Male') : (_isUrdu ? 'Ø¹ÙˆØ±Øª' : 'Female'),
               ),
             if (patientData['bloodGroup'] != null)
-              _buildDetailRow(_isUrdu ? 'خون کا گروپ' : 'Blood Group', patientData['bloodGroup'] ?? ''),
+              _buildDetailRow(_isUrdu ? 'Ø®ÙˆÙ† Ú©Ø§ Ú¯Ø±ÙˆÙ¾' : 'Blood Group', patientData['bloodGroup'] ?? ''),
             if (patientData['address'] != null && patientData['address'].toString().isNotEmpty)
-              _buildDetailRow(_isUrdu ? 'پتہ' : 'Address', patientData['address'] ?? ''),
+              _buildDetailRow(_isUrdu ? 'Ù¾ØªÛ' : 'Address', patientData['address'] ?? ''),
           ],
         ),
       ),
@@ -1001,13 +1002,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(_isUrdu ? 'رشتہ کی قسم منتخب کریں' : 'Select Relationship Type'),
+        title: Text(_isUrdu ? 'Ø±Ø´ØªÛ Ú©ÛŒ Ù‚Ø³Ù… Ù…Ù†ØªØ®Ø¨ Ú©Ø±ÛŒÚº' : 'Select Relationship Type'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.favorite),
-              title: Text(_isUrdu ? 'شریک حیات' : 'Spouse'),
+              title: Text(_isUrdu ? 'Ø´Ø±ÛŒÚ© Ø­ÛŒØ§Øª' : 'Spouse'),
               onTap: () {
                 Navigator.of(context).pop();
                  Navigator.of(context).push(
@@ -1025,7 +1026,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.family_restroom),
-              title: Text(_isUrdu ? 'والدین' : 'Parent'),
+              title: Text(_isUrdu ? 'ÙˆØ§Ù„Ø¯ÛŒÙ†' : 'Parent'),
               onTap: () {
                 Navigator.of(context).pop();
                  Navigator.of(context).push(
@@ -1043,7 +1044,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.child_care),
-              title: Text(_isUrdu ? 'اولاد' : 'Child'),
+              title: Text(_isUrdu ? 'Ø§ÙˆÙ„Ø§Ø¯' : 'Child'),
               onTap: () {
                 Navigator.of(context).pop();
                  Navigator.of(context).push(
@@ -1078,7 +1079,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         elevation: 0,
         title: Text(
           widget.isAddOthers 
-              ? (_isUrdu ? 'دوسرے کی رجسٹریشن' : 'Add Others Registration')
+            ? (_isUrdu ? 'Ø¯ÙˆØ³Ø±Û’ Ú©ÛŒ Ø±Ø¬Ø³Ù¹Ø±ÛŒØ´Ù†' : 'Add Others Registration')
               : _translations['appBarTitle']!,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -1086,18 +1087,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       body: Container(
         color: Colors.white,
         child: SafeArea(
-          child: KeyboardInsetPadding(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Padding(
+        child: KeyboardInsetPadding(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 16),
-                child: _showDetailsCard
-                    ? _buildDetailsCard()
-                    : Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
+              child: _showDetailsCard
+                  ? _buildDetailsCard()
+                  : Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
                             const Gap(8),
                             
                             // Language Toggle - Modern Card
@@ -1111,7 +1112,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                               child: Container(
-                                decoration: BoxDecoration(
+                            decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
@@ -1121,39 +1122,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       Colors.white.withOpacity(0.95),
                                     ],
                                   ),
-                                ),
+                            ),
                                 padding: const EdgeInsets.all(15),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'اردو',
-                                      style: TextStyle(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Ø§Ø±Ø¯Ùˆ',
+                                  style: TextStyle(
                                         fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w600,
                                         color: _isUrdu ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    Switch(
-                                      value: _isUrdu,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _isUrdu = value;
-                                        });
-                                      },
-                                      activeColor: colorScheme.primary,
-                                    ),
-                                    Text(
-                                      'English',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        color: !_isUrdu ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                                Switch(
+                                  value: _isUrdu,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _isUrdu = value;
+                    AppSettings.instance.setLanguageCode(value ? 'ur' : 'en');
+                  });
+                                  },
+                                      activeColor: colorScheme.primary,
+                                ),
+                                Text(
+                                  'English',
+                                  style: TextStyle(
+                                        fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                        color: !_isUrdu ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                             ),
                             const Gap(7),
                           // Registration type radio buttons - only show for first registration (not "Add Others")
@@ -1168,7 +1170,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                               child: Container(
-                                decoration: BoxDecoration(
+                              decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
@@ -1180,9 +1182,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   ),
                                 ),
                                 padding: const EdgeInsets.all(15),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
                                     Row(
                                       children: [
                                         Container(
@@ -1198,42 +1200,42 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           ),
                                         ),
                                         const Gap(12),
-                                        Text(
-                                          _translations['registerAs']!,
-                                          style: TextStyle(
+                                  Text(
+                                    _translations['registerAs']!,
+                                    style: TextStyle(
                                             fontSize: 17,
-                                            fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w600,
                                             color: colorScheme.onSurface,
-                                          ),
+                                    ),
                                         ),
                                       ],
-                                    ),
+                                  ),
                                     const Gap(16),
                                     Container(
                                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                                      decoration: BoxDecoration(
+                                            decoration: BoxDecoration(
                                         color: colorScheme.primary,
                                         borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
+                                              border: Border.all(
                                           color: colorScheme.primary,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          _translations['self']!,
-                                          style: TextStyle(
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                _translations['self']!,
+                                                style: TextStyle(
                                             fontSize: 15,
-                                            fontWeight: FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
                                             color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 ),
-                              ),
-                            ),
+                                        ),
+                                      ),
                             const Gap(7),
                             // Parent Type selection - only show when Others is selected
                             if (_registrationType == 'Others') ...[
@@ -1246,8 +1248,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     width: 1.5,
                                   ),
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
+                                          child: Container(
+                                            decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     gradient: LinearGradient(
                                       begin: Alignment.topLeft,
@@ -1256,8 +1258,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                         Colors.white,
                                         Colors.white.withOpacity(0.95),
                                       ],
-                                    ),
-                                  ),
+                                              ),
+                                            ),
                                   padding: const EdgeInsets.all(15),
                                   child: DropdownButtonFormField<String>(
                                     value: _parentType,
@@ -1268,7 +1270,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                         decoration: BoxDecoration(
                                           color: colorScheme.primaryContainer.withOpacity(0.5),
                                           borderRadius: BorderRadius.circular(10),
-                                        ),
+                                              ),
                                         child: Icon(
                                           Icons.family_restroom_outlined,
                                           color: colorScheme.primary,
@@ -1293,29 +1295,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           color: colorScheme.primary,
                                           width: 2,
                                         ),
-                                      ),
-                                      filled: true,
-                                      fillColor: colorScheme.surfaceContainerHighest,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 18,
-                                      ),
-                                    ),
-                                    items: _parentTypeOptions.map((type) {
-                                      return DropdownMenuItem<String>(
-                                        value: _getParentTypeValue(type),
-                                        child: Text(type),
-                                      );
-                                    }).toList(),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _parentType = value;
-                                      });
-                                    },
-                                    validator: (v) => v == null || v.isEmpty 
-                                        ? _translations['selectParentType'] 
-                                        : null,
                                   ),
+                                  filled: true,
+                                      fillColor: colorScheme.surfaceContainerHighest,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                        vertical: 18,
+                                  ),
+                                ),
+                                items: _parentTypeOptions.map((type) {
+                                  return DropdownMenuItem<String>(
+                                    value: _getParentTypeValue(type),
+                                    child: Text(type),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _parentType = value;
+                                  });
+                                },
+                                validator: (v) => v == null || v.isEmpty 
+                                    ? _translations['selectParentType'] 
+                                    : null,
+                              ),
                                 ),
                               ),
                               const Gap(7),
@@ -1333,7 +1335,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                               child: Container(
-                                decoration: BoxDecoration(
+                              decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
@@ -1345,9 +1347,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                   ),
                                 ),
                                 padding: const EdgeInsets.all(15),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
                                     Row(
                                       children: [
                                         Container(
@@ -1363,44 +1365,44 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           ),
                                         ),
                                         const Gap(12),
-                                        Text(
-                                          _isUrdu ? 'رشتہ کی قسم' : 'Relationship Type',
-                                          style: TextStyle(
+                                  Text(
+                                    _isUrdu ? 'Ø±Ø´ØªÛ Ú©ÛŒ Ù‚Ø³Ù…' : 'Relationship Type',
+                                    style: TextStyle(
                                             fontSize: 17,
-                                            fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w600,
                                             color: colorScheme.onSurface,
-                                          ),
+                                    ),
                                         ),
                                       ],
-                                    ),
+                                  ),
                                     const Gap(16),
                                     Wrap(
                                       spacing: 12,
                                       runSpacing: 12,
-                                      children: <Widget>[
+                                    children: <Widget>[
                                         _buildRelationshipChip(
-                                          label: _isUrdu ? 'شریک حیات' : 'Spouse',
+                                          label: _isUrdu ? 'Ø´Ø±ÛŒÚ© Ø­ÛŒØ§Øª' : 'Spouse',
                                           value: 'Spouse',
                                           icon: Icons.favorite_outline,
                                           colorScheme: colorScheme,
                                         ),
                                         _buildRelationshipChip(
-                                          label: _isUrdu ? 'والدین' : 'Parent',
+                                          label: _isUrdu ? 'ÙˆØ§Ù„Ø¯ÛŒÙ†' : 'Parent',
                                           value: 'Parent',
                                           icon: Icons.family_restroom_outlined,
                                           colorScheme: colorScheme,
                                         ),
                                         _buildRelationshipChip(
-                                          label: _isUrdu ? 'اولاد' : 'Child',
+                                          label: _isUrdu ? 'Ø§ÙˆÙ„Ø§Ø¯' : 'Child',
                                           value: 'Child',
                                           icon: Icons.child_care_outlined,
                                           colorScheme: colorScheme,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
+                            ),
                             ),
                             const Gap(7),
                           ],
@@ -1431,20 +1433,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Full name and CNIC row
-                            Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _fullNameController,
-                                    textInputAction: TextInputAction.next,
+                    // Full name and CNIC row
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: TextFormField(
+                            controller: _fullNameController,
+                            textInputAction: TextInputAction.next,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       color: colorScheme.onSurface,
                                     ),
-                                    decoration: InputDecoration(
-                                      labelText: _translations['fullName'],
+                            decoration: InputDecoration(
+                              labelText: _translations['fullName'],
                                       prefixIcon: Container(
                                         margin: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
@@ -1457,7 +1459,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           size: 20,
                                         ),
                                       ),
-                                      border: OutlineInputBorder(
+                              border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(16),
                                         borderSide: BorderSide(
                                           color: colorScheme.outline.withOpacity(0.3),
@@ -1475,33 +1477,33 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           color: colorScheme.primary,
                                           width: 2,
                                         ),
-                                      ),
-                                      filled: true,
+                              ),
+                              filled: true,
                                       fillColor: colorScheme.surfaceContainerHighest,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
                                         vertical: 18,
-                                      ),
-                                    ),
-                                    validator: (v) =>
-                                        _requiredValidator(v, fieldName: _translations['fullName']!),
-                                  ),
-                                ),
-                                const Gap(16),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _cnicController,
-                                    keyboardType: TextInputType.number,
-                                    textInputAction: TextInputAction.next,
+                              ),
+                            ),
+                            validator: (v) =>
+                                _requiredValidator(v, fieldName: _translations['fullName']!),
+                          ),
+                        ),
+                        const Gap(16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _cnicController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       color: colorScheme.onSurface,
                                     ),
-                                    readOnly: widget.isAddOthers && widget.relationshipType == 'Child' && widget.parentCnic != null,
-                                    decoration: InputDecoration(
-                                      labelText: _getCnicLabel(),
-                                      hintText: '12345-1234567-1',
+                            readOnly: widget.isAddOthers && widget.relationshipType == 'Child' && widget.parentCnic != null,
+                            decoration: InputDecoration(
+                              labelText: _getCnicLabel(),
+                              hintText: '12345-1234567-1',
                                       prefixIcon: Container(
                                         margin: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
@@ -1514,7 +1516,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           size: 20,
                                         ),
                                       ),
-                                      border: OutlineInputBorder(
+                              border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(16),
                                         borderSide: BorderSide(
                                           color: colorScheme.outline.withOpacity(0.3),
@@ -1532,63 +1534,63 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           color: colorScheme.primary,
                                           width: 2,
                                         ),
-                                      ),
-                                      filled: true,
+                              ),
+                              filled: true,
                                       fillColor: colorScheme.surfaceContainerHighest,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
                                         vertical: 18,
-                                      ),
-                                    ),
-                                    inputFormatters: <TextInputFormatter>[
-                                      _CnicInputFormatter(),
-                                    ],
-                                    validator: (value) {
-                                      // Skip validation for children as CNIC is pre-filled
-                                      if (widget.isAddOthers && widget.relationshipType == 'Child') {
-                                        return null;
-                                      }
-                                      final String? requiredResult =
-                                          _requiredValidator(value, fieldName: _translations['cnic']!);
-                                      if (requiredResult != null) return requiredResult;
-                                      final RegExp pattern =
-                                          RegExp(r'^\d{5}-\d{7}-\d{1}$');
-                                      if (!pattern.hasMatch(value!.trim())) {
-                                        return _translations['enterCnicFormat']!;
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
+                            inputFormatters: <TextInputFormatter>[
+                              _CnicInputFormatter(),
+                            ],
+                            validator: (value) {
+                              // Skip validation for children as CNIC is pre-filled
+                              if (widget.isAddOthers && widget.relationshipType == 'Child') {
+                                return null;
+                              }
+                              final String? requiredResult =
+                                  _requiredValidator(value, fieldName: _translations['cnic']!);
+                              if (requiredResult != null) return requiredResult;
+                              final RegExp pattern =
+                                  RegExp(r'^\d{5}-\d{7}-\d{1}$');
+                              if (!pattern.hasMatch(value!.trim())) {
+                                return _translations['enterCnicFormat']!;
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                             const Gap(20),
-                            
-                            // Date of birth and Gender row
-                            Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () async {
-                                      final DateTime now = DateTime.now();
-                                      final DateTime first = DateTime(now.year - 120);
-                                      final DateTime last = now;
-                                      final DateTime? picked = await showDatePicker(
-                                        context: context,
-                                        initialDate:
-                                            _dateOfBirth ?? DateTime(now.year - 30, 1, 1),
-                                        firstDate: first,
-                                        lastDate: last,
-                                      );
-                                      if (picked != null) {
-                                        setState(() {
-                                          _dateOfBirth = picked;
-                                        });
-                                      }
-                                    },
-                                    child: InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: _translations['dateOfBirth'],
+                    
+                    // Date of birth and Gender row
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final DateTime now = DateTime.now();
+                              final DateTime first = DateTime(now.year - 120);
+                              final DateTime last = now;
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate:
+                                    _dateOfBirth ?? DateTime(now.year - 30, 1, 1),
+                                firstDate: first,
+                                lastDate: last,
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _dateOfBirth = picked;
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: InputDecoration(
+                                labelText: _translations['dateOfBirth'],
                                         prefixIcon: Container(
                                           margin: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
@@ -1601,7 +1603,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                             size: 20,
                                           ),
                                         ),
-                                        border: OutlineInputBorder(
+                                border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(16),
                                           borderSide: BorderSide(
                                             color: colorScheme.outline.withOpacity(0.3),
@@ -1619,88 +1621,88 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                             color: colorScheme.primary,
                                             width: 2,
                                           ),
-                                        ),
-                                        filled: true,
+                                ),
+                                filled: true,
                                         fillColor: colorScheme.surfaceContainerHighest,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
                                           vertical: 18,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _dateOfBirth == null
-                                            ? _translations['selectDate']!
-                                            : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
+                                ),
+                              ),
+                              child: Text(
+                                _dateOfBirth == null
+                                    ? _translations['selectDate']!
+                                    : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500,
                                           color: colorScheme.onSurface,
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const Gap(16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        _translations['gender']!,
-                                        style: TextStyle(
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Gap(16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                _translations['gender']!,
+                                style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      const Gap(8),
-                                      Wrap(
-                                        spacing: 12,
-                                        children: <Widget>[
-                                          FilterChip(
-                                            label: Text(_translations['male']!),
-                                            selected: _gender == 'Male',
-                                            onSelected: (selected) {
-                                              setState(() =>
-                                                  _gender = selected ? 'Male' : null);
-                                            },
-                                            selectedColor: colorScheme.primaryContainer,
-                                            checkmarkColor: colorScheme.primary,
-                                          ),
-                                          FilterChip(
-                                            label: Text(_translations['female']!),
-                                            selected: _gender == 'Female',
-                                            onSelected: (selected) {
-                                              setState(() =>
-                                                  _gender = selected ? 'Female' : null);
-                                            },
-                                            selectedColor: colorScheme.primaryContainer,
-                                            checkmarkColor: colorScheme.primary,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const Gap(8),
+                              Wrap(
+                                spacing: 12,
+                                children: <Widget>[
+                                          FilterChip(
+                                    label: Text(_translations['male']!),
+                                    selected: _gender == 'Male',
+                                    onSelected: (selected) {
+                                      setState(() =>
+                                          _gender = selected ? 'Male' : null);
+                                    },
+                                            selectedColor: colorScheme.primaryContainer,
+                                            checkmarkColor: colorScheme.primary,
+                                  ),
+                                          FilterChip(
+                                    label: Text(_translations['female']!),
+                                    selected: _gender == 'Female',
+                                    onSelected: (selected) {
+                                      setState(() =>
+                                          _gender = selected ? 'Female' : null);
+                                    },
+                                            selectedColor: colorScheme.primaryContainer,
+                                            checkmarkColor: colorScheme.primary,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                             const Gap(20),
-                            
-                            // Email and Phone row
-                            Row(
-                              children: <Widget>[
-                                Expanded(
+                    
+                    // Email and Phone row
+                    Row(
+                      children: <Widget>[
+                        Expanded(
                                   child: TextFormField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    textInputAction: TextInputAction.next,
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       color: colorScheme.onSurface,
                                     ),
-                                    decoration: InputDecoration(
-                                      labelText: _translations['emailOptional'],
+                                decoration: InputDecoration(
+                                  labelText: _translations['emailOptional'],
                                       prefixIcon: Container(
                                         margin: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
@@ -1713,7 +1715,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           size: 20,
                                         ),
                                       ),
-                                      border: OutlineInputBorder(
+                                  border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(16),
                                         borderSide: BorderSide(
                                           color: colorScheme.outline.withOpacity(0.3),
@@ -1731,47 +1733,47 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           color: colorScheme.primary,
                                           width: 2,
                                         ),
-                                      ),
-                                      filled: true,
+                                  ),
+                                  filled: true,
                                       fillColor: colorScheme.surfaceContainerHighest,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
                                         vertical: 18,
-                                      ),
-                                    ),
-                                    validator: (value) {
-                                      // Only validate format if value is provided
-                                      if (value != null && value.trim().isNotEmpty) {
-                                        final String trimmed = value.trim();
-                                        final bool looksValid = RegExp(
-                                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                                            .hasMatch(trimmed);
-                                        if (!looksValid) {
-                                          return _translations['enterValidEmail']!;
-                                        }
-                                      }
-                                      return null;
-                                    },
                                   ),
                                 ),
-                                const Gap(16),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _phoneController,
-                                    keyboardType: TextInputType.phone,
-                                    textInputAction: TextInputAction.next,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(11),
-                                    ],
+                                validator: (value) {
+                                  // Only validate format if value is provided
+                                  if (value != null && value.trim().isNotEmpty) {
+                                    final String trimmed = value.trim();
+                                    final bool looksValid = RegExp(
+                                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                        .hasMatch(trimmed);
+                                    if (!looksValid) {
+                                      return _translations['enterValidEmail']!;
+                                    }
+                                  }
+                                  return null;
+                                },
+                          ),
+                        ),
+                        const Gap(16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _phoneController,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(11),
+                            ],
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       color: colorScheme.onSurface,
                                     ),
-                                    decoration: InputDecoration(
-                                      labelText: _translations['phone'],
-                                      hintText: '03001234567',
+                            decoration: InputDecoration(
+                              labelText: _translations['phone'],
+                              hintText: '03001234567',
                                       prefixIcon: Container(
                                         margin: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
@@ -1784,7 +1786,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           size: 20,
                                         ),
                                       ),
-                                      border: OutlineInputBorder(
+                              border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(16),
                                         borderSide: BorderSide(
                                           color: colorScheme.outline.withOpacity(0.3),
@@ -1802,44 +1804,44 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                           color: colorScheme.primary,
                                           width: 2,
                                         ),
-                                      ),
-                                      filled: true,
+                              ),
+                              filled: true,
                                       fillColor: colorScheme.surfaceContainerHighest,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
                                         vertical: 18,
-                                      ),
-                                    ),
-                                    validator: (value) {
-                                      final String? requiredResult =
-                                          _requiredValidator(value, fieldName: _translations['phone']!);
-                                      if (requiredResult != null) return requiredResult;
-                                      final String digits =
-                                          value!.replaceAll(RegExp(r'[^0-9]'), '');
-                                      if (digits.length != 11) {
-                                        return _translations['enterValidPhone']!;
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
+                            validator: (value) {
+                              final String? requiredResult =
+                                  _requiredValidator(value, fieldName: _translations['phone']!);
+                              if (requiredResult != null) return requiredResult;
+                              final String digits =
+                                  value!.replaceAll(RegExp(r'[^0-9]'), '');
+                              if (digits.length != 11) {
+                                return _translations['enterValidPhone']!;
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                             const Gap(20),
-                            
-                            // Address field
-                            TextFormField(
-                              controller: _addressController,
-                              keyboardType: TextInputType.streetAddress,
-                              textInputAction: TextInputAction.next,
-                              readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
+                    
+                    // Address field
+                        TextFormField(
+                          controller: _addressController,
+                          keyboardType: TextInputType.streetAddress,
+                          textInputAction: TextInputAction.next,
+                          readOnly: widget.isAddOthers && widget.parentAddress != null && widget.parentAddress!.isNotEmpty,
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
                                 color: colorScheme.onSurface,
                               ),
-                              decoration: InputDecoration(
-                                labelText: _translations['addressOptional'],
+                          decoration: InputDecoration(
+                            labelText: _translations['addressOptional'],
                                 prefixIcon: Container(
                                   margin: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
@@ -1852,7 +1854,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     size: 20,
                                   ),
                                 ),
-                                border: OutlineInputBorder(
+                            border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide(
                                     color: colorScheme.outline.withOpacity(0.3),
@@ -1884,14 +1886,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                 ),
                               ),
                               // No validator - field is optional
-                            ),
+                    ),
                             const Gap(20),
-                            
-                            // Blood group field
-                            DropdownButtonFormField<String>(
-                              value: _bloodGroup,
-                              decoration: InputDecoration(
-                                labelText: _translations['bloodGroupOptional'],
+                    
+                    // Blood group field
+                        DropdownButtonFormField<String>(
+                          value: _bloodGroup,
+                          decoration: InputDecoration(
+                            labelText: _translations['bloodGroupOptional'],
                                 prefixIcon: Container(
                                   margin: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
@@ -1904,7 +1906,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     size: 20,
                                   ),
                                 ),
-                                border: OutlineInputBorder(
+                            border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   borderSide: BorderSide(
                                     color: colorScheme.outline.withOpacity(0.3),
@@ -1922,43 +1924,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     color: colorScheme.primary,
                                     width: 2,
                                   ),
-                                ),
-                                filled: true,
+                            ),
+                            filled: true,
                                 fillColor: colorScheme.surfaceContainerHighest,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
                                   vertical: 18,
                                 ),
                                 helperText: _translations['optional'],
                                 helperStyle: TextStyle(
                                   fontSize: 12,
                                   color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              items: [
-                                // Add a null option for "Not Selected"
-                                DropdownMenuItem<String>(
-                                  value: null,
-                                  child: Text(
-                                    _isUrdu ? 'منتخب نہیں کیا' : 'Not Selected',
-                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-                                  ),
-                                ),
-                                const DropdownMenuItem<String>(value: 'A+', child: Text('A+')),
-                                const DropdownMenuItem<String>(value: 'A-', child: Text('A-')),
-                                const DropdownMenuItem<String>(value: 'B+', child: Text('B+')),
-                                const DropdownMenuItem<String>(value: 'B-', child: Text('B-')),
-                                const DropdownMenuItem<String>(value: 'AB+', child: Text('AB+')),
-                                const DropdownMenuItem<String>(value: 'AB-', child: Text('AB-')),
-                                const DropdownMenuItem<String>(value: 'O+', child: Text('O+')),
-                                const DropdownMenuItem<String>(value: 'O-', child: Text('O-')),
-                              ],
-                              onChanged: (value) => setState(() => _bloodGroup = value),
-                              // No validator - field is optional
                             ),
+                          ),
+                          items: [
+                            // Add a null option for "Not Selected"
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text(
+                                _isUrdu ? 'Ù…Ù†ØªØ®Ø¨ Ù†ÛÛŒÚº Ú©ÛŒØ§' : 'Not Selected',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                              ),
+                            ),
+                            const DropdownMenuItem<String>(value: 'A+', child: Text('A+')),
+                            const DropdownMenuItem<String>(value: 'A-', child: Text('A-')),
+                            const DropdownMenuItem<String>(value: 'B+', child: Text('B+')),
+                            const DropdownMenuItem<String>(value: 'B-', child: Text('B-')),
+                            const DropdownMenuItem<String>(value: 'AB+', child: Text('AB+')),
+                            const DropdownMenuItem<String>(value: 'AB-', child: Text('AB-')),
+                            const DropdownMenuItem<String>(value: 'O+', child: Text('O+')),
+                            const DropdownMenuItem<String>(value: 'O-', child: Text('O-')),
                           ],
+                          onChanged: (value) => setState(() => _bloodGroup = value),
+                          // No validator - field is optional
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ),
                     const Gap(7),
                     
@@ -1989,43 +1991,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Password field
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                textInputAction: TextInputAction.next,
+                      // Password field
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.next,
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                   color: colorScheme.onSurface,
                                 ),
-                                decoration: InputDecoration(
-                                  labelText: _translations['password'],
+                        decoration: InputDecoration(
+                          labelText: _translations['password'],
                                   prefixIcon: Container(
                                     margin: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: colorScheme.primaryContainer.withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(10),
-                                    ),
+                          ),
                                     child: Icon(
                                       Icons.lock_outlined,
                                       color: colorScheme.primary,
                                       size: 20,
                                     ),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
                                       _obscurePassword 
                                           ? Icons.visibility_outlined 
                                           : Icons.visibility_off_outlined,
                                       color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                  ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: BorderSide(
@@ -2051,48 +2053,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     horizontal: 16,
                                     vertical: 18,
                                   ),
-                                ),
-                                validator: _validatePassword,
-                              ),
+                        ),
+                        validator: _validatePassword,
+                      ),
                               const Gap(20),
-                              
-                              // Confirm Password field
-                              TextFormField(
-                                controller: _confirmPasswordController,
-                                obscureText: _obscureConfirmPassword,
-                                textInputAction: TextInputAction.done,
+                      
+                      // Confirm Password field
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        textInputAction: TextInputAction.done,
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                   color: colorScheme.onSurface,
                                 ),
-                                decoration: InputDecoration(
-                                  labelText: _translations['confirmPassword'],
+                        decoration: InputDecoration(
+                          labelText: _translations['confirmPassword'],
                                   prefixIcon: Container(
                                     margin: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: colorScheme.primaryContainer.withOpacity(0.5),
                                       borderRadius: BorderRadius.circular(10),
-                                    ),
+                          ),
                                     child: Icon(
                                       Icons.lock_outlined,
                                       color: colorScheme.primary,
                                       size: 20,
                                     ),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
                                       _obscureConfirmPassword 
                                           ? Icons.visibility_outlined 
                                           : Icons.visibility_off_outlined,
                                       color: colorScheme.onSurfaceVariant,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                                      });
-                                    },
-                                  ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureConfirmPassword = !_obscureConfirmPassword;
+                              });
+                            },
+                          ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                     borderSide: BorderSide(
@@ -2118,39 +2120,39 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     horizontal: 16,
                                     vertical: 18,
                                   ),
-                                ),
-                                validator: _validateConfirmPassword,
-                              ),
+                        ),
+                        validator: _validateConfirmPassword,
+                      ),
                               const Gap(12),
-                              
-                              // Password requirements hint
+                      
+                      // Password requirements hint
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: colorScheme.primaryContainer.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
                                       size: 16,
                                       color: colorScheme.primary,
-                                    ),
+                            ),
                                     const Gap(8),
-                                    Expanded(
-                                      child: Text(
-                                        _translations['passwordRequirements']!,
-                                        style: TextStyle(
-                                          fontSize: 12,
+                            Expanded(
+                              child: Text(
+                                _translations['passwordRequirements']!,
+                                style: TextStyle(
+                                  fontSize: 12,
                                           color: colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
                             ],
                           ),
                         ),
@@ -2160,44 +2162,44 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     
                     // Submit button
                     FilledButton.icon(
-                      onPressed: _isSubmitting ? null : _handleSubmit,
-                      style: FilledButton.styleFrom(
+                        onPressed: _isSubmitting ? null : _handleSubmit,
+                        style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
+                          shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                        ),
+                          ),
                         minimumSize: const Size(double.infinity, 56),
-                      ),
+                        ),
                       icon: _isSubmitting
                           ? SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                                  strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   colorScheme.onPrimary,
                                 ),
-                              ),
-                            )
+                                ),
+                              )
                           : const Icon(Icons.check_circle_outline, size: 20),
                       label: _isSubmitting
                           ? const Text('Registering...')
-                          : Text(
-                              _translations['completeRegistration']!,
+                            : Text(
+                                _translations['completeRegistration']!,
                               style: const TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                    ),
+                      ),
                     const Gap(7),
                   ],
+                ),
                 ),
               ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -2228,4 +2230,6 @@ class _CnicInputFormatter extends TextInputFormatter {
     );
   }
 }
+
+
 
