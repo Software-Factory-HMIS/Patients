@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
+import '../utils/haptic_helper.dart';
 import '../services/auth_service.dart';
 import '../services/inactivity_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
@@ -3755,6 +3756,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _vitals,
       filterFunction: _filterVitals,
       noDataMessage: 'No vitals data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3779,6 +3781,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _medications,
       filterFunction: _filterMedications,
       noDataMessage: 'No medications data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3800,6 +3803,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _opd,
       filterFunction: _filterOPD,
       noDataMessage: 'No OPD data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3822,6 +3826,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _ipd,
       filterFunction: _filterIPD,
       noDataMessage: 'No IPD data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3844,6 +3849,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _labs,
       filterFunction: _filterLabs,
       noDataMessage: 'No lab data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3865,6 +3871,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _radiology,
       filterFunction: _filterRadiology,
       noDataMessage: 'No radiology data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3886,6 +3893,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       data: _surgery,
       filterFunction: _filterSurgery,
       noDataMessage: 'No surgery data available',
+      onRefresh: _loadMedicalRecordsData,
     );
   }
 
@@ -3902,8 +3910,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     List<dynamic>? data,
     List<dynamic> Function(String)? filterFunction,
     String? noDataMessage,
+    Future<void> Function()? onRefresh,
   }) {
-    return Container(
+    final content = Container(
       color: Colors.grey.shade50,
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -4130,6 +4139,20 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
         ],
       ),
     );
+
+    // Wrap with RefreshIndicator if onRefresh is provided
+    if (onRefresh != null) {
+      return RefreshIndicator(
+        onRefresh: () async {
+          HapticHelper.light();
+          await onRefresh();
+          HapticHelper.success();
+        },
+        child: content,
+      );
+    }
+
+    return content;
   }
 
   DataRow _dataRow(List<String> texts) {
