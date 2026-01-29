@@ -3304,10 +3304,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               color: MaterialStateProperty.all(
                 index % 2 == 0 ? Colors.white : Colors.grey.shade50,
               ),
-              cells: rowData.map((cell) => DataCell(
+              cells: rowData.map<DataCell>((cell) => DataCell(
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-            child: Text(
+                  child: Text(
                     cell.isEmpty ? '-' : cell,
                     style: TextStyle(
                       fontSize: 14,
@@ -4175,29 +4175,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   DataRow _buildEnhancedDataRow(List<String> texts) {
     return DataRow(
       cells: [
-        for (final t in texts)
-          DataCell(
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-              child: Text(
-                t.isEmpty ? '-' : t,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: t.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
-                  fontWeight: t.isEmpty ? FontWeight.normal : FontWeight.w500,
-                  height: 1.3,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-}
-
         for (final t in texts)
           DataCell(
             Container(
