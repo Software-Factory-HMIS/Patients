@@ -4197,3 +4197,26 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
 }
+
+        for (final t in texts)
+          DataCell(
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+              child: Text(
+                t.isEmpty ? '-' : t,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: t.isEmpty ? Colors.grey.shade400 : Colors.grey.shade800,
+                  fontWeight: t.isEmpty ? FontWeight.normal : FontWeight.w500,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+}
