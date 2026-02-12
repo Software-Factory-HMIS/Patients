@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'api_config.dart';
 import '../services/auth_service.dart';
+
+// Conditional import for dart:io (not available on web)
+import 'emr_api_client_io.dart' if (dart.library.html) 'emr_api_client_web.dart' as platform_client;
 
 class EmrApiClient {
   final String baseUrl;
@@ -15,27 +16,16 @@ class EmrApiClient {
         _client = client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl());
 
   /// Creates an HTTP client with appropriate SSL certificate handling
-  /// - For development URLs (localhost, private IPs): Bypasses SSL validation
-  /// - For production URLs: Uses standard certificate validation
+  /// - For development URLs (localhost, private IPs): Bypasses SSL validation (native only)
+  /// - For web/production: Uses standard HTTP client
   static http.Client _createHttpClient(String url) {
-    // Check if this is a development/local URL
-    // Matches: localhost, 127.0.0.1, 10.0.2.2 (emulator), and private IP ranges
-    final isDevelopmentUrl = _isDevelopmentUrl(url);
-    
-    // For development URLs with HTTPS, create a client that bypasses SSL validation
-    if (isDevelopmentUrl && url.startsWith('https://')) {
-      final httpClient = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) {
-          // WARNING: Only bypasses SSL for development URLs
-          // This allows self-signed certificates in development environments
-          // Safe for emulator and local network testing on real devices
-          return true;
-        };
-      return IOClient(httpClient);
+    // On web, always use standard HTTP client (browser handles SSL)
+    if (kIsWeb) {
+      return http.Client();
     }
     
-    // For production URLs, use standard HTTP client with proper certificate validation
-    return http.Client();
+    // On native platforms, use platform-specific client with SSL bypass for dev URLs
+    return platform_client.createHttpClient(url, _isDevelopmentUrl(url));
   }
   
   /// Determines if a URL is a development/local URL
@@ -361,14 +351,8 @@ class EmrApiClient {
     }
   }
 
-  // Hash password using SHA-256
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
-
   // Register a new patient using the new /api/patient-auth/register endpoint
+  // NOTE: Password is sent as plain text and hashed server-side with PBKDF2
   Future<Map<String, dynamic>> registerPatient({
     required String fullName,
     required String cnic,
@@ -390,12 +374,6 @@ class EmrApiClient {
       final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
       final trimmedPassword = password?.trim();
       
-      // Hash password before sending
-      String? hashedPassword;
-      if (trimmedPassword != null && trimmedPassword.isNotEmpty) {
-        hashedPassword = _hashPassword(trimmedPassword);
-      }
-      
       final body = <String, dynamic>{
         'cnic': cleanCnic,
         'fullName': fullName.trim(),
@@ -406,7 +384,8 @@ class EmrApiClient {
         if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
         if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
         if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 'bloodGroup': bloodGroup,
-        if (hashedPassword != null) 'passwordHash': hashedPassword,
+        // Send plain password - server will hash with PBKDF2
+        if (trimmedPassword != null && trimmedPassword.isNotEmpty) 'password': trimmedPassword,
       };
       
       
@@ -603,12 +582,34 @@ class EmrApiClient {
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as List<dynamic>;
+        final decoded = json.decode(res.body);
+        
+        // Handle direct list response
+        if (decoded is List) {
+          return decoded;
         }
-        return response['hospitals'] as List<dynamic>? ?? [];
+        
+        // Handle wrapped response
+        final response = decoded as Map<String, dynamic>;
+        
+        // Check for data.hospitals (nested structure from HospitalController)
+        if (response.containsKey('data')) {
+          final data = response['data'];
+          if (data is List) {
+            return data;
+          }
+          if (data is Map<String, dynamic> && data.containsKey('hospitals')) {
+            final hospitals = data['hospitals'];
+            return hospitals is List ? hospitals : [];
+          }
+        }
+        
+        // Check for hospitals at root level
+        if (response.containsKey('hospitals')) {
+          final hospitals = response['hospitals'];
+          return hospitals is List ? hospitals : [];
+        }
+        return [];
       }
       throw Exception('Failed to load hospitals (${res.statusCode}): ${res.body}');
     } catch (e) {
@@ -622,12 +623,34 @@ class EmrApiClient {
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as List<dynamic>;
+        final decoded = json.decode(res.body);
+        
+        // Handle direct list response
+        if (decoded is List) {
+          return decoded;
         }
-        return response['departments'] as List<dynamic>? ?? [];
+        
+        // Handle wrapped response
+        final response = decoded as Map<String, dynamic>;
+        
+        // Check for data.departments (nested structure)
+        if (response.containsKey('data')) {
+          final data = response['data'];
+          if (data is List) {
+            return data;
+          }
+          if (data is Map<String, dynamic> && data.containsKey('departments')) {
+            final departments = data['departments'];
+            return departments is List ? departments : [];
+          }
+        }
+        
+        // Check for departments at root level
+        if (response.containsKey('departments')) {
+          final departments = response['departments'];
+          return departments is List ? departments : [];
+        }
+        return [];
       }
       throw Exception('Failed to load departments (${res.statusCode}): ${res.body}');
     } catch (e) {
@@ -784,6 +807,48 @@ class EmrApiClient {
     } catch (e) {
       // Return empty map instead of throwing - allows UI to still show appointment details
       return {};
+    }
+  }
+
+  /// Lookup patient by CNIC and get masked phone number.
+  /// This is the first step in OTP-only authentication flow.
+  /// Returns: {found, maskedPhone, patientName, message}
+  Future<Map<String, dynamic>> lookupPatient({required String cnic}) async {
+    final uri = Uri.parse('$baseUrl/api/patient-auth/lookup');
+    try {
+      final body = {
+        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+      };
+      
+      final res = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final response = json.decode(res.body) as Map<String, dynamic>;
+        // Handle API response wrapper if present
+        if (response.containsKey('data')) {
+          return response['data'] as Map<String, dynamic>;
+        }
+        return response;
+      }
+      
+      // Parse error message
+      String errorMessage = 'Failed to lookup patient';
+      try {
+        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
+        errorMessage = errorResponse['message'] as String? ?? 
+                      errorResponse['error'] as String? ?? 
+                      errorMessage;
+      } catch (e) {
+        errorMessage = res.body;
+      }
+      
+      throw Exception('$errorMessage (${res.statusCode})');
+    } catch (e) {
+      rethrow;
     }
   }
 

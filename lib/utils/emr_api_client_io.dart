@@ -1,0 +1,25 @@
+// Platform-specific HTTP client for native platforms (Android, iOS, desktop)
+// This file is used when dart:io is available
+
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+
+/// Creates an HTTP client for native platforms
+/// Bypasses SSL validation for development URLs with HTTPS
+http.Client createHttpClient(String url, bool isDevelopmentUrl) {
+  // For development URLs with HTTPS, create a client that bypasses SSL validation
+  if (isDevelopmentUrl && url.startsWith('https://')) {
+    final httpClient = HttpClient()
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+        // WARNING: Only bypasses SSL for development URLs
+        // This allows self-signed certificates in development environments
+        // Safe for emulator and local network testing on real devices
+        return true;
+      };
+    return IOClient(httpClient);
+  }
+  
+  // For production URLs, use standard HTTP client with proper certificate validation
+  return http.Client();
+}
