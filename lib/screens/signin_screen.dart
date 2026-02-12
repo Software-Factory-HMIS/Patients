@@ -6,6 +6,7 @@ import 'registration_phone_screen.dart';
 import 'patient_selection_screen.dart';
 import 'dashboard_screen.dart';
 import 'set_password_phone_screen.dart';
+import 'id_scanner_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
@@ -193,6 +194,14 @@ class _SignInScreenState extends State<SignInScreen> {
                                       color: colorScheme.primary,
                                       size: 20,
                                     ),
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      Icons.camera_alt_outlined,
+                                      color: colorScheme.primary,
+                                    ),
+                                    tooltip: 'Scan ID Card',
+                                    onPressed: _openIDScanner,
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
@@ -673,6 +682,38 @@ class _SignInScreenState extends State<SignInScreen> {
         builder: (context) => SetPasswordPhoneScreen(cnic: cnic),
       ),
     );
+  }
+
+  /// Opens the ID card scanner for fast CNIC capture
+  Future<void> _openIDScanner() async {
+    final imagePath = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (context) => const IDScannerScreen(),
+      ),
+    );
+    
+    if (imagePath != null && mounted) {
+      // TODO: In future, OCR can be added here to extract CNIC from the image
+      // For now, show success message that image was captured
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('ID card captured successfully'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    }
   }
 }
 
