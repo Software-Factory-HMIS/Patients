@@ -350,90 +350,90 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             spacing: 8,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Icon(Icons.date_range, color: Colors.blue[700], size: 20),
-              Text(
-                'From:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
+        children: [
+          Icon(Icons.date_range, color: Colors.blue[700], size: 20),
+          Text(
+            'From:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[700],
+            ),
+          ),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _startDate,
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) {
+                setState(() {
+                  _startDate = picked;
+                });
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[400]!),
+                borderRadius: BorderRadius.circular(8),
               ),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _startDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _startDate = picked;
-                    });
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(_startDate),
+                    style: const TextStyle(fontSize: 14),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('dd/MM/yyyy').format(_startDate),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                    ],
-                  ),
-                ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                ],
               ),
-              Text(
-                'To:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
+            ),
+          ),
+          Text(
+            'To:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[700],
+            ),
+          ),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _endDate,
+                firstDate: _startDate,
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) {
+                setState(() {
+                  _endDate = picked;
+                });
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[400]!),
+                borderRadius: BorderRadius.circular(8),
               ),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _endDate,
-                    firstDate: _startDate,
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _endDate = picked;
-                    });
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[400]!),
-                    borderRadius: BorderRadius.circular(8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(_endDate),
+                    style: const TextStyle(fontSize: 14),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('dd/MM/yyyy').format(_endDate),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                    ],
-                  ),
-                ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                ],
               ),
+            ),
+          ),
             ],
           ),
           const SizedBox(height: 12),
@@ -441,15 +441,15 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _loadDataWithFilters,
-              icon: const Icon(Icons.search, size: 18),
-              label: const Text('Show'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[700],
-                foregroundColor: Colors.white,
+            onPressed: _loadDataWithFilters,
+            icon: const Icon(Icons.search, size: 18),
+            label: const Text('Show'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[700],
+              foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
@@ -519,7 +519,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     colorScheme.surface,
                     colorScheme.surfaceContainerHighest,
                   ],
-                ),
+                  ),
               ),
               child: Padding(
                 padding: EdgeInsets.all(isMobile ? 16 : 20),
@@ -528,11 +528,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            children: [
-                              Container(
+                    children: [
+                      Container(
                                 width: 56,
                                 height: 56,
-                                decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -547,29 +547,29 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                       color: colorScheme.primary.withOpacity(0.3),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
+                              ),
+                            ],
+                          ),
                                 child: Icon(
                                   Icons.person,
                                   size: 28,
                                   color: Colors.white,
-                                ),
-                              ),
+                        ),
+                      ),
                               const Gap(12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
+                      Text(
                                       name,
                                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.grey.shade800,
-                                      ),
-                                    ),
+                        ),
+                      ),
                                     const Gap(4),
-                                    Text(
+                      Text(
                                       'MRN: $mrn',
                                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                         color: Colors.grey.shade600,
@@ -597,10 +597,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       )
                     : Row(
                         children: [
-                          Container(
+                        Container(
                             width: 64,
                             height: 64,
-                            decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -617,7 +617,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                   offset: const Offset(0, 4),
                                 ),
                               ],
-                            ),
+                          ),
                             child: Icon(
                               Icons.person,
                               size: 32,
@@ -632,7 +632,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                 Text(
                                   name,
                                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                                     color: Colors.grey.shade800,
                                   ),
                                 ),
@@ -641,19 +641,19 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                   'MRN: $mrn • $gender • $age • $bloodType • Last Visit: $lastVisit',
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
+                          ),
+                        ),
+                      ],
                             ),
                           ),
-                        ],
-                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
         ],
-      ),
-    );
+          ),
+        );
   }
 
   Widget _buildInfoChip(IconData icon, String label, String value) {
