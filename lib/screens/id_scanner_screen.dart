@@ -633,6 +633,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.close, color: Colors.white, size: 28),
               style: IconButton.styleFrom(backgroundColor: Colors.black45),
+              tooltip: 'Close ID scanner',
             ),
           ),
 
@@ -643,23 +644,27 @@ class _IDScannerScreenState extends State<IDScannerScreen>
               left: 0,
               right: 0,
               child: Center(
-                child: GestureDetector(
-                  onTap: _captureImage,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _status.color, width: 4),
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(4),
+                child: Semantics(
+                  button: true,
+                  label: 'Capture ID card photo',
+                  child: GestureDetector(
+                    onTap: _captureImage,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _status.index >= ScannerStatus.cnicAligned.index 
-                            ? _status.color 
-                            : Colors.white,
+                        border: Border.all(color: _status.color, width: 4),
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _status.index >= ScannerStatus.cnicAligned.index
+                              ? _status.color
+                              : Colors.white,
+                        ),
                       ),
                     ),
                   ),

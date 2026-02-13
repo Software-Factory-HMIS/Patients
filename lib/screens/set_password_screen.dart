@@ -55,17 +55,29 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Set Password'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        automaticallyImplyLeading: false, // Prevent going back
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false,
       ),
-      body: SafeArea(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.25),
+              colorScheme.surface,
+            ],
+            stops: const [0.0, 0.6],
+          ),
+        ),
+        child: SafeArea(
         child: KeyboardInsetPadding(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -78,60 +90,81 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                   children: <Widget>[
                     const Gap(40),
                     
-                    // Icon
                     Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        width: 96,
+                        height: 96,
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: colorScheme.primaryContainer.withOpacity(0.6),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.lock_outline,
-                          size: 40,
-                          color: Colors.blue.shade700,
-                        ),
+                        child: Icon(Icons.lock_outline, size: 44, color: colorScheme.primary),
                       ),
                     ),
                     
                     const Gap(32),
                     
-                    // Title
                     Text(
                       'Create Password',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
+                        color: colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const Gap(8),
-                    
                     Text(
                       'Enter a secure password for your account',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey.shade600,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     
                     const Gap(48),
-                    
-                    // Password input field
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       textInputAction: TextInputAction.next,
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: TextStyle(
+                        fontSize: 17,
                         fontWeight: FontWeight.w500,
+                        color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Password',
                         hintText: 'Enter your password',
-                        prefixIcon: const Icon(Icons.lock_outlined),
+                        prefixIcon: Container(
+                          margin: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.lock_outlined, color: colorScheme.primary, size: 20),
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -142,15 +175,10 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                             });
                           },
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
-                        ),
+                        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                       ),
                       scrollPadding: const EdgeInsets.only(bottom: 100),
                       validator: (value) {
@@ -167,20 +195,26 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                     ),
                     
                     const Gap(16),
-                    
-                    // Confirm Password input field
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
                       textInputAction: TextInputAction.done,
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: TextStyle(
+                        fontSize: 17,
                         fontWeight: FontWeight.w500,
+                        color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
                         hintText: 'Re-enter your password',
-                        prefixIcon: const Icon(Icons.lock_outlined),
+                        prefixIcon: Container(
+                          margin: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.lock_outlined, color: colorScheme.primary, size: 20),
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
@@ -191,15 +225,10 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                             });
                           },
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                         filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
-                        ),
+                        fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                       ),
                       scrollPadding: const EdgeInsets.only(bottom: 100),
                       validator: (value) {
@@ -214,18 +243,16 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                         return null;
                       },
                     ),
-                    
+                        ],
+                      ),
+                    ),
                     const Gap(32),
-                    
-                    // Set Password button
                     SizedBox(
                       height: 56,
                       child: FilledButton(
                         onPressed: _loading ? null : _handleSetPassword,
                         style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: _loading
@@ -253,6 +280,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

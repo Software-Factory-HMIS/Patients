@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'phone_confirm_screen.dart';
 import 'id_scanner_screen.dart';
+import 'settings_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
@@ -60,6 +61,23 @@ class _SignInScreenState extends State<SignInScreen> {
     
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Open settings to change theme',
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -95,11 +113,15 @@ class _SignInScreenState extends State<SignInScreen> {
                           child: Image.asset(
                             'assets/images/punjab.png',
                             fit: BoxFit.contain,
+                            semanticLabel: 'Government of Punjab Health Department logo',
                             errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.local_hospital_rounded,
-                                size: 100,
-                                color: colorScheme.primary,
+                              return Semantics(
+                                label: 'Hospital logo',
+                                child: Icon(
+                                  Icons.local_hospital_rounded,
+                                  size: 100,
+                                  color: colorScheme.primary,
+                                ),
                               );
                             },
                           ),
@@ -189,7 +211,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                       Icons.camera_alt_outlined,
                                       color: colorScheme.primary,
                                     ),
-                                    tooltip: 'Scan ID Card',
+                                    tooltip: 'Scan ID card with camera',
                                     onPressed: _openIDScanner,
                                   ),
                                   border: OutlineInputBorder(

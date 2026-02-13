@@ -52,20 +52,32 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Set Password'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.25),
+              colorScheme.surface,
+            ],
+            stops: const [0.0, 0.6],
+          ),
+        ),
+        child: SafeArea(
         child: KeyboardInsetPadding(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -78,41 +90,40 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                   children: <Widget>[
                     const Gap(40),
                     
-                    // Icon
                     Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        width: 96,
+                        height: 96,
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: colorScheme.primaryContainer.withOpacity(0.6),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.phone_android,
-                          size: 40,
-                          color: Colors.blue.shade700,
-                        ),
+                        child: Icon(Icons.phone_android, size: 44, color: colorScheme.primary),
                       ),
                     ),
                     
                     const Gap(32),
                     
-                    // Title
                     Text(
                       'Enter your phone number',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
+                        color: colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const Gap(8),
-                    
                     Text(
                       'We will send you an OTP to verify your number',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey.shade600,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -204,14 +215,14 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                     
                     const Gap(24),
                     
-                    // Back button
                     Center(
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
                           'Back',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

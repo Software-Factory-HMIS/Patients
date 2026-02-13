@@ -219,11 +219,15 @@ class _SplashScreenState extends State<SplashScreen>
                           child: Image.asset(
                             'assets/images/punjab.png',
                             fit: BoxFit.contain,
+                            semanticLabel: 'Government of Punjab Health logo',
                             errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.local_hospital_rounded,
-                                size: 100,
-                                color: const Color(0xFF059669),
+                              return Semantics(
+                                label: 'Hospital logo',
+                                child: Icon(
+                                  Icons.local_hospital_rounded,
+                                  size: 100,
+                                  color: const Color(0xFF059669),
+                                ),
                               );
                             },
                           ),

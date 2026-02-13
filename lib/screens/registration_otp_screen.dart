@@ -57,20 +57,32 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('OTP Verification'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.25),
+              colorScheme.surface,
+            ],
+            stops: const [0.0, 0.6],
+          ),
+        ),
+        child: SafeArea(
         child: KeyboardInsetPadding(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -83,74 +95,88 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                   children: <Widget>[
                     const Gap(40),
                     
-                    // Icon
                     Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        width: 96,
+                        height: 96,
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
+                          color: colorScheme.primaryContainer.withOpacity(0.6),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.lock_outline,
-                          size: 40,
-                          color: Colors.green.shade700,
-                        ),
+                        child: Icon(Icons.lock_outline, size: 44, color: colorScheme.primary),
                       ),
                     ),
                     
                     const Gap(32),
                     
-                    // Title
                     Text(
                       'Enter OTP',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
+                        color: colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const Gap(8),
-                    
                     Text(
                       'We sent a 4-digit code to\n${widget.phoneNumber}',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey.shade600,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
                     ),
                     
                     const Gap(48),
-                    
-                    // OTP input field
-                    TextFormField(
-                      controller: _otpController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.done,
-                      maxLength: 4,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 8,
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        labelText: 'OTP',
-                        hintText: '----',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      child: TextFormField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        maxLength: 4,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 10,
+                          color: colorScheme.onSurface,
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 20,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          labelText: 'OTP',
+                          hintText: '----',
+                          prefixIcon: Container(
+                            margin: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.pin_outlined, color: colorScheme.primary, size: 20),
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                          counterText: '',
                         ),
-                        counterText: '', // Hide character counter
-                      ),
                       scrollPadding: const EdgeInsets.only(bottom: 100),
                       inputFormatters: <TextInputFormatter>[
                         FilteringTextInputFormatter.digitsOnly,
@@ -162,21 +188,18 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                         if (value!.length != 4) {
                           return 'OTP must be 4 digits';
                         }
-                        return null;
-                      },
+                          return null;
+                        },
+                      ),
                     ),
-                    
                     const Gap(32),
                     
-                    // Submit button
                     SizedBox(
                       height: 56,
                       child: FilledButton(
                         onPressed: _loading ? null : _handleVerifyOtp,
                         style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: _loading
@@ -200,29 +223,27 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
                     
                     const Gap(16),
                     
-                    // Resend OTP
                     Center(
                       child: TextButton(
                         onPressed: _handleResendOtp,
                         child: Text(
                           'Didn\'t receive OTP? Resend',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    
                     const Gap(8),
-                    
-                    // Back button
                     Center(
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
                           'Back',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

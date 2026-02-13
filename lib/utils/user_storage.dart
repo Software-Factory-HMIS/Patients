@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UserStorage {
   static const String _userDataKey = 'registered_user_data';
   static const String _phoneKey = 'last_phone_number';
+  static const String _themeModeKey = 'app_theme_mode';
 
   // Save registered user data (for self registration only)
   static Future<void> saveUserData(Map<String, dynamic> userData) async {
@@ -102,6 +103,24 @@ class UserStorage {
       
       final appointmentsList = json.decode(appointmentsString) as List;
       return appointmentsList.map((item) => item as Map<String, dynamic>).toList();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<void> saveThemeMode(String mode) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_themeModeKey, mode);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  static Future<String?> getThemeMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_themeModeKey);
     } catch (e) {
       return null;
     }

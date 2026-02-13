@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
 import 'package:flutter/services.dart';
+import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
+import 'services/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,7 @@ void main() async {
   ]);
   
   await AuthService.instance.init();
+  await ThemeService.instance.init();
   
   runApp(const MyApp());
 }
@@ -59,49 +61,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       onPointerDown: (_) => InactivityService.instance.resetActivity(),
       onPointerMove: (_) => InactivityService.instance.resetActivity(),
       onPointerUp: (_) => InactivityService.instance.resetActivity(),
-      child: MaterialApp(
-        navigatorKey: _navigatorKey,
-        title: 'Healthcare Management System',
-        useInheritedMediaQuery: true,
-        navigatorObservers: [
-          _InactivityObserver(),
-        ],
-        theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB), // Modern blue
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-      ),
-        home: const SplashScreen(),
-        debugShowCheckedModeBanner: false,
+      child: ValueListenableBuilder<AppThemeMode>(
+        valueListenable: ThemeService.instance.themeNotifier,
+        builder: (context, _, __) {
+          return MaterialApp(
+            navigatorKey: _navigatorKey,
+            title: 'Healthcare Management System',
+            navigatorObservers: [
+              _InactivityObserver(),
+            ],
+            theme: ThemeService.instance.getTheme(),
+            darkTheme: ThemeService.instance.getDarkTheme(),
+            themeMode: ThemeService.instance.getThemeMode(),
+            home: const SplashScreen(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

@@ -21,80 +21,95 @@ class PatientSelectionScreen extends StatefulWidget {
 class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Select Patient'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.2),
+              colorScheme.surface,
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700),
-                    const Gap(12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Multiple accounts found',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade900,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const Gap(4),
-                          Text(
-                            'Please select the account you want to use for appointments',
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              AppBar(
+                title: const Text('Select Patient'),
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                centerTitle: true,
               ),
-              
-              const Gap(24),
-              
-              // CNIC/Identifier display
-              Text(
-                'CNIC: ${widget.phoneNumber}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              
-              const Gap(16),
-              
-              // Patients list
               Expanded(
-                child: ListView.builder(
-                  itemCount: widget.patients.length,
-                  itemBuilder: (context, index) {
-                    final patient = widget.patients[index];
-                    return _buildPatientCard(patient);
-                  },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: colorScheme.primary.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.people_outline, color: colorScheme.primary, size: 24),
+                            ),
+                            const Gap(14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Multiple accounts found',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const Gap(4),
+                                  Text(
+                                    'Select the account you want to use for appointments',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Gap(20),
+                      Text(
+                        'CNIC: ${widget.phoneNumber}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Gap(16),
+                      ...widget.patients.map((p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildPatientCard(p),
+                      )),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -124,85 +139,78 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
       }
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 0,
+      shadowColor: Colors.black.withOpacity(0.06),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outline.withOpacity(0.1)),
       ),
       child: InkWell(
         onTap: () => _selectPatient(patient),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Name and MRN
               Row(
                 children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [colorScheme.primary, colorScheme.secondary],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white, size: 24),
+                  ),
+                  const Gap(14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           fullName,
-                          style: const TextStyle(
-                            fontSize: 18,
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const Gap(4),
                         Text(
                           'MRN: $mrn',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
                   ),
                   Icon(
-                    Icons.arrow_forward_ios,
-                    size: 20,
-                    color: Colors.grey.shade400,
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: colorScheme.outline,
                   ),
                 ],
               ),
-              
+              const Gap(14),
+              Divider(height: 1, color: colorScheme.outline.withOpacity(0.2)),
               const Gap(12),
-              
-              // Divider
-              Divider(height: 1, color: Colors.grey.shade300),
-              
-              const Gap(12),
-              
-              // Details
-              Row(
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
                 children: [
-                  Expanded(
-                    child: _buildDetailItem(
-                      Icons.credit_card,
-                      'CNIC',
-                      cnic.length > 13 ? '${cnic.substring(0, 13)}...' : cnic,
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildDetailItem(
-                      Icons.calendar_today,
-                      'DOB',
-                      dobString ?? 'N/A',
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildDetailItem(
-                      Icons.person,
-                      'Gender',
-                      gender,
-                    ),
-                  ),
+                  _buildDetailItem(Icons.credit_card, 'CNIC',
+                      cnic.length > 13 ? '${cnic.substring(0, 13)}...' : cnic),
+                  _buildDetailItem(Icons.calendar_today, 'DOB', dobString ?? 'N/A'),
+                  _buildDetailItem(Icons.person_outline, 'Gender', gender),
                 ],
               ),
             ],
@@ -213,35 +221,37 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
   }
 
   Widget _buildDetailItem(IconData icon, String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 16, color: Colors.grey.shade600),
-            const Gap(4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.08)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: colorScheme.primary),
+          const Gap(6),
+          Text(
+            '$label: ',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
-        const Gap(4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey.shade800,
-            fontWeight: FontWeight.w500,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+          Text(
+            value,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurface,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 

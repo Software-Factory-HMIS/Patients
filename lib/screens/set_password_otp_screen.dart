@@ -56,20 +56,32 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Verify OTP'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: SafeArea(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primaryContainer.withOpacity(0.25),
+              colorScheme.surface,
+            ],
+            stops: const [0.0, 0.6],
+          ),
+        ),
+        child: SafeArea(
         child: KeyboardInsetPadding(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -82,41 +94,40 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
                   children: <Widget>[
                     const Gap(40),
                     
-                    // Icon
                     Center(
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        width: 96,
+                        height: 96,
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
+                          color: colorScheme.primaryContainer.withOpacity(0.6),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.15),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.lock_outline,
-                          size: 40,
-                          color: Colors.green.shade700,
-                        ),
+                        child: Icon(Icons.lock_outline, size: 44, color: colorScheme.primary),
                       ),
                     ),
                     
                     const Gap(32),
                     
-                    // Title
                     Text(
                       'Enter OTP',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
+                        color: colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
                     const Gap(8),
-                    
                     Text(
                       'We sent a 4-digit code to\n${widget.phoneNumber}',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey.shade600,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -202,29 +213,27 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
                     
                     const Gap(16),
                     
-                    // Resend OTP
                     Center(
                       child: TextButton(
                         onPressed: _handleResendOtp,
                         child: Text(
                           'Didn\'t receive OTP? Resend',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    
                     const Gap(8),
-                    
-                    // Back button
                     Center(
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: Text(
                           'Back',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

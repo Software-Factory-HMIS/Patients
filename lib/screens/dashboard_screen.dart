@@ -13,6 +13,7 @@ import '../services/inactivity_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
 import 'patient_file_screen.dart';
+import 'settings_screen.dart';
 import 'signin_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -347,16 +348,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: colorScheme.surface,
       drawer: _buildDrawer(context),
       appBar: AppBar(
         title: Text(
           _currentNavIndex == 0 
               ? 'Appointments' 
               : 'My Medical Records',
-          style: const TextStyle(
+          style: theme.appBarTheme.titleTextStyle ?? TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
+            color: colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -386,9 +388,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildBottomNavigationBar() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -421,9 +424,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.blue.shade700,
-          unselectedItemColor: Colors.grey.shade600,
+          backgroundColor: colorScheme.surface,
+          selectedItemColor: colorScheme.primary,
+          unselectedItemColor: colorScheme.onSurfaceVariant,
           selectedLabelStyle: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -500,12 +503,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: colorScheme.onPrimary.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.calendar_today,
-                            color: Colors.white,
+                            color: colorScheme.onPrimary,
                             size: 24,
                           ),
                         ),
@@ -518,14 +521,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                 'Book Appointment',
                                 style: theme.textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: colorScheme.onPrimary,
                                 ),
                               ),
                               const Gap(4),
                               Text(
                                 'Select hospital and department',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: colorScheme.onPrimary.withOpacity(0.9),
                                 ),
                               ),
                             ],
@@ -582,7 +585,8 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                         controller: _hospitalSearchController,
                         decoration: InputDecoration(
                           hintText: 'Search hospitals...',
-                          prefixIcon: const Icon(Icons.search),
+                          hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                          prefixIcon: Icon(Icons.search, color: colorScheme.onSurfaceVariant),
                           suffixIcon: _hospitalSearchController.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear),
@@ -669,7 +673,10 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                       vertical: 16,
                                     ),
                                   ),
-                                  hint: const Text('Select a hospital'),
+                                  hint: Text(
+                                    'Select a hospital',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                                  ),
                                   items: filteredHospitals.map((hospital) {
                                     return DropdownMenuItem<Hospital>(
                                       value: hospital,
@@ -799,6 +806,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                                         : _loadingHospitalDepartments
                                             ? 'Loading departments...'
                                             : 'Select a department',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant),
                                   ),
                                   items: _hospitalDepartments?.map((hospitalDept) {
                                     return DropdownMenuItem<HospitalDepartment>(
@@ -1007,13 +1015,14 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
   }
 
   Widget _buildSkeletonLoader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
       child: Container(
         height: 60,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1022,7 +1031,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: colorScheme.outline.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -1031,7 +1040,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               child: Container(
                 height: 16,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: colorScheme.outline.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -1182,7 +1191,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             Icon(
               Icons.calendar_today_outlined,
               size: 48,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: colorScheme.onSurfaceVariant.withOpacity(0.7),
             ),
             const Gap(16),
             Text(
@@ -1198,7 +1207,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               'Your appointment history will appear here',
               style: TextStyle(
                 fontSize: 12,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -2144,7 +2153,12 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   false,
                   () {
                     Navigator.pop(context);
-                    // TODO: Navigate to settings
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsScreen(),
+                      ),
+                    );
                   },
                   colorScheme,
                 ),
