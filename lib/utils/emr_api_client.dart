@@ -567,6 +567,158 @@ class EmrApiClient {
     throw Exception('Failed to load surgery records (${res.statusCode})');
   }
 
+  // --- Patient File (IPD-style) APIs - same as hmis_flutter backend ---
+
+  /// GET /api/patient-queue/patient-vitals/{patientId}
+  Future<List<dynamic>> getPatientVitals(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/patient-queue/patient-vitals/$patientId')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode == 200 && res.body.trim().isEmpty) return [];
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      if (data is List) return data;
+      if (data is Map && data['data'] != null) return data['data'] as List<dynamic>;
+      if (data is Map && data['vitalSigns'] != null) return data['vitalSigns'] as List<dynamic>;
+      return [];
+    }
+    return [];
+  }
+
+  /// GET /api/encounters/patient/{patientId}/all
+  Future<List<Map<String, dynamic>>> getAllPatientEncounters(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/all')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) throw Exception('Failed to load encounters (${res.statusCode})');
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    return List<Map<String, dynamic>>.from(data['encounters'] ?? []);
+  }
+
+  /// GET /api/encounters/{encounterId}
+  Future<Map<String, dynamic>> getEncounterDetails(int encounterId) async {
+    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/encounters/$encounterId'));
+    if (res.statusCode != 200) throw Exception('Failed to get encounter details (${res.statusCode})');
+    return json.decode(res.body) as Map<String, dynamic>;
+  }
+
+  /// GET /api/consultation/encounter/{encounterId}
+  Future<Map<String, dynamic>> getEncounterConsultationData(
+    int encounterId, {
+    int? patientId,
+  }) async {
+    var uri = Uri.parse('$baseUrl/api/consultation/encounter/$encounterId');
+    if (patientId != null) {
+      uri = uri.replace(queryParameters: {'patientId': patientId.toString()});
+    }
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode == 404) return {};
+    if (res.statusCode != 200) throw Exception('Failed to load consultation data (${res.statusCode})');
+    if (res.body.trim().isEmpty) return {};
+    return json.decode(res.body) as Map<String, dynamic>;
+  }
+
+  /// GET /api/encounters/admission/{admissionId}
+  Future<List<Map<String, dynamic>>> getEncountersByAdmissionId(int admissionId) async {
+    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/encounters/admission/$admissionId'));
+    if (res.statusCode == 404) return [];
+    if (res.statusCode != 200) return [];
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    return List<Map<String, dynamic>>.from(data['encounters'] ?? data['data'] ?? []);
+  }
+
+  /// GET /api/patient-chronic-conditions/{patientId}
+  Future<List<dynamic>> getPatientChronicConditions(int patientId) async {
+    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-chronic-conditions/$patientId'));
+    if (res.statusCode != 200) return [];
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    return List<dynamic>.from(data['chronicConditions'] ?? data['conditions'] ?? []);
+  }
+
+  /// GET /api/patient-allergies/{patientId}
+  Future<List<Map<String, dynamic>>> getPatientAllergies(int patientId) async {
+    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-allergies/$patientId'));
+    if (res.statusCode != 200) return [];
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    return List<Map<String, dynamic>>.from(data['allergies'] ?? []);
+  }
+
+  /// GET /api/patient-risk-factors/{patientId}
+  Future<List<Map<String, dynamic>>> getPatientRiskFactors(int patientId) async {
+    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-risk-factors/$patientId'));
+    if (res.statusCode != 200) return [];
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    return List<Map<String, dynamic>>.from(data['riskFactors'] ?? []);
+  }
+
+  /// GET /api/pharmacy/patient/{patientId}/active-medicines
+  Future<List<Map<String, dynamic>>> getActivePatientMedicines({
+    required int patientId,
+    bool getAllHistory = false,
+  }) async {
+    var uri = Uri.parse('$baseUrl/api/pharmacy/patient/$patientId/active-medicines');
+    if (getAllHistory) {
+      uri = uri.replace(queryParameters: {'getAllHistory': 'true'});
+    }
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) return [];
+    try {
+      final data = json.decode(res.body);
+      return data is List ? data.cast<Map<String, dynamic>>() : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// GET /api/patient-queue/nurse-vitals (for print - vitals by encounter)
+  Future<List<dynamic>> getEncounterVitals(int encounterId, int patientId) async {
+    final uri = Uri.parse('$baseUrl/api/patient-queue/nurse-vitals').replace(
+      queryParameters: {'encounterId': encounterId.toString(), 'patientId': patientId.toString()},
+    );
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) return [];
+    try {
+      final data = json.decode(res.body);
+      if (data is List) return data;
+      if (data is Map && data['data'] != null) return data['data'] as List<dynamic>;
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// GET /api/Surgeries/getPatientSurgeries
+  Future<List<Map<String, dynamic>>> getPatientSurgeries(int patientId) async {
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/Surgeries/getPatientSurgeries?PatientID=$patientId'),
+    );
+    if (res.statusCode != 200) return [];
+    if (res.body.trim().isEmpty) return [];
+    final data = json.decode(res.body);
+    if (data is List) return data.cast<Map<String, dynamic>>();
+    if (data is Map && data['data'] != null) return List<Map<String, dynamic>>.from(data['data']);
+    return [];
+  }
+
   Future<List<dynamic>> fetchPregnancy(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/pregnancy');
     final res = await _client.get(uri);
