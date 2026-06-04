@@ -3,16 +3,11 @@ import 'package:gap/gap.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../services/patient_service.dart';
 import '../services/encounter_service.dart';
 import '../services/pregnancy_service.dart';
 import '../services/pharmacy_service.dart';
-import '../services/user_session_service.dart';
 import '../widgets/app_navigation_drawer.dart';
-import '../config/api_config.dart';
-
 class PatientHistoryDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
 

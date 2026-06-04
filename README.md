@@ -1,16 +1,62 @@
 # patients
 
-A new Flutter project.
+Flutter client for the **Healthcare Management System** patient experience: registration, sign-in, medical records, appointments, ID scanning, PDF/printing, and theming.
 
-## Getting Started
+## Prerequisites
 
-This project is a starting point for a Flutter application.
+- [Flutter SDK](https://docs.flutter.dev/get-started/install/macos) with Dart **3.9.2+** (see `environment.sdk` in `pubspec.yaml`).
+- For iOS: Xcode and CocoaPods as described in the Flutter docs.
+- For Android: Android Studio / SDK and an emulator or device.
 
-A few resources to get you started if this is your first Flutter project:
+Verify your install:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter doctor -v
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+From the repository root:
+
+```bash
+cd Patients
+flutter pub get
+flutter analyze
+```
+
+If builds act stale:
+
+```bash
+flutter clean && flutter pub get
+```
+
+## Run
+
+```bash
+flutter devices
+flutter run
+```
+
+Override the EMR API base URL (defaults are in `lib/utils/api_config.dart`):
+
+```bash
+flutter run --dart-define=EMR_BASE_URL=https://YOUR_HOST:7287
+```
+
+- **Android emulator:** default base URL uses `10.0.2.2` to reach the host machine.
+- **Physical devices:** use your machine’s LAN IP in `EMR_BASE_URL`.
+
+## Project layout
+
+| Area | Path |
+|------|------|
+| Screens & flows | `lib/screens/` |
+| Auth, session, theme | `lib/services/` |
+| API client & helpers | `lib/utils/` |
+| Shared widgets | `lib/widgets/` |
+
+## Further reading
+
+- [Flutter documentation](https://docs.flutter.dev/)
+- UX/feature notes: `FULL_REVAMP_FEATURES.md`
+- DevTools / Chrome issues: `TROUBLESHOOTING_DEVTOOLS_CONNECTION.md`, `TROUBLESHOOTING_CHROME_CONNECTION.md`

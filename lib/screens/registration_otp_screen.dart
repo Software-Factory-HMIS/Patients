@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_screen.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 
@@ -10,12 +11,14 @@ class RegistrationOtpScreen extends StatefulWidget {
   final String phoneNumber;
   final String? expectedOtp; // OTP to verify against
   final String? errorMessage; // Error message to display if SMS failed
-  
+  final OtpDeliveryChannel deliveryChannel;
+
   const RegistrationOtpScreen({
-    super.key, 
+    super.key,
     required this.phoneNumber,
     this.expectedOtp,
     this.errorMessage,
+    this.deliveryChannel = OtpDeliveryChannel.sms,
   });
 
   @override
@@ -257,6 +260,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -375,6 +379,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     try {
       await _apiClient!.requestRegistrationOtp(
         phoneNumber: widget.phoneNumber,
+        deliveryChannel: widget.deliveryChannel,
       );
       
       if (mounted) {

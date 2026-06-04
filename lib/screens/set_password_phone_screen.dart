@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'set_password_otp_screen.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../widgets/otp_delivery_selector.dart';
 
 class SetPasswordPhoneScreen extends StatefulWidget {
   final String cnic;
@@ -22,6 +24,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
+  OtpDeliveryChannel _otpDeliveryChannel = OtpDeliveryChannel.sms;
 
   @override
   void initState() {
@@ -127,8 +130,22 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
-                    const Gap(48),
+                    const Gap(20),
+                    Text(
+                      'Receive code via',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Gap(8),
+                    Center(
+                      child: OtpDeliverySelector(
+                        value: _otpDeliveryChannel,
+                        onChanged: (c) => setState(() => _otpDeliveryChannel = c),
+                      ),
+                    ),
+                    const Gap(32),
                     
                     // Phone number input field
                     TextFormField(
@@ -236,6 +253,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -270,16 +288,17 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
       try {
         await _apiClient!.requestRegistrationOtp(
           phoneNumber: phoneNumber,
+          deliveryChannel: _otpDeliveryChannel,
         );
         
         // If we get here without exception, the API call succeeded
         smsSentSuccessfully = true;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent to your phone number'),
+            SnackBar(
+              content: Text('OTP sent via ${_otpDeliveryChannel.label}'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -319,7 +338,8 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
           if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
             errorMessage = 'SMS delivery timed out. Please try again.';
           } else {
-            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
+            errorMessage =
+                'Failed to send OTP via ${_otpDeliveryChannel.label}. Please check your phone number and try again.';
           }
           
           if (mounted) {
@@ -343,6 +363,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
               cnic: widget.cnic,
               phoneNumber: phoneNumber,
               expectedOtp: null, // OTP is now verified via backend
+              deliveryChannel: _otpDeliveryChannel,
             ),
           ),
         );

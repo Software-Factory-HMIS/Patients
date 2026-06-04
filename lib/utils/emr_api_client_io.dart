@@ -2,14 +2,14 @@
 // This file is used when dart:io is available
 
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 /// Creates an HTTP client for native platforms
-/// Bypasses SSL validation for development URLs with HTTPS
+/// Bypasses SSL validation only in debug builds for local/dev HTTPS (self-signed).
 http.Client createHttpClient(String url, bool isDevelopmentUrl) {
-  // For development URLs with HTTPS, create a client that bypasses SSL validation
-  if (isDevelopmentUrl && url.startsWith('https://')) {
+  if (kDebugMode && isDevelopmentUrl && url.startsWith('https://')) {
     final httpClient = HttpClient()
       ..badCertificateCallback = (X509Certificate cert, String host, int port) {
         // WARNING: Only bypasses SSL for development URLs

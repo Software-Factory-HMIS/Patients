@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'set_password_screen.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 
@@ -9,12 +10,14 @@ class SetPasswordOtpScreen extends StatefulWidget {
   final String cnic;
   final String phoneNumber;
   final String? expectedOtp; // OTP to verify against
-  
+  final OtpDeliveryChannel deliveryChannel;
+
   const SetPasswordOtpScreen({
     super.key,
     required this.cnic,
     required this.phoneNumber,
     this.expectedOtp,
+    this.deliveryChannel = OtpDeliveryChannel.sms,
   });
 
   @override
@@ -247,6 +250,7 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -368,6 +372,7 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
     try {
       await _apiClient!.requestRegistrationOtp(
         phoneNumber: widget.phoneNumber,
+        deliveryChannel: widget.deliveryChannel,
       );
       
       if (mounted) {

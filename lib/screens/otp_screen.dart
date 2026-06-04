@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'dashboard_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
 import '../services/auth_service.dart';
@@ -14,12 +15,14 @@ class OtpScreen extends StatefulWidget {
   final String cnic;
   final String? maskedPhone;
   final String? patientName;
-  
+  final OtpDeliveryChannel deliveryChannel;
+
   const OtpScreen({
     super.key,
     required this.cnic,
     this.maskedPhone,
     this.patientName,
+    this.deliveryChannel = OtpDeliveryChannel.sms,
   });
 
   @override
@@ -70,7 +73,10 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      final result = await _apiClient!.requestOtp(cnic: widget.cnic);
+      final result = await _apiClient!.requestOtp(
+        cnic: widget.cnic,
+        deliveryChannel: widget.deliveryChannel,
+      );
       if (mounted) {
         final cooldown = result['cooldownSecondsRemaining'] as int? ?? 0;
         if (cooldown > 0) {
@@ -83,7 +89,9 @@ class _OtpScreenState extends State<OtpScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('OTP sent to ${widget.maskedPhone ?? "your registered number"}'),
+              content: Text(
+                'OTP sent via ${widget.deliveryChannel.label} to ${widget.maskedPhone ?? "your registered number"}',
+              ),
               backgroundColor: Colors.green,
             ),
           );

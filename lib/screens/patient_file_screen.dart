@@ -519,111 +519,121 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         ],
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3), width: 1),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.date_range, color: colorScheme.primary, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'From:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 6),
-          InkWell(
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _startDate,
-                firstDate: DateTime(2000),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) {
-                setState(() {
-                  _startDate = picked;
-                });
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              Icon(Icons.date_range, color: colorScheme.primary, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'From',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(_startDate),
-                    style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
+              const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _startDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _startDate = picked;
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colorScheme.outline),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('d MMM yyyy').format(_startDate),
+                          style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+                        ),
+                        Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.calendar_today, size: 16, color: colorScheme.onSurfaceVariant),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'To:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 6),
-          InkWell(
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: _endDate,
-                firstDate: _startDate,
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) {
-                setState(() {
-                  _endDate = picked;
-                });
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 10),
+              Text(
+                'To',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(_endDate),
-                    style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
+              const SizedBox(width: 6),
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _endDate,
+                      firstDate: _startDate,
+                      lastDate: DateTime.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _endDate = picked;
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colorScheme.outline),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('d MMM yyyy').format(_endDate),
+                          style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+                        ),
+                        Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.calendar_today, size: 16, color: colorScheme.onSurfaceVariant),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: (_loading || _loadingDetails) ? null : _loadDataWithFilters,
             icon: (_loading || _loadingDetails)
                 ? SizedBox(
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
                     ),
                   )
-                : const Icon(Icons.search, size: 18),
-            label: const Text('Show'),
+                : const Icon(Icons.search, size: 16),
+            label: const Text('Show Records'),
             style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1215,8 +1225,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final radiologyOrders = data['radiologyOrders'] as List<dynamic>;
     final medicines = data['medicines'] as List<dynamic>;
     final clinicalNotesRaw = data['clinicalNotes'];
-    final clinicalNotes = (clinicalNotesRaw != null && clinicalNotesRaw.toString().trim().isNotEmpty) 
-        ? clinicalNotesRaw.toString().trim() 
+    final _cnStr = clinicalNotesRaw?.toString().trim() ?? '';
+    final clinicalNotes = (_cnStr.isNotEmpty && _cnStr != '[]' && _cnStr != '{}' && _cnStr != 'null')
+        ? _cnStr
         : null;
 
     final cs = Theme.of(context).colorScheme;
@@ -1257,59 +1268,66 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Text(
                         encounterType.toString().isNotEmpty 
                             ? '$encounterType Checkup'
                             : 'Checkup',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: cs.onPrimary,
                         ),
                       ),
-                      if (parsedDate != null) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.calendar_today, size: 14, color: cs.onPrimary.withValues(alpha: 0.9)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${parsedDate.day}/${parsedDate.month}/${parsedDate.year} ${parsedDate.hour.toString().padLeft(2, '0')}:${parsedDate.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
-                        ),
-                      ],
-                      const SizedBox(width: 16),
-                      Icon(Icons.person, size: 14, color: cs.onPrimary.withValues(alpha: 0.9)),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          doctorName,
-                          style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cs.onPrimary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: cs.onPrimary.withValues(alpha: 0.5), width: 1),
+                      ),
+                      child: Text(
+                        status.toString().toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onPrimary,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(context, status).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _getStatusColor(context, status), width: 1),
-                  ),
-                  child: Text(
-                    status.toString().toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _getStatusColor(context, status),
                     ),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    if (parsedDate != null) ...[
+                      Icon(Icons.calendar_today, size: 12, color: cs.onPrimary.withValues(alpha: 0.85)),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('d MMM yyyy  HH:mm').format(parsedDate),
+                        style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Icon(Icons.person_outline, size: 12, color: cs.onPrimary.withValues(alpha: 0.85)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        doctorName.toString(),
+                        style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1323,199 +1341,183 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               children: [
                 // Vitals
                 if (vitals.isNotEmpty) ...[
-                  ...vitals.map((v) {
-                    final bpSystolic = _stringOrEmpty(v['bpSystolic'] ?? v['BPSystolic'] ?? v['bloodPressureSystolic']);
-                    final bpDiastolic = _stringOrEmpty(v['bpDiastolic'] ?? v['BPDiastolic'] ?? v['bloodPressureDiastolic']);
-                    final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
-                        ? '$bpSystolic/$bpDiastolic'
-                        : _stringOrEmpty(v['bloodPressure'] ?? v['BloodPressure']);
-                    final hr = _stringOrEmpty(v['pulse'] ?? v['Pulse'] ?? v['heartRate'] ?? v['HeartRate']);
-                    final temp = _stringOrEmpty(v['temperature'] ?? v['Temperature']);
-                    final spo2 = _stringOrEmpty(v['spo2'] ?? v['SPO2'] ?? v['oxygenSaturation'] ?? v['OxygenSaturation']);
-                    final rr = _stringOrEmpty(v['respiratoryRate'] ?? v['RespiratoryRate'] ?? v['respiratory_rate']);
-                    final weight = _stringOrEmpty(v['weight'] ?? v['Weight']);
-                    final height = _stringOrEmpty(v['height'] ?? v['Height']);
-                    final bsr = _stringOrEmpty(v['bsr'] ?? v['BSR'] ?? v['bloodSugar'] ?? v['BloodSugar']);
-                    return _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr);
-                  }).toList(),
-                  const SizedBox(height: 8),
-                ],
-
-                // Complaints, Symptoms, Diagnosis - Adjacent to each other
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildCompactDetailSection(
-                        'Complaints',
-                        Icons.comment,
-                        cs.tertiary,
-                        complaints.map<String>((c) => 
-                          (c['diagnosisName'] ?? 
-                          c['icd10Description'] ?? 
-                          c['ICD10Description'] ?? 
-                          'N/A').toString()
-                        ).toList(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildCompactDetailSection(
-                        'Symptoms',
-                        Icons.sick,
-                        cs.error,
-                        symptoms.map<String>((s) => 
-                          (s['diagnosisName'] ?? 
-                          s['icd10Description'] ?? 
-                          s['ICD10Description'] ?? 
-                          'N/A').toString()
-                        ).toList(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildCompactDetailSection(
-                        'Diagnosis',
-                        Icons.medical_information,
-                        cs.secondary,
-                        diagnoses.map<String>((d) {
-                          final name = (d['diagnosisName'] ?? 
-                                      d['icd10Description'] ?? 
-                                      d['ICD10Description'] ?? 
-                                      'N/A').toString();
-                          final isConfirmed = d['isConfirmed'] ?? d['IsConfirmed'] ?? false;
-                          return isConfirmed ? '$name (Confirmed)' : name;
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Clinical Notes - Only show if not null or empty
-                if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) ...[
                   Container(
-                    padding: const EdgeInsets.all(12.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          cs.primaryContainer.withValues(alpha: 0.3),
-                          cs.primaryContainer.withValues(alpha: 0.15),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: cs.primary.withValues(alpha: 0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                          spreadRadius: 0,
-                        ),
-                      ],
+                      color: cs.errorContainer.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: cs.error.withValues(alpha: 0.3), width: 1),
                     ),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: cs.primaryContainer.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(Icons.note_alt, color: cs.primary, size: 18),
-                            ),
-                            const SizedBox(width: 10),
+                            Icon(Icons.favorite, color: cs.error, size: 14),
+                            const SizedBox(width: 6),
                             Text(
-                              'Clinical Notes',
+                              'Vitals',
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: cs.primary,
-                                letterSpacing: 0.3,
+                                color: cs.error,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            clinicalNotes,
-                            style: const TextStyle(fontSize: 13, height: 1.4),
-                          ),
-                        ),
+                        const SizedBox(height: 8),
+                        ...vitals.map((v) {
+                          final bpSystolic = _stringOrEmpty(v['bpSystolic'] ?? v['BPSystolic'] ?? v['bloodPressureSystolic']);
+                          final bpDiastolic = _stringOrEmpty(v['bpDiastolic'] ?? v['BPDiastolic'] ?? v['bloodPressureDiastolic']);
+                          final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
+                              ? '$bpSystolic/$bpDiastolic'
+                              : _stringOrEmpty(v['bloodPressure'] ?? v['BloodPressure']);
+                          final hr = _stringOrEmpty(v['pulse'] ?? v['Pulse'] ?? v['heartRate'] ?? v['HeartRate']);
+                          final temp = _stringOrEmpty(v['temperature'] ?? v['Temperature']);
+                          final spo2 = _stringOrEmpty(v['spo2'] ?? v['SPO2'] ?? v['oxygenSaturation'] ?? v['OxygenSaturation']);
+                          final rr = _stringOrEmpty(v['respiratoryRate'] ?? v['RespiratoryRate'] ?? v['respiratory_rate']);
+                          final weight = _stringOrEmpty(v['weight'] ?? v['Weight']);
+                          final height = _stringOrEmpty(v['height'] ?? v['Height']);
+                          final bsr = _stringOrEmpty(v['bsr'] ?? v['BSR'] ?? v['bloodSugar'] ?? v['BloodSugar']);
+                          return _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr);
+                        }).toList(),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
                 ],
 
-                // Lab Tests, Radiology Tests, Medicines - Adjacent to each other
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildLabResultsSection(labOrders),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildRadiologyReportsSection(radiologyOrders),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildCompactDetailSection(
-                        'Medicines',
-                        Icons.medication,
-                        cs.primary,
-                        medicines.map<String>((med) {
-                          // Medicine name can be directly in med object or nested
-                          final name = (med['medicineName'] ?? 
-                                       med['MedicineName'] ?? 
-                                       med['medicine']?['name'] ?? 
-                                       med['Medicine']?['name'] ?? 
-                                       med['medicine']?['Name'] ?? 
-                                       med['Medicine']?['Name'] ?? 
-                                       'N/A').toString();
-                          final dosage = med['dosageAmount'] ?? med['dosageValue'] ?? med['dosage'] ?? '';
-                          final dosageUnit = med['dosageUnit'] ?? med['DosageUnit'] ?? '';
-                          final frequency = med['frequency'] ?? med['Frequency'] ?? med['instructions'] ?? '';
-                          final duration = med['duration'] ?? med['durationValue'] ?? med['DurationValue'] ?? '';
-                          final durationUnit = med['durationUnit'] ?? med['DurationUnit'] ?? med['DurationUnitValue'] ?? '';
-                          final endDate = med['endDate'];
-                          final discontinuedDate = med['discontinuedDate'] ?? med['DiscontinuedDate'];
-                          
-                          String medText = name;
-                          if (dosage != null && dosageUnit != null && dosage.toString().isNotEmpty) {
-                            medText += ' - $dosage $dosageUnit';
-                          }
-                          if (frequency != null && frequency.toString().isNotEmpty) {
-                            medText += ' - $frequency';
-                          }
-                          if (duration != null && durationUnit != null && duration.toString().isNotEmpty) {
-                            medText += ' - $duration $durationUnit';
-                          }
-                          if (endDate != null) {
-                            try {
-                              final end = endDate is DateTime ? endDate : DateTime.tryParse(endDate.toString());
-                              if (end != null) {
-                                medText += ' - End Date: ${end.day}/${end.month}/${end.year}';
-                              }
-                            } catch (e) {}
-                          }
-                          if (discontinuedDate != null) {
-                            medText += ' (DISCONTINUED)';
-                          }
-                          return medText;
-                        }).toList(),
-                      ),
-                    ),
-                  ],
+                // Complaints, Symptoms, Diagnosis - Stacked for reliable mobile layout
+                _buildCompactDetailSection(
+                  'Complaints',
+                  Icons.comment,
+                  cs.tertiary,
+                  complaints.map<String>((c) => 
+                    (c['diagnosisName'] ?? 
+                    c['icd10Description'] ?? 
+                    c['ICD10Description'] ?? 
+                    'N/A').toString()
+                  ).toList(),
                 ),
+                const SizedBox(height: 8),
+                _buildCompactDetailSection(
+                  'Symptoms',
+                  Icons.sick,
+                  cs.error,
+                  symptoms.map<String>((s) => 
+                    (s['diagnosisName'] ?? 
+                    s['icd10Description'] ?? 
+                    s['ICD10Description'] ?? 
+                    'N/A').toString()
+                  ).toList(),
+                ),
+                const SizedBox(height: 8),
+                _buildCompactDetailSection(
+                  'Diagnosis',
+                  Icons.medical_information,
+                  cs.secondary,
+                  diagnoses.map<String>((d) {
+                    final name = (d['diagnosisName'] ?? 
+                                d['icd10Description'] ?? 
+                                d['ICD10Description'] ?? 
+                                'N/A').toString();
+                    final isConfirmed = d['isConfirmed'] ?? d['IsConfirmed'] ?? false;
+                    return isConfirmed ? '$name (Confirmed)' : name;
+                  }).toList(),
+                ),
+
+                const SizedBox(height: 8),
+
+                // Lab Tests, Radiology, Medicines - Full-width stacked sections
+                _buildLabResultsSection(labOrders),
+                const SizedBox(height: 8),
+                _buildRadiologyReportsSection(radiologyOrders),
+                const SizedBox(height: 8),
+                _buildCompactDetailSection(
+                  'Medicines',
+                  Icons.medication,
+                  cs.primary,
+                  medicines.map<String>((med) {
+                    final name = (med['medicineName'] ?? 
+                                 med['MedicineName'] ?? 
+                                 med['medicine']?['name'] ?? 
+                                 med['Medicine']?['name'] ?? 
+                                 med['medicine']?['Name'] ?? 
+                                 med['Medicine']?['Name'] ?? 
+                                 'N/A').toString();
+                    final dosage = med['dosageAmount'] ?? med['dosageValue'] ?? med['dosage'] ?? '';
+                    final dosageUnit = med['dosageUnit'] ?? med['DosageUnit'] ?? '';
+                    final frequency = med['frequency'] ?? med['Frequency'] ?? med['instructions'] ?? '';
+                    final duration = med['duration'] ?? med['durationValue'] ?? med['DurationValue'] ?? '';
+                    final durationUnit = med['durationUnit'] ?? med['DurationUnit'] ?? med['DurationUnitValue'] ?? '';
+                    final endDate = med['endDate'];
+                    final discontinuedDate = med['discontinuedDate'] ?? med['DiscontinuedDate'];
+                    
+                    String medText = name;
+                    if (dosage != null && dosageUnit != null && dosage.toString().isNotEmpty) {
+                      medText += ' — $dosage $dosageUnit';
+                    }
+                    if (frequency != null && frequency.toString().isNotEmpty) {
+                      medText += ' · $frequency';
+                    }
+                    if (duration != null && durationUnit != null && duration.toString().isNotEmpty) {
+                      medText += ' · $duration $durationUnit';
+                    }
+                    if (endDate != null) {
+                      try {
+                        final end = endDate is DateTime ? endDate : DateTime.tryParse(endDate.toString());
+                        if (end != null) {
+                          medText += ' (until ${end.day}/${end.month}/${end.year})';
+                        }
+                      } catch (e) {}
+                    }
+                    if (discontinuedDate != null) {
+                      medText += ' ✕ DISCONTINUED';
+                    }
+                    return medText;
+                  }).toList(),
+                ),
+
+                // Clinical Notes - shown at bottom
+                if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: cs.primaryContainer.withValues(alpha: 0.2),
+                      border: Border.all(color: cs.primary.withValues(alpha: 0.2), width: 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.description_outlined, color: cs.primary, size: 15),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Clinical Notes',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: cs.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          clinicalNotes,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.5,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -2627,8 +2629,56 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Widget _buildVitalsContent(String bp, String hr, String temp, String spo2, String rr, String weight, String height, String bsr, {bool isHeader = false}) {
+  Widget _buildVitalChip(String label, String value, bool isOutOfRange, {bool isHeader = false}) {
     final cs = Theme.of(context).colorScheme;
+    final display = value.trim().isEmpty ? '-' : value;
+
+    final Color bg;
+    final Color fg;
+    if (isHeader) {
+      bg = isOutOfRange
+          ? cs.onPrimary.withValues(alpha: 0.35)
+          : cs.onPrimary.withValues(alpha: 0.15);
+      fg = cs.onPrimary;
+    } else {
+      bg = isOutOfRange ? cs.errorContainer : cs.surfaceContainerHighest;
+      fg = isOutOfRange ? cs.onErrorContainer : cs.onSurface;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: (isOutOfRange && !isHeader)
+            ? Border.all(color: cs.error.withValues(alpha: 0.6), width: 1)
+            : null,
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: TextStyle(
+                fontSize: isHeader ? 10 : 11,
+                color: fg.withValues(alpha: 0.75),
+              ),
+            ),
+            TextSpan(
+              text: display,
+              style: TextStyle(
+                fontSize: isHeader ? 10 : 12,
+                fontWeight: isOutOfRange ? FontWeight.bold : FontWeight.w600,
+                color: (isOutOfRange && !isHeader) ? cs.error : fg,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVitalsContent(String bp, String hr, String temp, String spo2, String rr, String weight, String height, String bsr, {bool isHeader = false}) {
     // Parse BP for out-of-range check
     double? bpSystolic, bpDiastolic;
     if (bp.contains('/')) {
@@ -2665,61 +2715,21 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final bsrValue = double.tryParse(bsr);
     final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
 
-    final textColor = isHeader ? cs.onError : cs.onSurface;
-    final fontSize = isHeader ? 11.0 : 13.0;
-
-    return RichText(
-      text: TextSpan(
-        style: TextStyle(fontSize: fontSize, color: textColor),
-        children: [
-          _buildVitalTextSpan('BP', bp, bpOutOfRange, textColor: textColor, fontSize: fontSize),
-          TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-          _buildVitalTextSpan('HR', hr, hrOutOfRange, textColor: textColor, fontSize: fontSize),
-          TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-          _buildVitalTextSpan('Temp', temp, tempOutOfRange, textColor: textColor, fontSize: fontSize),
-          TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-          _buildVitalTextSpan('SpO2', spo2, spo2OutOfRange, textColor: textColor, fontSize: fontSize),
-          TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-          _buildVitalTextSpan('RR', rr, rrOutOfRange, textColor: textColor, fontSize: fontSize),
-          if (!isHeader) ...[
-            TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-            _buildVitalTextSpan('Weight', weight, false, textColor: textColor, fontSize: fontSize),
-            TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-            _buildVitalTextSpan('Height', height, false, textColor: textColor, fontSize: fontSize),
-            if (bmiStr.isNotEmpty) ...[
-              TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-              _buildVitalTextSpan('BMI', bmiStr, bmiOutOfRange, textColor: textColor, fontSize: fontSize),
-            ],
-            if (bsr.toString().trim().isNotEmpty) ...[
-              TextSpan(text: ' | ', style: TextStyle(color: textColor, fontSize: fontSize)),
-              _buildVitalTextSpan('BSR', bsr, bsrOutOfRange, textColor: textColor, fontSize: fontSize),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  TextSpan _buildVitalTextSpan(String label, String value, bool isOutOfRange, {Color? textColor, double? fontSize}) {
-    final cs = Theme.of(context).colorScheme;
-    final displayValue = value.toString().trim().isEmpty ? '-' : value;
-    final baseColor = textColor ?? cs.onSurface;
-    final baseFontSize = fontSize ?? 13.0;
-    
-    return TextSpan(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        TextSpan(
-          text: '$label: ',
-          style: TextStyle(color: baseColor, fontSize: baseFontSize),
-        ),
-        TextSpan(
-          text: displayValue,
-          style: TextStyle(
-            fontWeight: isOutOfRange ? FontWeight.bold : FontWeight.normal,
-            color: isOutOfRange ? cs.error : baseColor,
-            fontSize: baseFontSize,
-          ),
-        ),
+        if (bp.isNotEmpty) _buildVitalChip('BP', bp, bpOutOfRange, isHeader: isHeader),
+        if (hr.isNotEmpty) _buildVitalChip('HR', hr, hrOutOfRange, isHeader: isHeader),
+        if (temp.isNotEmpty) _buildVitalChip('Temp', temp, tempOutOfRange, isHeader: isHeader),
+        if (spo2.isNotEmpty) _buildVitalChip('SpO₂', spo2, spo2OutOfRange, isHeader: isHeader),
+        if (rr.isNotEmpty) _buildVitalChip('RR', rr, rrOutOfRange, isHeader: isHeader),
+        if (!isHeader) ...[
+          if (weight.isNotEmpty) _buildVitalChip('Wt', weight, false, isHeader: isHeader),
+          if (height.isNotEmpty) _buildVitalChip('Ht', height, false, isHeader: isHeader),
+          if (bmiStr.isNotEmpty) _buildVitalChip('BMI', bmiStr, bmiOutOfRange, isHeader: isHeader),
+          if (bsr.isNotEmpty) _buildVitalChip('BSR', bsr, bsrOutOfRange, isHeader: isHeader),
+        ],
       ],
     );
   }

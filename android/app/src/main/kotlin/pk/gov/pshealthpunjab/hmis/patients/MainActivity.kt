@@ -1,4 +1,4 @@
-package com.example.patients
+package pk.gov.pshealthpunjab.hmis.patients
 
 import io.flutter.embedding.android.FlutterActivity
 

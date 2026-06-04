@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
 import '../services/auth_service.dart';
+import '../models/otp_delivery_channel.dart';
 
 // Conditional import for dart:io (not available on web)
 import 'emr_api_client_io.dart' if (dart.library.html) 'emr_api_client_web.dart' as platform_client;
@@ -721,10 +722,12 @@ class EmrApiClient {
 
   Future<List<dynamic>> fetchPregnancy(String mrn) async {
     final uri = Uri.parse('$baseUrl/api/patient/$mrn/pregnancy');
-    final res = await _client.get(uri);
+    final res = await _authenticatedGet(uri);
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (res.body.trim().isEmpty) return [];
       return json.decode(res.body) as List<dynamic>;
     }
+    if (res.statusCode == 404) return [];
     throw Exception('Failed to load pregnancy records (${res.statusCode})');
   }
 
@@ -1005,11 +1008,15 @@ class EmrApiClient {
   }
 
   // Request OTP for patient authentication
-  Future<Map<String, dynamic>> requestOtp({required String cnic}) async {
+  Future<Map<String, dynamic>> requestOtp({
+    required String cnic,
+    OtpDeliveryChannel deliveryChannel = OtpDeliveryChannel.sms,
+  }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/otp/request');
     try {
       final body = {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
+        'channel': deliveryChannel.apiValue,
       };
       
       final res = await _client.post(
@@ -1091,12 +1098,14 @@ class EmrApiClient {
   // Request registration OTP (backend generates and sends OTP)
   Future<void> requestRegistrationOtp({
     required String phoneNumber,
+    OtpDeliveryChannel deliveryChannel = OtpDeliveryChannel.sms,
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
     try {
       
       final body = {
         'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
+        'channel': deliveryChannel.apiValue,
       };
       
       // Increase timeout to 30 seconds for SMS operations

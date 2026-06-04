@@ -801,7 +801,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           height: 56,
           child: FilledButton(
             onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const SignInScreen(),
+                ),
+                (route) => false,
+              );
             },
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(

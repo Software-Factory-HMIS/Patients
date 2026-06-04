@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_otp_screen.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../widgets/otp_delivery_selector.dart';
 
 class RegistrationPhoneScreen extends StatefulWidget {
   const RegistrationPhoneScreen({super.key});
@@ -18,6 +20,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _loading = false;
   EmrApiClient? _apiClient;
+  OtpDeliveryChannel _otpDeliveryChannel = OtpDeliveryChannel.sms;
 
   @override
   void initState() {
@@ -123,8 +126,22 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
-                    const Gap(48),
+                    const Gap(20),
+                    Text(
+                      'Receive code via',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Gap(8),
+                    Center(
+                      child: OtpDeliverySelector(
+                        value: _otpDeliveryChannel,
+                        onChanged: (c) => setState(() => _otpDeliveryChannel = c),
+                      ),
+                    ),
+                    const Gap(32),
                     
                     Container(
                       padding: const EdgeInsets.all(24),
@@ -243,6 +260,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -277,6 +295,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
       try {
         await _apiClient!.requestRegistrationOtp(
           phoneNumber: phoneNumber,
+          deliveryChannel: _otpDeliveryChannel,
         );
         
         // If we get here without exception, the API call succeeded
@@ -284,10 +303,12 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
         smsSentSuccessfully = true;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent to your phone number'),
+            SnackBar(
+              content: Text(
+                'OTP sent via ${_otpDeliveryChannel.label}',
+              ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -329,7 +350,8 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
             errorMessage = 'SMS delivery timed out. Please try again.';
           } else {
-            errorMessage = 'Failed to send OTP via SMS. Please check your phone number and try again.';
+            errorMessage =
+                'Failed to send OTP via ${_otpDeliveryChannel.label}. Please check your phone number and try again.';
           }
           
           if (mounted) {
@@ -352,6 +374,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
             builder: (context) => RegistrationOtpScreen(
               phoneNumber: phoneNumber,
               expectedOtp: null, // OTP is now verified via backend
+              deliveryChannel: _otpDeliveryChannel,
             ),
           ),
         );

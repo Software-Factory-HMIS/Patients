@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'otp_screen.dart';
+import '../models/otp_delivery_channel.dart';
 import '../utils/emr_api_client.dart';
+import '../widgets/otp_delivery_selector.dart';
 
 /// Screen that displays the masked phone number and allows user to request OTP.
 /// This is the second step in the OTP-only authentication flow:
@@ -24,6 +26,7 @@ class PhoneConfirmScreen extends StatefulWidget {
 
 class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
   bool _loading = false;
+  OtpDeliveryChannel _otpDeliveryChannel = OtpDeliveryChannel.sms;
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +176,22 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
                   ),
                 ),
 
+                const Gap(16),
+                Text(
+                  'Receive code via',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Gap(8),
+                Center(
+                  child: OtpDeliverySelector(
+                    value: _otpDeliveryChannel,
+                    onChanged: (c) => setState(() => _otpDeliveryChannel = c),
+                  ),
+                ),
+
                 const Spacer(),
 
                 // Send OTP button
@@ -240,7 +259,10 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
       final apiClient = EmrApiClient();
       
       // Request OTP for the CNIC
-      final result = await apiClient.requestOtp(cnic: widget.cnic);
+      final result = await apiClient.requestOtp(
+        cnic: widget.cnic,
+        deliveryChannel: _otpDeliveryChannel,
+      );
       
       if (!mounted) return;
 
@@ -270,6 +292,7 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
             cnic: widget.cnic,
             maskedPhone: widget.maskedPhone,
             patientName: widget.patientName,
+            deliveryChannel: _otpDeliveryChannel,
           ),
         ),
       );
