@@ -14,25 +14,32 @@ class OtpDeliverySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<OtpDeliveryChannel>(
-      segments: const [
-        ButtonSegment<OtpDeliveryChannel>(
-          value: OtpDeliveryChannel.sms,
-          label: Text('SMS'),
-          icon: Icon(Icons.sms_outlined, size: 18),
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<OtpDeliveryChannel>(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
+          textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ),
-        ButtonSegment<OtpDeliveryChannel>(
-          value: OtpDeliveryChannel.whatsApp,
-          label: Text('WhatsApp'),
-          icon: Icon(Icons.chat_outlined, size: 18),
-        ),
-      ],
-      selected: <OtpDeliveryChannel>{value},
-      onSelectionChanged: (Set<OtpDeliveryChannel> next) {
-        if (next.isEmpty) return;
-        onChanged(next.first);
-      },
-      showSelectedIcon: false,
+        segments: const [
+          ButtonSegment<OtpDeliveryChannel>(
+            value: OtpDeliveryChannel.sms,
+            label: Text('Text Message'),
+            icon: Icon(Icons.sms_outlined, size: 22),
+          ),
+          ButtonSegment<OtpDeliveryChannel>(
+            value: OtpDeliveryChannel.whatsApp,
+            label: Text('WhatsApp'),
+            icon: Icon(Icons.chat_outlined, size: 22),
+          ),
+        ],
+        selected: <OtpDeliveryChannel>{value},
+        onSelectionChanged: (Set<OtpDeliveryChannel> next) {
+          if (next.isEmpty) return;
+          onChanged(next.first);
+        },
+        showSelectedIcon: false,
+      ),
     );
   }
 }

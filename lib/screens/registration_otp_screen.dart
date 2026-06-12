@@ -6,6 +6,7 @@ import 'registration_screen.dart';
 import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/app_snackbar.dart';
 
 class RegistrationOtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -271,38 +272,18 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
     
     // Basic validation - OTP must be 4 digits
     if (otpCode.length != 4 || !RegExp(r'^\d{4}$').hasMatch(otpCode)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a valid 4-digit OTP'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Please enter a valid 4-digit OTP');
       return;
     }
-    
-    // If expectedOtp is provided (legacy support), verify locally first
-    if (widget.expectedOtp != null && otpCode != widget.expectedOtp) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid OTP. Please check and try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-    
-    setState(() {
-      _loading = true;
-    });
 
-    // Verify OTP via backend API
-    if (_apiClient == null) {
-      await _initializeApiClient();
+    if (widget.expectedOtp != null && otpCode != widget.expectedOtp) {
+      if (mounted) AppSnackBar.showError(context, 'Invalid OTP. Please check and try again.');
+      return;
     }
+
+    setState(() => _loading = true);
+
+    if (_apiClient == null) await _initializeApiClient();
 
     if (_apiClient != null) {
       try {
@@ -312,93 +293,48 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
         );
       } catch (e) {
         if (mounted) {
-          setState(() {
-            _loading = false;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invalid OTP: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          setState(() => _loading = false);
+          AppSnackBar.showError(context, 'Invalid OTP: ${e.toString()}');
         }
         return;
       }
     } else {
-      // Fallback: if API client failed to initialize and expectedOtp is null, show error
       if (widget.expectedOtp == null) {
         if (mounted) {
-          setState(() {
-            _loading = false;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to verify OTP. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          setState(() => _loading = false);
+          AppSnackBar.showError(context, 'Failed to verify OTP. Please try again.');
         }
         return;
       }
     }
-    
+
     if (mounted) {
-      setState(() {
-        _loading = false;
-      });
-    
-      // Navigate to registration screen after OTP verification
+      setState(() => _loading = false);
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (context) => RegistrationScreen(phoneNumber: widget.phoneNumber),
         ),
-        (route) => false, // Remove all previous routes
+        (route) => false,
       );
     }
   }
 
   Future<void> _handleResendOtp() async {
+    if (_apiClient == null) await _initializeApiClient();
+
     if (_apiClient == null) {
-      await _initializeApiClient();
-    }
-    
-    if (_apiClient == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to initialize API client'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Failed to initialize API client');
       return;
     }
-    
+
     try {
       await _apiClient!.requestRegistrationOtp(
         phoneNumber: widget.phoneNumber,
         deliveryChannel: widget.deliveryChannel,
       );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP resent to your registered number'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showSuccess(context, 'OTP resent to your registered number');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to resend OTP: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Failed to resend OTP: ${e.toString()}');
     }
   }
 }

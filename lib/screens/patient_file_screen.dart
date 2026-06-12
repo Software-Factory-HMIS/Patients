@@ -3,18 +3,25 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:convert';
-import 'package:intl/intl.dart';
+import '../utils/app_date_format.dart';
+import '../utils/app_localizations_ext.dart';
+import '../widgets/punjab_ui.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/app_snackbar.dart';
 import 'patient_file_print_helper.dart';
 
 class PatientFileScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
   final int? admissionId;
+  final bool embedded;
+  final bool autoLoad;
 
   const PatientFileScreen({
     Key? key,
     required this.patient,
     this.admissionId,
+    this.embedded = false,
+    this.autoLoad = false,
   }) : super(key: key);
 
   @override
@@ -48,8 +55,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeApi();
-    _loadHeaderSummary();
+    if (widget.autoLoad) {
+      _startDate = DateTime.now().subtract(const Duration(days: 30));
+      _endDate = DateTime.now();
+    }
+    _initializeApi().then((_) {
+      _loadHeaderSummary();
+      if (widget.autoLoad && mounted) {
+        _loadDataWithFilters();
+      }
+    });
   }
 
   Future<void> _initializeApi() async {
@@ -504,7 +519,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   Widget _buildDateFilterSection() {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      margin: EdgeInsets.fromLTRB(
+        widget.embedded ? 16.0 : 12.0,
+        widget.embedded ? 0.0 : 8.0,
+        widget.embedded ? 16.0 : 12.0,
+        8.0,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
       decoration: BoxDecoration(
         color: colorScheme.surface,
@@ -562,7 +582,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat('d MMM yyyy').format(_startDate),
+                          AppDateFormat.formatDate(_startDate),
                           style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
                         ),
                         Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
@@ -607,7 +627,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          DateFormat('d MMM yyyy').format(_endDate),
+                          AppDateFormat.formatDate(_endDate),
                           style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
                         ),
                         Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
@@ -631,7 +651,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     ),
                   )
                 : const Icon(Icons.search, size: 16),
-            label: const Text('Show Records'),
+            label: Text(widget.autoLoad ? 'Refresh records' : 'Show Records'),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 10),
               shape: RoundedRectangleBorder(
@@ -966,29 +986,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Text('Patient File', style: theme.appBarTheme.titleTextStyle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: _generateAndPrintAllEncounters,
-            tooltip: 'Print All Encounters',
-          ),
-        ],
-      ),
-      body: Column(
+  Widget _buildBody(ColorScheme colorScheme) {
+    return Column(
         children: [
-          _buildPatientInfoCard(),
+          if (!widget.embedded) _buildPatientInfoCard(),
           _buildDateFilterSection(),
           const SizedBox(height: 8),
           Expanded(
-            child: !_dataLoaded && !_loading && !_loadingDetails
+            child: !_dataLoaded && !_loading && !_loadingDetails && !widget.autoLoad
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1010,7 +1015,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                             const CircularProgressIndicator(),
                             const SizedBox(height: 16),
                             Text(
-                              'Fetching patient data...',
+                              context.l10n.fetchingPatientData,
                               style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
                             ),
                           ],
@@ -1044,14 +1049,19 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                     Icon(Icons.folder_open, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                                     const SizedBox(height: 16),
                                     Text(
-                                      'No encounters found',
+                                      context.l10n.noEncountersFound,
                                       style: TextStyle(color: colorScheme.onSurfaceVariant),
                                     ),
                                   ],
                                 ),
                               )
                             : SingleChildScrollView(
-                                padding: const EdgeInsets.all(12.0),
+                                padding: EdgeInsets.fromLTRB(
+                                  12,
+                                  12,
+                                  12,
+                                  widget.embedded ? PunjabBottomNav.navBarHeight : 12,
+                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: _combinedTimeline.asMap().entries.map((entry) {
@@ -1080,7 +1090,28 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                               ),
           ),
         ],
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final body = _buildBody(colorScheme);
+    if (widget.embedded) return body;
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        title: Text('Patient File', style: theme.appBarTheme.titleTextStyle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            onPressed: _generateAndPrintAllEncounters,
+            tooltip: 'Print All Encounters',
+          ),
+        ],
       ),
+      body: body,
     );
   }
 
@@ -1233,9 +1264,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Encounter #$encounterId - view only')),
-        );
+        AppSnackBar.showInfo(context, 'Encounter #$encounterId - view only');
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -1313,7 +1342,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       Icon(Icons.calendar_today, size: 12, color: cs.onPrimary.withValues(alpha: 0.85)),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat('d MMM yyyy  HH:mm').format(parsedDate),
+                        AppDateFormat.formatDateTime(parsedDate),
                         style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
                       ),
                       const SizedBox(width: 12),
@@ -1467,7 +1496,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       try {
                         final end = endDate is DateTime ? endDate : DateTime.tryParse(endDate.toString());
                         if (end != null) {
-                          medText += ' (until ${end.day}/${end.month}/${end.year})';
+                          medText += ' (until ${AppDateFormat.formatDate(end)})';
                         }
                       } catch (e) {}
                     }
@@ -1635,7 +1664,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   Icon(Icons.calendar_today, size: 12, color: cs.onError.withValues(alpha: 0.9)),
                   const SizedBox(width: 4),
                   Text(
-                    '${parsedDate.day}/${parsedDate.month}/${parsedDate.year} ${parsedDate.hour.toString().padLeft(2, '0')}:${parsedDate.minute.toString().padLeft(2, '0')}',
+                    AppDateFormat.formatDateTime(parsedDate),
                     style: TextStyle(color: cs.onError.withValues(alpha: 0.9), fontSize: 11),
                   ),
                 ],
@@ -1769,7 +1798,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                             Icon(Icons.calendar_today, size: 14, color: cs.onTertiary.withValues(alpha: 0.9)),
                             const SizedBox(width: 4),
                             Text(
-                              '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}',
+                              AppDateFormat.formatDate(parsedDate),
                               style: TextStyle(color: cs.onTertiary.withValues(alpha: 0.9), fontSize: 12),
                             ),
                             if (surgeryStartTime.toString().isNotEmpty) ...[
@@ -2736,9 +2765,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
   Future<void> _generateAndPrintAllEncounters() async {
     if (_encounterDataList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No encounters to print. Load data first.')),
-      );
+      AppSnackBar.showInfo(context, 'No encounters to print. Load data first.');
       return;
     }
 
@@ -2756,16 +2783,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF generated successfully')),
-        );
+        AppSnackBar.showSuccess(context, 'PDF generated successfully');
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating PDF: $e')),
-        );
+        AppSnackBar.showError(context, 'Error generating PDF: $e');
       }
     }
   }

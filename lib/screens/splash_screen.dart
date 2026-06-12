@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'signin_screen.dart';
-import 'dashboard_screen.dart';
+import '../shell/patient_shell.dart';
 import '../services/auth_service.dart';
 import '../services/inactivity_service.dart';
 
@@ -122,13 +122,14 @@ class _SplashScreenState extends State<SplashScreen>
     // Check if user is logged in
     final authService = AuthService.instance;
     if (authService.isLoggedIn && authService.patientData != null) {
-      final cnic = authService.patientData!['cnic'] ?? 
-                   authService.patientData!['CNIC'] ?? '';
-      // Reset inactivity timer when navigating to dashboard
+      final data = authService.patientData!;
+      final mrn = data['MRN'] ?? data['mrn'] ?? '';
+      final cnic = data['cnic'] ?? data['CNIC'] ?? '';
+      final identifier = mrn.toString().isNotEmpty ? mrn.toString() : cnic.toString();
       InactivityService.instance.resetActivity();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => DashboardScreen(cnic: cnic.toString()),
+          builder: (context) => PatientShell(patientIdentifier: identifier),
         ),
       );
     } else {

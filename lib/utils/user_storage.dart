@@ -5,6 +5,7 @@ class UserStorage {
   static const String _userDataKey = 'registered_user_data';
   static const String _phoneKey = 'last_phone_number';
   static const String _themeModeKey = 'app_theme_mode';
+  static const String _localeKey = 'app_locale';
 
   // Save registered user data (for self registration only)
   static Future<void> saveUserData(Map<String, dynamic> userData) async {
@@ -82,29 +83,29 @@ class UserStorage {
     }
   }
 
-  // Save recent appointments
-  static Future<void> saveRecentAppointments(List<Map<String, dynamic>> appointments) async {
+  static const String _knownHospitalIdsKey = 'known_hospital_ids';
+
+  /// Remember hospitals the patient has visited so live queue APIs can be queried.
+  static Future<void> addKnownHospitalId(int hospitalId) async {
+    if (hospitalId <= 0) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('recent_appointments', json.encode(appointments));
-    } catch (e) {
-    }
+      final existing = prefs.getStringList(_knownHospitalIdsKey) ?? [];
+      final ids = {...existing.map(int.tryParse).whereType<int>(), hospitalId};
+      await prefs.setStringList(
+        _knownHospitalIdsKey,
+        ids.map((id) => id.toString()).toList(),
+      );
+    } catch (_) {}
   }
 
-  // Get saved recent appointments
-  static Future<List<Map<String, dynamic>>?> getRecentAppointments() async {
+  static Future<List<int>> getKnownHospitalIds() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final appointmentsString = prefs.getString('recent_appointments');
-      
-      if (appointmentsString == null) {
-        return null;
-      }
-      
-      final appointmentsList = json.decode(appointmentsString) as List;
-      return appointmentsList.map((item) => item as Map<String, dynamic>).toList();
-    } catch (e) {
-      return null;
+      final existing = prefs.getStringList(_knownHospitalIdsKey) ?? [];
+      return existing.map(int.tryParse).whereType<int>().where((id) => id > 0).toList();
+    } catch (_) {
+      return [];
     }
   }
 
@@ -122,6 +123,22 @@ class UserStorage {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_themeModeKey);
     } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<void> saveLocale(String locale) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_localeKey, locale);
+    } catch (_) {}
+  }
+
+  static Future<String?> getLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_localeKey);
+    } catch (_) {
       return null;
     }
   }

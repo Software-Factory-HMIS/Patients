@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/appointment_models.dart';
+import 'app_date_format.dart';
 
 Future<void> generateAndPrintAppointmentPDF(AppointmentDetails appointment) async {
   final pdf = await generateAppointmentPDF(appointment);
@@ -227,12 +228,12 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                           children: [
                             _buildInfoRowCompact(
                               'Date:',
-                              '${appointment.appointmentDate.day}/${appointment.appointmentDate.month}/${appointment.appointmentDate.year}',
+                              AppDateFormat.formatDate(appointment.appointmentDate),
                             ),
                             pw.SizedBox(height: 5),
                             _buildInfoRowCompact(
                               'Time:',
-                              '${appointment.appointmentDate.hour.toString().padLeft(2, '0')}:${appointment.appointmentDate.minute.toString().padLeft(2, '0')}',
+                              AppDateFormat.formatTime(appointment.appointmentDate),
                             ),
                             pw.SizedBox(height: 5),
                             _buildInfoRowCompact('Queue ID:', appointment.queueResponse.queueId.toString()),

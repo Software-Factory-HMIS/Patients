@@ -3,6 +3,7 @@ import 'package:gap/gap.dart';
 import 'signin_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/app_snackbar.dart';
 
 class SetPasswordScreen extends StatefulWidget {
   final String cnic;
@@ -296,14 +297,7 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     }
 
     if (_apiClient == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to initialize API client'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Failed to initialize API client');
       return;
     }
 
@@ -312,51 +306,32 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
     });
 
     try {
-      // Set password via API
       await _apiClient!.setPasswordByCnic(
         cnic: widget.cnic,
         password: password,
       );
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         _loading = false;
       });
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password set successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      AppSnackBar.showSuccess(context, 'Password set successfully!');
 
-      // Navigate to login screen after a short delay
       await Future.delayed(const Duration(seconds: 1));
-      
+
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => const SignInScreen(),
-          ),
-          (route) => false, // Remove all previous routes
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
+          (route) => false,
         );
       }
     } catch (e) {
       debugPrint('Error setting password: $e');
       if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error setting password: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() => _loading = false);
+        AppSnackBar.showError(context, 'Error setting password: ${e.toString()}');
       }
     }
   }

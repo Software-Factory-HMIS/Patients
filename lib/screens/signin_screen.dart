@@ -1,12 +1,22 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
+import '../l10n/app_localizations.dart';
 import 'phone_confirm_screen.dart';
 import 'id_scanner_screen.dart';
 import 'settings_screen.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/user_storage.dart';
+import '../utils/app_snackbar.dart';
+import '../utils/api_message_localizer.dart';
+import '../services/nearest_hospital_service.dart';
+import '../services/patient_location_service.dart';
+import '../utils/app_localizations_ext.dart';
+import '../widgets/auth/signin_auth_layout.dart';
+import '../widgets/auth/signin_auth_theme.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -18,13 +28,15 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _cnicController = TextEditingController();
+  final FocusNode _cnicFocus = FocusNode();
   bool _loading = false;
+  bool _supportLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Load saved user data to pre-fill form
     _loadSavedUserData();
+    PatientLocationService.instance.warmUp();
   }
 
   Future<void> _loadSavedUserData() async {
@@ -33,7 +45,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (userData != null && mounted) {
         final cnic = userData['CNIC'] ?? userData['cnic'];
         if (cnic != null && cnic.toString().isNotEmpty) {
-          _cnicController.text = cnic.toString();
+          _cnicController.text = CnicInputFormatter.format(cnic.toString());
         }
       }
     } catch (e) {
@@ -44,367 +56,237 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void dispose() {
     _cnicController.dispose();
+    _cnicFocus.dispose();
     super.dispose();
-  }
-
-  String? _requiredValidator(String? value, {String fieldName = 'This field'}) {
-    if (value == null || value.trim().isEmpty) {
-      return '$fieldName is required';
-    }
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    
+    final l = context.l10n;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
-            },
-            tooltip: 'Open settings to change theme',
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primaryContainer.withOpacity(0.3),
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: KeyboardInsetPadding(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      const Gap(20),
-                      
-                      // Logo area with modern styling
-                      Center(
-                        child: Container(
-                          width: 200,
-                          height: 200,
-                          padding: const EdgeInsets.all(20),
-                          child: Image.asset(
-                            'assets/images/punjab.png',
-                            fit: BoxFit.contain,
-                            semanticLabel: 'Government of Punjab Health Department logo',
-                            errorBuilder: (context, error, stackTrace) {
-                              return Semantics(
-                                label: 'Hospital logo',
-                                child: Icon(
-                                  Icons.local_hospital_rounded,
-                                  size: 100,
-                                  color: colorScheme.primary,
+      body: Stack(
+        children: [
+          Container(
+            decoration: SignInAuthTheme.pageDecorationFor(context),
+            child: KeyboardInsetPadding(
+              child: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final metrics = SignInMetrics.of(context, constraints);
+                    final verticalPad = metrics.mediumGap * 2;
+
+                    return SingleChildScrollView(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: metrics.horizontalPadding,
+                        vertical: metrics.mediumGap,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: math.max(0, constraints.maxHeight - verticalPad),
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: metrics.cardMaxWidth),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SignInAuthHeader(metrics: metrics),
+                                Gap(metrics.largeGap),
+                                _buildSignInContent(context, metrics, l),
+                                Gap(metrics.mediumGap),
+                                SignInHospitalSupportButton(
+                                  compact: metrics.isShortHeight,
+                                  loading: _supportLoading,
+                                  onPressed: _showNearestHospitalSupport,
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      
-                      const Gap(11),
-                      
-                      // Welcome text with modern styling
-                      Text(
-                        'Welcome',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                          letterSpacing: -0.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      
-                      const Gap(6),
-                      
-                      Text(
-                        'Enter your CNIC to continue',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      
-                      const Gap(28),
-                      
-                      // Modern card container for form
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          side: BorderSide(
-                            color: colorScheme.outline.withOpacity(0.1),
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.white,
-                                Colors.white.withOpacity(0.95),
+                                Gap(metrics.smallGap),
+                                const SignInAuthFooter(),
                               ],
                             ),
                           ),
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // CNIC input field with modern styling
-                              TextFormField(
-                                controller: _cnicController,
-                                keyboardType: TextInputType.number,
-                                textInputAction: TextInputAction.done,
-                                inputFormatters: [
-                                  _CnicInputFormatter(),
-                                ],
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme.onSurface,
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'CNIC',
-                                  hintText: '12345-1234567-1',
-                                  prefixIcon: Container(
-                                    margin: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.primaryContainer.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(
-                                      Icons.badge_outlined,
-                                      color: colorScheme.primary,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      Icons.camera_alt_outlined,
-                                      color: colorScheme.primary,
-                                    ),
-                                    tooltip: 'Scan ID card with camera',
-                                    onPressed: _openIDScanner,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: colorScheme.outline.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: colorScheme.outline.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: colorScheme.primary,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  errorBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: colorScheme.error,
-                                    ),
-                                  ),
-                                  filled: true,
-                                  fillColor: colorScheme.surfaceContainerHighest,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 18,
-                                  ),
-                                  helperText: '13 digits (with or without dashes)',
-                                  helperStyle: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                scrollPadding: const EdgeInsets.only(bottom: 100),
-                                validator: (value) {
-                                  final String? requiredResult = _requiredValidator(value, fieldName: 'CNIC');
-                                  if (requiredResult != null) return requiredResult;
-                                  
-                                  final cnic = value!.trim();
-                                  final digitsOnly = cnic.replaceAll(RegExp(r'[^0-9]'), '');
-                                  
-                                  if (digitsOnly.isEmpty) {
-                                    return 'CNIC must contain digits';
-                                  }
-                                  
-                                  if (digitsOnly.length != 13) {
-                                    return 'CNIC must be exactly 13 digits';
-                                  }
-                                  
-                                  return null;
-                                },
-                                onFieldSubmitted: (_) => _handleContinue(),
-                              ),
-                              
-                              const Gap(24),
-                              
-                              // Continue button with modern styling
-                              FilledButton.icon(
-                                onPressed: _loading ? null : _handleContinue,
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  minimumSize: const Size(double.infinity, 56),
-                                ),
-                                icon: _loading
-                                    ? SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            colorScheme.onPrimary,
-                                          ),
-                                        ),
-                                      )
-                                    : const Icon(Icons.arrow_forward, size: 20),
-                                label: _loading
-                                    ? const Text('Looking up...')
-                                    : const Text(
-                                        'Continue',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
-                      
-                      const Gap(24),
-                      
-                      // Help section
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: colorScheme.primary,
-                              size: 24,
-                            ),
-                            const Gap(8),
-                            Text(
-                              'Not registered yet?',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            const Gap(4),
-                            Text(
-                              'Please visit hospital reception for registration',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const Gap(24),
-                      
-                      // Terms and Privacy with modern styling
-                      Center(
-                        child: Text(
-                          'By continuing, you agree to our\nTerms of Service and Privacy Policy',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            height: 1.5,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      
-                      const Gap(20),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
           ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: SafeArea(
+              child: IconButton(
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: SignInAuthTheme.textMuted,
+                  size: 22,
+                ),
+                tooltip: l.settings,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSignInContent(
+    BuildContext context,
+    SignInMetrics metrics,
+    AppLocalizations l,
+  ) {
+    return Form(
+      key: _formKey,
+      child: SignInAuthCard(
+        padding: EdgeInsets.all(metrics.cardPadding),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l.cnicNumber,
+              style: TextStyle(
+                fontSize: metrics.labelFontSize,
+                fontWeight: FontWeight.w800,
+                color: SignInAuthTheme.labelTextColor(context),
+              ),
+            ),
+            Gap(metrics.mediumGap),
+            _CnicInputField(
+              controller: _cnicController,
+              focusNode: _cnicFocus,
+              onCameraTap: _openIDScanner,
+              onSubmitted: (_) => _handleContinue(),
+              compact: metrics.isCompactWidth || metrics.isShortHeight,
+            ),
+            Gap(metrics.mediumGap),
+            SignInInfoBox(
+              message: l.signInInfoMessage,
+              compact: metrics.isShortHeight,
+            ),
+            Gap(metrics.largeGap),
+            SignInContinueButton(
+              loading: _loading,
+              height: metrics.buttonHeight,
+              onPressed: _handleContinue,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _handleContinue() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    
-    // Get and clean CNIC
-    final cnic = _cnicController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
-    
-    if (cnic.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a CNIC'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    
-    setState(() {
-      _loading = true;
-    });
+  Future<void> _showNearestHospitalSupport() async {
+    if (_supportLoading) return;
+    final l = context.l10n;
+
+    setState(() => _supportLoading = true);
 
     try {
-      // Initialize API client
-      final apiClient = EmrApiClient();
-      
-      // Call lookup endpoint
-      final result = await apiClient.lookupPatient(cnic: cnic);
-      
+      final position = await PatientLocationService.instance.requestCurrentPosition();
       if (!mounted) return;
-      
-      setState(() {
-        _loading = false;
-      });
+
+      if (position == null) {
+        AppSnackBar.showError(context, l.locationPermissionRequired);
+        return;
+      }
+
+      final nearest = await NearestHospitalService().findNearest(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (!mounted) return;
+
+      if (nearest == null) {
+        AppSnackBar.showError(context, l.noHospitalFoundNearby);
+        return;
+      }
+
+      final distance = nearest.distanceKm < 10
+          ? nearest.distanceKm.toStringAsFixed(1)
+          : nearest.distanceKm.round().toString();
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.local_hospital_rounded, color: SignInAuthTheme.primary, size: 36),
+          title: Text(l.nearestHospital),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                nearest.hospital.name,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+              const Gap(8),
+              if (nearest.hospital.location != 'Location not specified')
+                Text(
+                  nearest.hospital.location,
+                  style: TextStyle(color: SignInAuthTheme.mutedTextColor(dialogContext)),
+                ),
+              const Gap(8),
+              Text(
+                l.distanceAwayKm(distance),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              if (nearest.usedApproximateLocation) ...[
+                const Gap(8),
+                Text(
+                  l.approximateHospitalDistance,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: SignInAuthTheme.mutedTextColor(dialogContext),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l.ok),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackBar.showError(
+        context,
+        ApiMessageLocalizer.localize(context, e.toString()),
+      );
+    } finally {
+      if (mounted) setState(() => _supportLoading = false);
+    }
+  }
+
+  Future<void> _handleContinue() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final cnic = _cnicController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cnic.isEmpty) {
+      AppSnackBar.showError(context, context.l10n.enterCnic);
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final apiClient = EmrApiClient();
+      final result = await apiClient.lookupPatient(cnic: cnic);
+
+      if (!mounted) return;
+      setState(() => _loading = false);
 
       final found = result['found'] as bool? ?? false;
       final maskedPhone = result['maskedPhone'] as String?;
@@ -412,61 +294,28 @@ class _SignInScreenState extends State<SignInScreen> {
       final message = result['message'] as String?;
 
       if (!found) {
-        // Patient not found - show dialog
         _showNotFoundDialog(cnic, message);
       } else if (maskedPhone == null || maskedPhone.isEmpty) {
-        // Patient found but no phone number
         _showNoPhoneDialog(patientName);
       } else {
-        // Patient found with phone - navigate to phone confirm screen
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => PhoneConfirmScreen(
               cnic: cnic,
               maskedPhone: maskedPhone,
-              patientName: patientName ?? 'Patient',
+              patientName: patientName ?? context.l10n.patient,
             ),
           ),
         );
       }
     } catch (e) {
       if (!mounted) return;
-      
-      setState(() {
-        _loading = false;
-      });
-      
-      // Extract error message
-      String errorMessage = e.toString();
-      if (errorMessage.contains('Exception: ')) {
-        errorMessage = errorMessage.replaceAll('Exception: ', '');
-      }
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => _handleContinue(),
-          ),
-        ),
+      setState(() => _loading = false);
+
+      AppSnackBar.showError(
+        context,
+        ApiMessageLocalizer.localize(context, e.toString()),
+        onRetry: _handleContinue,
       );
     }
   }
@@ -475,21 +324,15 @@ class _SignInScreenState extends State<SignInScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.person_off, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Account Not Found'),
-          ],
-        ),
+        icon: const Icon(Icons.person_off_outlined, size: 36),
+        title: Text(context.l10n.accountNotFound),
         content: Text(
-          message ?? 'No patient account found with CNIC: $cnic\n\nPlease visit hospital reception for registration.',
+          message != null
+              ? ApiMessageLocalizer.localize(context, message)
+              : context.l10n.accountNotFoundMessage(cnic),
         ),
         actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
+          FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.ok)),
         ],
       ),
     );
@@ -499,67 +342,131 @@ class _SignInScreenState extends State<SignInScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.phone_disabled, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('No Phone Number'),
-          ],
-        ),
+        icon: const Icon(Icons.phone_disabled_outlined, size: 36),
+        title: Text(context.l10n.phoneMissing),
         content: Text(
-          'Hello ${patientName ?? 'Patient'},\n\nYour account does not have a phone number on record. Please visit hospital reception to update your contact information.',
+          context.l10n.phoneMissingMessage(patientName ?? context.l10n.there),
         ),
         actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
+          FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.ok)),
         ],
       ),
     );
   }
 
-  /// Opens the ID card scanner for fast CNIC capture
   Future<void> _openIDScanner() async {
     final imagePath = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (context) => const IDScannerScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const IDScannerScreen()),
     );
-    
+
     if (imagePath != null && mounted) {
-      // TODO: In future, OCR can be added here to extract CNIC from the image
-      // For now, show success message that image was captured
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('ID card captured successfully'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {},
-          ),
-        ),
+      AppSnackBar.showSuccess(
+        context,
+        context.l10n.cnicPhotoCaptured,
       );
     }
   }
 }
 
-// CNIC input formatter - formats as user types (12345-1234567-1)
-class _CnicInputFormatter extends TextInputFormatter {
+class _CnicInputField extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onCameraTap;
+  final ValueChanged<String>? onSubmitted;
+  final bool compact;
+
+  const _CnicInputField({
+    required this.controller,
+    required this.focusNode,
+    required this.onCameraTap,
+    this.onSubmitted,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = SignInAuthTheme.isDark(context);
+    final iconSize = compact ? 20.0 : 22.0;
+    final iconBox = compact ? 44.0 : 48.0;
+
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: TextInputType.number,
+      textInputAction: TextInputAction.done,
+      inputFormatters: [CnicInputFormatter()],
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return l.enterCnicRequired;
+        }
+        final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digits.length != 13) {
+          return l.cnicMustBe13Digits;
+        }
+        return null;
+      },
+      style: TextStyle(
+        fontSize: compact ? 15 : 16,
+        fontWeight: FontWeight.w600,
+        color: SignInAuthTheme.labelTextColor(context),
+        letterSpacing: 0.4,
+        height: 1.2,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: isDark ? const Color(0xFF232D28) : SignInAuthTheme.inputFill,
+        hintText: l.cnicHint,
+        hintStyle: TextStyle(
+          fontFamily: 'serif',
+          fontSize: compact ? 15 : 17,
+          fontWeight: FontWeight.w700,
+          color: isDark ? scheme.onSurfaceVariant : SignInAuthTheme.titleGreen,
+          letterSpacing: 0.8,
+        ),
+        prefixIcon: Icon(Icons.badge_outlined, size: iconSize, color: SignInAuthTheme.mutedTextColor(context)),
+        prefixIconConstraints: BoxConstraints(minWidth: iconBox, minHeight: iconBox),
+        suffixIcon: IconButton(
+          onPressed: onCameraTap,
+          icon: Icon(Icons.photo_camera_outlined, size: iconSize, color: scheme.primary),
+          tooltip: l.scanCnic,
+        ),
+        suffixIconConstraints: BoxConstraints(minWidth: iconBox, minHeight: iconBox),
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 13 : 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: SignInAuthTheme.danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: SignInAuthTheme.danger, width: 1.5),
+        ),
+      ),
+      onFieldSubmitted: onSubmitted,
+    );
+  }
+}
+
+class CnicInputFormatter extends TextInputFormatter {
   static final RegExp _nonDigit = RegExp(r'[^0-9]');
-  
-  static String _formatCnic(String raw) {
-    final String digits = raw.replaceAll(_nonDigit, '');
-    final StringBuffer out = StringBuffer();
-    for (int i = 0; i < digits.length && i < 13; i++) {
+
+  static String format(String raw) {
+    final digits = raw.replaceAll(_nonDigit, '');
+    final out = StringBuffer();
+    for (var i = 0; i < digits.length && i < 13; i++) {
       out.write(digits[i]);
       if (i == 4 || i == 11) {
         if (i != digits.length - 1) out.write('-');
@@ -567,11 +474,10 @@ class _CnicInputFormatter extends TextInputFormatter {
     }
     return out.toString();
   }
-  
+
   @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final String formatted = _formatCnic(newValue.text);
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final formatted = format(newValue.text);
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),

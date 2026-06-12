@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'otp_screen.dart';
 import '../models/otp_delivery_channel.dart';
+import '../utils/api_message_localizer.dart';
+import '../utils/app_localizations_ext.dart';
 import '../utils/emr_api_client.dart';
-import '../widgets/otp_delivery_selector.dart';
+import '../utils/app_snackbar.dart';
+import '../widgets/auth/signin_auth_layout.dart';
+import '../widgets/auth/signin_auth_theme.dart';
 
-/// Screen that displays the masked phone number and allows user to request OTP.
-/// This is the second step in the OTP-only authentication flow:
-/// CNIC Input -> Phone Confirm -> OTP -> Dashboard
 class PhoneConfirmScreen extends StatefulWidget {
   final String cnic;
   final String maskedPhone;
@@ -30,220 +31,99 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final l = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify Your Number'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primaryContainer.withOpacity(0.3),
-              colorScheme.surface,
-              colorScheme.surfaceContainerHighest,
+      body: SignInAuthLayout(
+        showBackButton: true,
+        child: SignInAuthCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      l.verifyPhone,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: SignInAuthTheme.labelTextColor(context),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    l.step2Of3,
+                    style: TextStyle(
+                      fontSize: 9,
+                      letterSpacing: 0.6,
+                      fontWeight: FontWeight.w600,
+                      color: SignInAuthTheme.mutedTextColor(context),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(16),
+              Text(
+                l.helloName(widget.patientName),
+                style: SignInAuthTheme.titleStyleFor(context).copyWith(fontSize: 22),
+                textAlign: TextAlign.center,
+              ),
+              const Gap(8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.phone_android_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
+                  const Gap(8),
+                  LtrText(
+                    widget.maskedPhone,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: SignInAuthTheme.labelTextColor(context),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(16),
+              SignInInfoBox(message: l.phoneVerifyInfo),
+              const Gap(20),
+              Text(
+                l.howToSendCode,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: SignInAuthTheme.bodyTextColor(context),
+                ),
+              ),
+              const Gap(12),
+              Row(
+                children: [
+                  _DeliveryTile(
+                    icon: Icons.sms_rounded,
+                    label: l.channelSms,
+                    selected: _otpDeliveryChannel == OtpDeliveryChannel.sms,
+                    onTap: () => setState(() => _otpDeliveryChannel = OtpDeliveryChannel.sms),
+                  ),
+                  const Gap(12),
+                  _DeliveryTile(
+                    icon: Icons.chat_rounded,
+                    label: l.channelWhatsApp,
+                    selected: _otpDeliveryChannel == OtpDeliveryChannel.whatsApp,
+                    onTap: () => setState(() => _otpDeliveryChannel = OtpDeliveryChannel.whatsApp),
+                  ),
+                ],
+              ),
+              const Gap(22),
+              SignInContinueButton(
+                label: l.sendCode,
+                loading: _loading,
+                onPressed: _requestOtp,
+              ),
             ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Gap(24),
-
-                // Welcome icon
-                Center(
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.phone_android,
-                      size: 48,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-
-                const Gap(32),
-
-                // Welcome message
-                Text(
-                  'Hello, ${widget.patientName}!',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const Gap(12),
-
-                Text(
-                  'We found your account. To verify your identity, we\'ll send a verification code to your registered phone number.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                const Gap(32),
-
-                // Phone number card
-                Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Your registered number',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const Gap(8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.phone,
-                              color: colorScheme.primary,
-                              size: 24,
-                            ),
-                            const Gap(12),
-                            Text(
-                              widget.maskedPhone,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const Gap(16),
-
-                // Info text
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.tertiaryContainer.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: colorScheme.tertiary,
-                        size: 20,
-                      ),
-                      const Gap(12),
-                      Expanded(
-                        child: Text(
-                          'Not your number? Please visit hospital reception to update your contact details.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onTertiaryContainer,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Gap(16),
-                Text(
-                  'Receive code via',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const Gap(8),
-                Center(
-                  child: OtpDeliverySelector(
-                    value: _otpDeliveryChannel,
-                    onChanged: (c) => setState(() => _otpDeliveryChannel = c),
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Send OTP button
-                FilledButton.icon(
-                  onPressed: _loading ? null : _requestOtp,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                  icon: _loading
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colorScheme.onPrimary,
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.sms_outlined, size: 20),
-                  label: _loading
-                      ? const Text('Sending OTP...')
-                      : const Text(
-                          'Send Verification Code',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-
-                const Gap(12),
-
-                // Back button
-                OutlinedButton(
-                  onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text('Back'),
-                ),
-
-                const Gap(24),
-              ],
-            ),
           ),
         ),
       ),
@@ -251,41 +131,32 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
   }
 
   Future<void> _requestOtp() async {
-    setState(() {
-      _loading = true;
-    });
+    setState(() => _loading = true);
 
     try {
       final apiClient = EmrApiClient();
-      
-      // Request OTP for the CNIC
       final result = await apiClient.requestOtp(
         cnic: widget.cnic,
         deliveryChannel: _otpDeliveryChannel,
       );
-      
-      if (!mounted) return;
 
-      setState(() {
-        _loading = false;
-      });
+      if (!mounted) return;
+      setState(() => _loading = false);
 
       final success = result['success'] as bool? ?? true;
       final message = result['message'] as String?;
       final cooldown = result['cooldownSecondsRemaining'] as int? ?? 0;
 
       if (!success && cooldown > 0) {
-        // Still in cooldown period
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message ?? 'Please wait $cooldown seconds before requesting another OTP'),
-            backgroundColor: Colors.orange,
-          ),
+        AppSnackBar.showInfo(
+          context,
+          message != null
+              ? ApiMessageLocalizer.localize(context, message)
+              : context.l10n.apiCooldown(cooldown),
         );
         return;
       }
 
-      // Navigate to OTP screen
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => OtpScreen(
@@ -298,27 +169,72 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-
-      String errorMessage = e.toString();
-      if (errorMessage.contains('Exception: ')) {
-        errorMessage = errorMessage.replaceAll('Exception: ', '');
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _requestOtp,
-          ),
-        ),
+      setState(() => _loading = false);
+      AppSnackBar.showError(
+        context,
+        ApiMessageLocalizer.localize(context, e.toString()),
+        onRetry: _requestOtp,
       );
     }
+  }
+}
+
+class _DeliveryTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DeliveryTile({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Builder(
+          builder: (context) {
+            final scheme = Theme.of(context).colorScheme;
+            final isDark = SignInAuthTheme.isDark(context);
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.12)
+                    : (isDark ? const Color(0xFF232D28) : SignInAuthTheme.inputFill),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? scheme.primary : scheme.outline,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    icon,
+                    color: selected ? scheme.primary : SignInAuthTheme.mutedTextColor(context),
+                    size: 28,
+                  ),
+                  const Gap(8),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected ? scheme.primary : SignInAuthTheme.bodyTextColor(context),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 }

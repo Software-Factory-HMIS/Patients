@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'registration_phone_screen.dart';
 import 'signin_screen.dart';
+import '../utils/app_date_format.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/user_storage.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/api_config.dart';
+import '../utils/app_snackbar.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final String? phoneNumber;
@@ -381,44 +383,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _handleSubmit() async {
     // Validate registration type only for first registration (not "Add Others")
     if (!widget.isAddOthers && _registrationType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_translations['selectRegistrationType']!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError(context, _translations['selectRegistrationType']!);
       return;
     }
-    
-    // Validate parent type when Others is selected
-    if ((!widget.isAddOthers && _registrationType == 'Others') && 
+
+    if ((!widget.isAddOthers && _registrationType == 'Others') &&
         (_parentType == null || _parentType!.isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_translations['selectParentType']!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError(context, _translations['selectParentType']!);
       return;
     }
-    
+
     if (_dateOfBirth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_translations['selectDateOfBirth']!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError(context, _translations['selectDateOfBirth']!);
       return;
     }
-    
+
     if (_gender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_translations['selectGender']!),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError(context, _translations['selectGender']!);
       return;
     }
     
@@ -426,37 +407,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     if (_registrationType == 'Self' && !widget.isAddOthers) {
       final passwordText = _passwordController.text.trim();
       if (passwordText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_translations['password']} ${_translations['required']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.showError(context, '${_translations['password']} ${_translations['required']}');
         return;
       }
-      
-      // Validate password meets requirements
+
       final passwordError = _validatePassword(passwordText);
       if (passwordError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(passwordError),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        AppSnackBar.showError(context, passwordError);
         return;
       }
-      
-      // Validate confirm password matches
+
       final confirmPasswordError = _validateConfirmPassword(_confirmPasswordController.text.trim());
       if (confirmPasswordError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(confirmPasswordError),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.showError(context, confirmPasswordError);
         return;
       }
     }
@@ -502,15 +465,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           
           if (passwordText.isEmpty) {
             if (mounted) {
-              setState(() {
-                _isSubmitting = false;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${_translations['password']} ${_translations['required']}'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              setState(() => _isSubmitting = false);
+              AppSnackBar.showError(context, '${_translations['password']} ${_translations['required']}');
             }
             return;
           }
@@ -562,30 +518,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               _showDetailsCard = true;
             });
             
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_translations['registrationSuccessful']!),
-                backgroundColor: Colors.green,
-              ),
-            );
+            AppSnackBar.showSuccess(context, _translations['registrationSuccessful']!);
           } else {
-            // For self registration, store data and show details card
             _registeredPatientData = completePatientData;
-            
-            // Save user data for demonstration purposes
             await UserStorage.saveUserData(_registeredPatientData!);
-            
+
             if (mounted) {
-              setState(() {
-                _showDetailsCard = true;
-              });
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(_translations['registrationSuccessful']!),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              setState(() => _showDetailsCard = true);
+              AppSnackBar.showSuccess(context, _translations['registrationSuccessful']!);
             }
           }
         }
@@ -609,38 +549,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 'Please check the console for details.';
           }
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 8),
-              action: SnackBarAction(
-                label: 'Details',
-                textColor: Colors.white,
-                onPressed: () {
-                  // Show detailed error in a dialog
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Registration Error'),
-                      content: SingleChildScrollView(
-                        child: Text(
-                          'Full error details:\n\n$e',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
+          AppSnackBar.showError(context, 'Full error details:\n\n$e');
         }
       }
     }
@@ -955,7 +864,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             if (patientData['dateOfBirth'] != null)
               _buildDetailRow(
                 _isUrdu ? 'تاریخ پیدائش' : 'Date of Birth',
-                '${(patientData['dateOfBirth'] as DateTime).year}-${(patientData['dateOfBirth'] as DateTime).month.toString().padLeft(2, '0')}-${(patientData['dateOfBirth'] as DateTime).day.toString().padLeft(2, '0')}',
+                AppDateFormat.formatDate(patientData['dateOfBirth']),
               ),
             if (patientData['gender'] != null)
               _buildDetailRow(
@@ -1635,7 +1544,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               child: Text(
                                 _dateOfBirth == null
                                     ? _translations['selectDate']!
-                                    : '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}',
+                                    : AppDateFormat.formatDate(_dateOfBirth),
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500,

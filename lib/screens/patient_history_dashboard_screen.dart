@@ -8,6 +8,9 @@ import '../services/encounter_service.dart';
 import '../services/pregnancy_service.dart';
 import '../services/pharmacy_service.dart';
 import '../widgets/app_navigation_drawer.dart';
+import '../utils/app_date_format.dart';
+import '../utils/app_snackbar.dart';
+
 class PatientHistoryDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
 
@@ -2233,13 +2236,8 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     }
   }
 
-  /// Format any date-like value as DD/MM/YYYY for display on this form.
-  String _formatDateDDMMYYYY(dynamic value) {
-    if (value == null || value.toString().trim().isEmpty) return '';
-    final dt = DateTime.tryParse(value.toString());
-    if (dt == null) return value.toString();
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-  }
+  /// Format any date-like value as dd-MM-yyyy for display on this form.
+  String _formatDateDDMMYYYY(dynamic value) => AppDateFormat.formatDate(value);
 
   /// Build [date, complaint, symptoms, diagnosis, commaMedicines, commaLabRadiology] from encounter data map.
   List<String> _encounterRowData(Map<String, dynamic> data) {
@@ -3020,14 +3018,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
         name: '${widget.patient['fullName'] ?? 'Patient'}_History_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating PDF: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Error generating PDF: $e');
     }
   }
 }

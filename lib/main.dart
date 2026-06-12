@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
+import 'services/locale_service.dart';
 import 'services/theme_service.dart';
 
 void main() async {
@@ -15,6 +18,7 @@ void main() async {
   
   await AuthService.instance.init();
   await ThemeService.instance.init();
+  await LocaleService.instance.init();
   
   runApp(const MyApp());
 }
@@ -61,20 +65,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       onPointerDown: (_) => InactivityService.instance.resetActivity(),
       onPointerMove: (_) => InactivityService.instance.resetActivity(),
       onPointerUp: (_) => InactivityService.instance.resetActivity(),
-      child: ValueListenableBuilder<AppThemeMode>(
-        valueListenable: ThemeService.instance.themeNotifier,
-        builder: (context, _, __) {
-          return MaterialApp(
-            navigatorKey: _navigatorKey,
-            title: 'Healthcare Management System',
-            navigatorObservers: [
-              _InactivityObserver(),
-            ],
-            theme: ThemeService.instance.getTheme(),
-            darkTheme: ThemeService.instance.getDarkTheme(),
-            themeMode: ThemeService.instance.getThemeMode(),
-            home: const SplashScreen(),
-            debugShowCheckedModeBanner: false,
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: LocaleService.instance.localeNotifier,
+        builder: (context, locale, _) {
+          return ValueListenableBuilder<AppThemeMode>(
+            valueListenable: ThemeService.instance.themeNotifier,
+            builder: (context, mode, __) {
+              return MaterialApp(
+                navigatorKey: _navigatorKey,
+                title: 'Government of Punjab Patient\'s App',
+                locale: locale,
+                supportedLocales: LocaleService.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                navigatorObservers: [
+                  _InactivityObserver(),
+                ],
+                theme: ThemeService.instance.getTheme(),
+                darkTheme: ThemeService.instance.getDarkTheme(),
+                themeMode: mode == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light,
+                home: const SplashScreen(),
+                debugShowCheckedModeBanner: false,
+              );
+            },
           );
         },
       ),

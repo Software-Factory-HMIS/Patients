@@ -6,6 +6,7 @@ import 'registration_otp_screen.dart';
 import '../models/otp_delivery_channel.dart';
 import '../utils/keyboard_inset_padding.dart';
 import '../utils/emr_api_client.dart';
+import '../utils/app_snackbar.dart';
 import '../widgets/otp_delivery_selector.dart';
 
 class RegistrationPhoneScreen extends StatefulWidget {
@@ -274,14 +275,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     }
 
     if (_apiClient == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to initialize API client'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Failed to initialize API client');
       return;
     }
 
@@ -290,42 +284,25 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
     });
 
     try {
-      // Request OTP from backend (backend generates and sends OTP)
       bool smsSentSuccessfully = false;
       try {
         await _apiClient!.requestRegistrationOtp(
           phoneNumber: phoneNumber,
           deliveryChannel: _otpDeliveryChannel,
         );
-        
-        // If we get here without exception, the API call succeeded
-        // This means either SMS was sent OR CanProceed=true (allowing manual OTP entry)
         smsSentSuccessfully = true;
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'OTP sent via ${_otpDeliveryChannel.label}',
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          AppSnackBar.showSuccess(context, 'OTP sent via ${_otpDeliveryChannel.label}');
         }
       } catch (smsError) {
         debugPrint('Failed to send OTP via SMS: $smsError');
         final errorMsg = smsError.toString();
-        
-        // Check if error message indicates we can still proceed
-        // Backend returns CanProceed=true even when SMS fails, so API client shouldn't throw
-        // But if it does throw, check if we can extract OTP and proceed
-        if (errorMsg.contains('OTP:') || 
+
+        if (errorMsg.contains('OTP:') ||
             errorMsg.contains('proceed to enter') ||
             errorMsg.contains('CanProceed')) {
-          // SMS failed but we can proceed with manual OTP entry
-          smsSentSuccessfully = true; // Allow navigation
-          
-          // Show warning message
+          smsSentSuccessfully = true;
+
           String warningMessage;
           if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
             warningMessage = 'SMS delivery timed out. You can still enter the OTP manually.';
@@ -334,18 +311,9 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           } else {
             warningMessage = 'SMS delivery failed. Please enter the OTP manually.';
           }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(warningMessage),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
+
+          if (mounted) AppSnackBar.showInfo(context, warningMessage);
         } else {
-          // True error - cannot proceed
           String errorMessage;
           if (errorMsg.contains('Timeout') || errorMsg.contains('timed out')) {
             errorMessage = 'SMS delivery timed out. Please try again.';
@@ -353,27 +321,17 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
             errorMessage =
                 'Failed to send OTP via ${_otpDeliveryChannel.label}. Please check your phone number and try again.';
           }
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMessage),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-          return; // Don't navigate - true error
+          if (mounted) AppSnackBar.showError(context, errorMessage);
+          return;
         }
       }
 
-      // Navigate to OTP entry screen if SMS was sent successfully OR if we can proceed
       if (smsSentSuccessfully && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => RegistrationOtpScreen(
               phoneNumber: phoneNumber,
-              expectedOtp: null, // OTP is now verified via backend
+              expectedOtp: null,
               deliveryChannel: _otpDeliveryChannel,
             ),
           ),
@@ -381,14 +339,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
       }
     } catch (e) {
       debugPrint('Error in registration phone verification: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) AppSnackBar.showError(context, 'Error: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() {

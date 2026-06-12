@@ -1,3 +1,5 @@
+import '../utils/geo_utils.dart';
+
 class Hospital {
   final int hospitalID;
   final String name;
@@ -7,6 +9,8 @@ class Hospital {
   final String? division;
   final String? district;
   final String? tehsil;
+  final double? latitude;
+  final double? longitude;
 
   Hospital({
     required this.hospitalID,
@@ -17,7 +21,21 @@ class Hospital {
     this.division,
     this.district,
     this.tehsil,
+    this.latitude,
+    this.longitude,
   });
+
+  bool get hasCoordinates => latitude != null && longitude != null;
+
+  /// Hospital coordinates from API, or an approximate district centroid fallback.
+  (double, double)? get resolvedCoordinates {
+    if (hasCoordinates) return (latitude!, longitude!);
+    return PunjabGeoLookup.centroidFor(
+      district: district,
+      tehsil: tehsil,
+      division: division,
+    );
+  }
 
   factory Hospital.fromJson(Map<String, dynamic> json) {
     return Hospital(
@@ -26,10 +44,44 @@ class Hospital {
       type: json['Type'] as String? ?? json['type'] as String?,
       subtype: json['Subtype'] as String? ?? json['subtype'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
-      division: json['Division'] as String? ?? json['division'] as String?,
-      district: json['District'] as String? ?? json['district'] as String?,
-      tehsil: json['Tehsil'] as String? ?? json['tehsil'] as String?,
+      division: json['Division'] as String? ??
+          json['division'] as String? ??
+          json['DivisionName'] as String? ??
+          json['divisionName'] as String?,
+      district: json['District'] as String? ??
+          json['district'] as String? ??
+          json['DistrictName'] as String? ??
+          json['districtName'] as String?,
+      tehsil: json['Tehsil'] as String? ??
+          json['tehsil'] as String? ??
+          json['TehsilName'] as String? ??
+          json['tehsilName'] as String?,
+      latitude: _readCoordinate(json, const [
+        'Latitude',
+        'latitude',
+        'Lat',
+        'lat',
+      ]),
+      longitude: _readCoordinate(json, const [
+        'Longitude',
+        'longitude',
+        'Lng',
+        'lng',
+        'Lon',
+        'lon',
+      ]),
     );
+  }
+
+  static double? _readCoordinate(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value == null) continue;
+      if (value is num) return value.toDouble();
+      final parsed = double.tryParse(value.toString());
+      if (parsed != null) return parsed;
+    }
+    return null;
   }
 
   String get location {

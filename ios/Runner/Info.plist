@@ -46,5 +46,9 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan your identity card for faster login.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access lets you choose a profile picture.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location helps us find the nearest hospital when you need support.</string>
 </dict>
 </plist>

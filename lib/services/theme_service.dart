@@ -5,41 +5,14 @@ import '../utils/user_storage.dart';
 enum AppThemeMode {
   light,
   dark,
-  system,
-  highContrastLight,
-  highContrastDark,
 }
 
 extension AppThemeModeExtension on AppThemeMode {
-  String get storageKey {
-    switch (this) {
-      case AppThemeMode.light:
-        return 'light';
-      case AppThemeMode.dark:
-        return 'dark';
-      case AppThemeMode.system:
-        return 'system';
-      case AppThemeMode.highContrastLight:
-        return 'highContrastLight';
-      case AppThemeMode.highContrastDark:
-        return 'highContrastDark';
-    }
-  }
+  String get storageKey => this == AppThemeMode.dark ? 'dark' : 'light';
 
   static AppThemeMode fromStorageKey(String? key) {
-    switch (key) {
-      case 'dark':
-        return AppThemeMode.dark;
-      case 'system':
-        return AppThemeMode.system;
-      case 'highContrastLight':
-        return AppThemeMode.highContrastLight;
-      case 'highContrastDark':
-        return AppThemeMode.highContrastDark;
-      case 'light':
-      default:
-        return AppThemeMode.light;
-    }
+    if (key == 'dark' || key == 'highContrastDark') return AppThemeMode.dark;
+    return AppThemeMode.light;
   }
 }
 
@@ -61,40 +34,11 @@ class ThemeService {
     await UserStorage.saveThemeMode(mode.storageKey);
   }
 
-  ThemeData getTheme() {
-    switch (themeNotifier.value) {
-      case AppThemeMode.light:
-        return AppTheme.lightTheme;
-      case AppThemeMode.highContrastLight:
-        return AppTheme.highContrastLightTheme;
-      case AppThemeMode.dark:
-      case AppThemeMode.highContrastDark:
-      case AppThemeMode.system:
-        return AppTheme.lightTheme;
-    }
-  }
+  ThemeData getTheme() => AppTheme.lightTheme;
 
-  ThemeData getDarkTheme() {
-    switch (themeNotifier.value) {
-      case AppThemeMode.dark:
-        return AppTheme.darkTheme;
-      case AppThemeMode.highContrastDark:
-        return AppTheme.highContrastDarkTheme;
-      default:
-        return AppTheme.darkTheme;
-    }
-  }
+  ThemeData getDarkTheme() => AppTheme.darkTheme;
 
   ThemeMode getThemeMode() {
-    switch (themeNotifier.value) {
-      case AppThemeMode.light:
-      case AppThemeMode.highContrastLight:
-        return ThemeMode.light;
-      case AppThemeMode.dark:
-      case AppThemeMode.highContrastDark:
-        return ThemeMode.dark;
-      case AppThemeMode.system:
-        return ThemeMode.system;
-    }
+    return themeNotifier.value == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
   }
 }

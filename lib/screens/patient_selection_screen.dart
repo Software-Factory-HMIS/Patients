@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import 'dashboard_screen.dart';
+import '../shell/patient_shell.dart';
+import '../utils/app_date_format.dart';
 import '../utils/user_storage.dart';
+import '../utils/app_snackbar.dart';
 import '../services/inactivity_service.dart';
 
 class PatientSelectionScreen extends StatefulWidget {
@@ -126,18 +128,9 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
     final dateOfBirth = patient['DateOfBirth'] ?? patient['dateOfBirth'];
     final gender = patient['Gender'] ?? patient['gender'] ?? 'N/A';
     
-    String? dobString;
-    if (dateOfBirth != null) {
-      try {
-        if (dateOfBirth is String) {
-          dobString = dateOfBirth.split('T').first; // Extract date part from ISO string
-        } else {
-          dobString = dateOfBirth.toString();
-        }
-      } catch (e) {
-        dobString = 'N/A';
-      }
-    }
+    final dobString = dateOfBirth != null
+        ? AppDateFormat.formatDate(dateOfBirth, fallback: 'N/A')
+        : null;
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -273,18 +266,13 @@ class _PatientSelectionScreenState extends State<PatientSelectionScreen> {
       // Navigate to dashboard
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => DashboardScreen(cnic: identifier),
+          builder: (context) => PatientShell(patientIdentifier: identifier),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving patient data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError(context, 'Error saving patient data: $e');
     }
   }
 }
