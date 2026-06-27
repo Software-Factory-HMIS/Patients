@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 // ─── HMIS_Prod (core API — EMR data, OTP verify, JWT) ────────────────────────
 
 /// Production HMIS_Prod host. Handles OTP verify, JWT, and all EMR data.
-const String _productionEmrBaseUrl = 'http://100.98.154.101/HMIS';
+const String _productionEmrBaseUrl = 'https://hmis-api.pshealthpunjab.gov.pk';
 
 /// Resolves the base URL for HMIS_Prod.
 ///
@@ -26,7 +26,7 @@ String resolveEmrBaseUrl() {
 // ─── HMIS_AuthServer (OTP gateway — lookup + OTP send only) ──────────────────
 
 /// Production HMIS_AuthServer host. Handles patient lookup and OTP delivery only.
-const String _productionAuthServerBaseUrl = 'http://100.98.154.101:8080/HMIS_AuthServer';
+const String _productionAuthServerBaseUrl = 'https://hmis-authapi.pshealthpunjab.gov.pk';
 
 /// Resolves the base URL for HMIS_AuthServer.
 ///
