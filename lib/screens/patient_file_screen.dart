@@ -8,6 +8,7 @@ import '../utils/app_localizations_ext.dart';
 import '../widgets/punjab_ui.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/app_snackbar.dart';
+import '../utils/clinical_notes_format.dart';
 import 'patient_file_print_helper.dart';
 
 class PatientFileScreen extends StatefulWidget {
@@ -1255,11 +1256,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     labOrders.addAll(testItems);
     final radiologyOrders = data['radiologyOrders'] as List<dynamic>;
     final medicines = data['medicines'] as List<dynamic>;
-    final clinicalNotesRaw = data['clinicalNotes'];
-    final _cnStr = clinicalNotesRaw?.toString().trim() ?? '';
-    final clinicalNotes = (_cnStr.isNotEmpty && _cnStr != '[]' && _cnStr != '{}' && _cnStr != 'null')
-        ? _cnStr
-        : null;
+    final clinicalNoteTexts = extractClinicalNoteTexts(
+      data['clinicalNotes'],
+      fallbackNotes: data['notes'] as List<dynamic>?,
+    );
 
     final cs = Theme.of(context).colorScheme;
     return InkWell(
@@ -1370,49 +1370,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               children: [
                 // Vitals
                 if (vitals.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: cs.errorContainer.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: cs.error.withValues(alpha: 0.3), width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.favorite, color: cs.error, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Vitals',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: cs.error,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...vitals.map((v) {
-                          final bpSystolic = _stringOrEmpty(v['bpSystolic'] ?? v['BPSystolic'] ?? v['bloodPressureSystolic']);
-                          final bpDiastolic = _stringOrEmpty(v['bpDiastolic'] ?? v['BPDiastolic'] ?? v['bloodPressureDiastolic']);
-                          final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
-                              ? '$bpSystolic/$bpDiastolic'
-                              : _stringOrEmpty(v['bloodPressure'] ?? v['BloodPressure']);
-                          final hr = _stringOrEmpty(v['pulse'] ?? v['Pulse'] ?? v['heartRate'] ?? v['HeartRate']);
-                          final temp = _stringOrEmpty(v['temperature'] ?? v['Temperature']);
-                          final spo2 = _stringOrEmpty(v['spo2'] ?? v['SPO2'] ?? v['oxygenSaturation'] ?? v['OxygenSaturation']);
-                          final rr = _stringOrEmpty(v['respiratoryRate'] ?? v['RespiratoryRate'] ?? v['respiratory_rate']);
-                          final weight = _stringOrEmpty(v['weight'] ?? v['Weight']);
-                          final height = _stringOrEmpty(v['height'] ?? v['Height']);
-                          final bsr = _stringOrEmpty(v['bsr'] ?? v['BSR'] ?? v['bloodSugar'] ?? v['BloodSugar']);
-                          return _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr);
-                        }).toList(),
-                      ],
-                    ),
-                  ),
+                  ...vitals.map((v) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: _buildCompactVitalsBlock(v as Map<dynamic, dynamic>),
+                      )),
                   const SizedBox(height: 8),
                 ],
 
@@ -1508,7 +1469,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 ),
 
                 // Clinical Notes - shown at bottom
-                if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) ...[
+                if (clinicalNoteTexts.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(12.0),
@@ -1535,12 +1496,17 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          clinicalNotes,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color: cs.onSurface,
+                        ...clinicalNoteTexts.map(
+                          (note) => Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              '• $note',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.4,
+                                color: cs.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -1557,141 +1523,30 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   }
 
   Widget _buildVitalsCard(Map<String, dynamic> vital) {
-    final cs = Theme.of(context).colorScheme;
-    final recordedDate = vital['recordedDate'] ?? 
-                        vital['RecordedDate'] ?? 
-                        vital['recordedAt'] ??
-                        vital['createdAt'];
-    
+    final recordedDate = vital['recordedDate'] ??
+        vital['RecordedDate'] ??
+        vital['recordedAt'] ??
+        vital['createdAt'];
+
     DateTime? parsedDate;
     if (recordedDate != null) {
-      parsedDate = recordedDate is DateTime 
-          ? recordedDate 
+      parsedDate = recordedDate is DateTime
+          ? recordedDate
           : DateTime.tryParse(recordedDate.toString());
     }
 
-    // Format vitals data
-    final bpSystolic = _stringOrEmpty(vital['bpSystolic'] ?? vital['BPSystolic'] ?? vital['bloodPressureSystolic']);
-    final bpDiastolic = _stringOrEmpty(vital['bpDiastolic'] ?? vital['BPDiastolic'] ?? vital['bloodPressureDiastolic']);
-    final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
-        ? '$bpSystolic/$bpDiastolic'
-        : _stringOrEmpty(vital['bloodPressure'] ?? vital['BloodPressure']);
-    final hr = _stringOrEmpty(vital['pulse'] ?? vital['Pulse'] ?? vital['heartRate'] ?? vital['HeartRate']);
-    final temp = _stringOrEmpty(vital['temperature'] ?? vital['Temperature']);
-    final spo2 = _stringOrEmpty(vital['spo2'] ?? vital['SPO2'] ?? vital['oxygenSaturation'] ?? vital['OxygenSaturation']);
-    final rr = _stringOrEmpty(vital['respiratoryRate'] ?? vital['RespiratoryRate'] ?? vital['respiratory_rate']);
-    final weight = _stringOrEmpty(vital['weight'] ?? vital['Weight']);
-    final height = _stringOrEmpty(vital['height'] ?? vital['Height']);
-    final bsr = _stringOrEmpty(vital['bsr'] ?? vital['BSR'] ?? vital['bloodSugar'] ?? vital['BloodSugar']);
-    final createdByName = vital['createdByName'] ?? vital['CreatedByName'] ?? vital['recordedBy'] ?? vital['RecordedBy'] ?? '';
-
-    // Parse values for range checking
-    double? bpSystolicValue, bpDiastolicValue;
-    // Try parsing from individual values first
-    if (bpSystolic.toString().isNotEmpty) {
-      bpSystolicValue = double.tryParse(bpSystolic);
-    }
-    if (bpDiastolic.toString().isNotEmpty) {
-      bpDiastolicValue = double.tryParse(bpDiastolic);
-    }
-    // Fall back to parsing from combined BP string if individual values not available
-    if ((bpSystolicValue == null || bpDiastolicValue == null) && bp.contains('/')) {
-      final parts = bp.split('/');
-      if (parts.length == 2) {
-        bpSystolicValue ??= double.tryParse(parts[0].trim());
-        bpDiastolicValue ??= double.tryParse(parts[1].trim());
-      }
-    }
-    final hrValue = double.tryParse(hr);
-    final tempValue = double.tryParse(temp);
-    final spo2Value = double.tryParse(spo2);
-    final bsrValue = double.tryParse(bsr);
-    final bmi = _calculateBMI(weight, height);
-
-    // Check for out-of-range values
-    final bpOutOfRange = (bpSystolicValue != null && !_isSystolicNormal(bpSystolicValue)) ||
-                         (bpDiastolicValue != null && !_isDiastolicNormal(bpDiastolicValue));
-    final hrOutOfRange = hrValue != null && !_isPulseNormal(hrValue);
-    final tempOutOfRange = tempValue != null && !_isTemperatureNormal(tempValue);
-    final spo2OutOfRange = spo2Value != null && !_isO2SaturationNormal(spo2Value);
-    final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
-    final bmiOutOfRange = bmi != null && !_isBMINormal(bmi);
+    final createdByName = vital['createdByName'] ??
+        vital['CreatedByName'] ??
+        vital['recordedBy'] ??
+        vital['RecordedBy'] ??
+        '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24.0),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: cs.outline.withValues(alpha: 0.15),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-            spreadRadius: 1,
-          ),
-        ],
-        border: Border.all(color: cs.outline.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Vitals Header with vitals displayed inline
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [cs.error, cs.error.withValues(alpha: 0.9)],
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.favorite, color: cs.onError, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Vitals',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: cs.onError,
-                  ),
-                ),
-                if (parsedDate != null) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.calendar_today, size: 12, color: cs.onError.withValues(alpha: 0.9)),
-                  const SizedBox(width: 4),
-                  Text(
-                    AppDateFormat.formatDateTime(parsedDate),
-                    style: TextStyle(color: cs.onError.withValues(alpha: 0.9), fontSize: 11),
-                  ),
-                ],
-                if (createdByName.toString().isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.person, size: 12, color: cs.onError.withValues(alpha: 0.9)),
-                  const SizedBox(width: 4),
-                  Text(
-                    createdByName.toString(),
-                    style: TextStyle(color: cs.onError.withValues(alpha: 0.9), fontSize: 11),
-                  ),
-                ],
-                const Spacer(),
-                // Display vitals in header
-                Flexible(
-                  child: _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr, isHeader: true),
-                ),
-              ],
-            ),
-          ),
-
-          // Vitals Details (only show if not in header or for detailed view)
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr, isHeader: false),
-          ),
-        ],
+      margin: const EdgeInsets.only(bottom: 16.0),
+      child: _buildCompactVitalsBlock(
+        vital,
+        recordedDate: parsedDate,
+        recordedBy: createdByName.toString(),
       ),
     );
   }
@@ -2658,28 +2513,159 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Widget _buildVitalChip(String label, String value, bool isOutOfRange, {bool isHeader = false}) {
+  Widget _buildCompactVitalsBlock(
+    Map<dynamic, dynamic> v, {
+    DateTime? recordedDate,
+    String? recordedBy,
+  }) {
     final cs = Theme.of(context).colorScheme;
-    final display = value.trim().isEmpty ? '-' : value;
-
-    final Color bg;
-    final Color fg;
-    if (isHeader) {
-      bg = isOutOfRange
-          ? cs.onPrimary.withValues(alpha: 0.35)
-          : cs.onPrimary.withValues(alpha: 0.15);
-      fg = cs.onPrimary;
-    } else {
-      bg = isOutOfRange ? cs.errorContainer : cs.surfaceContainerHighest;
-      fg = isOutOfRange ? cs.onErrorContainer : cs.onSurface;
-    }
+    final fields = _parseVitalFields(v);
+    final chips = _buildVitalsContent(
+      fields.bp,
+      fields.hr,
+      fields.temp,
+      fields.spo2,
+      fields.rr,
+      fields.weight,
+      fields.height,
+      fields.bsr,
+    );
+    final hasMeta = recordedDate != null ||
+        (recordedBy != null && recordedBy.trim().isNotEmpty);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cs.errorContainer.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasMeta)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.favorite, color: cs.error, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Vitals',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: cs.error,
+                    ),
+                  ),
+                  if (recordedDate != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      AppDateFormat.formatDateTime(recordedDate),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (recordedBy != null && recordedBy.trim().isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        recordedBy.trim(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.favorite, color: cs.error, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  'Vitals',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: cs.error,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: chips),
+              ],
+            ),
+          if (hasMeta) chips,
+        ],
+      ),
+    );
+  }
+
+  ({
+    String bp,
+    String hr,
+    String temp,
+    String spo2,
+    String rr,
+    String weight,
+    String height,
+    String bsr,
+  }) _parseVitalFields(Map<dynamic, dynamic> v) {
+    final bpSystolic = _stringOrEmpty(
+      v['bpSystolic'] ?? v['BPSystolic'] ?? v['bloodPressureSystolic'],
+    );
+    final bpDiastolic = _stringOrEmpty(
+      v['bpDiastolic'] ?? v['BPDiastolic'] ?? v['bloodPressureDiastolic'],
+    );
+    final bp = bpSystolic.isNotEmpty && bpDiastolic.isNotEmpty
+        ? '$bpSystolic/$bpDiastolic'
+        : _stringOrEmpty(v['bloodPressure'] ?? v['BloodPressure']);
+
+    return (
+      bp: bp,
+      hr: _stringOrEmpty(
+        v['pulse'] ?? v['Pulse'] ?? v['heartRate'] ?? v['HeartRate'],
+      ),
+      temp: _stringOrEmpty(v['temperature'] ?? v['Temperature']),
+      spo2: _stringOrEmpty(
+        v['spo2'] ??
+            v['SPO2'] ??
+            v['oxygenSaturation'] ??
+            v['OxygenSaturation'],
+      ),
+      rr: _stringOrEmpty(
+        v['respiratoryRate'] ??
+            v['RespiratoryRate'] ??
+            v['respiratory_rate'],
+      ),
+      weight: _stringOrEmpty(v['weight'] ?? v['Weight']),
+      height: _stringOrEmpty(v['height'] ?? v['Height']),
+      bsr: _stringOrEmpty(
+        v['bsr'] ?? v['BSR'] ?? v['bloodSugar'] ?? v['BloodSugar'],
+      ),
+    );
+  }
+
+  Widget _buildVitalChip(String label, String value, bool isOutOfRange) {
+    final cs = Theme.of(context).colorScheme;
+    final display = value.trim().isEmpty ? '-' : value;
+    final bg = isOutOfRange ? cs.errorContainer : cs.surfaceContainerHighest;
+    final fg = isOutOfRange ? cs.onErrorContainer : cs.onSurface;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: (isOutOfRange && !isHeader)
+        border: isOutOfRange
             ? Border.all(color: cs.error.withValues(alpha: 0.6), width: 1)
             : null,
       ),
@@ -2689,16 +2675,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             TextSpan(
               text: '$label ',
               style: TextStyle(
-                fontSize: isHeader ? 10 : 11,
+                fontSize: 11,
                 color: fg.withValues(alpha: 0.75),
               ),
             ),
             TextSpan(
               text: display,
               style: TextStyle(
-                fontSize: isHeader ? 10 : 12,
+                fontSize: 11,
                 fontWeight: isOutOfRange ? FontWeight.bold : FontWeight.w600,
-                color: (isOutOfRange && !isHeader) ? cs.error : fg,
+                color: isOutOfRange ? cs.error : fg,
               ),
             ),
           ],
@@ -2707,7 +2693,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildVitalsContent(String bp, String hr, String temp, String spo2, String rr, String weight, String height, String bsr, {bool isHeader = false}) {
+  Widget _buildVitalsContent(
+    String bp,
+    String hr,
+    String temp,
+    String spo2,
+    String rr,
+    String weight,
+    String height,
+    String bsr,
+  ) {
     // Parse BP for out-of-range check
     double? bpSystolic, bpDiastolic;
     if (bp.contains('/')) {
@@ -2746,19 +2741,17 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     return Wrap(
       spacing: 6,
-      runSpacing: 6,
+      runSpacing: 4,
       children: [
-        if (bp.isNotEmpty) _buildVitalChip('BP', bp, bpOutOfRange, isHeader: isHeader),
-        if (hr.isNotEmpty) _buildVitalChip('HR', hr, hrOutOfRange, isHeader: isHeader),
-        if (temp.isNotEmpty) _buildVitalChip('Temp', temp, tempOutOfRange, isHeader: isHeader),
-        if (spo2.isNotEmpty) _buildVitalChip('SpO₂', spo2, spo2OutOfRange, isHeader: isHeader),
-        if (rr.isNotEmpty) _buildVitalChip('RR', rr, rrOutOfRange, isHeader: isHeader),
-        if (!isHeader) ...[
-          if (weight.isNotEmpty) _buildVitalChip('Wt', weight, false, isHeader: isHeader),
-          if (height.isNotEmpty) _buildVitalChip('Ht', height, false, isHeader: isHeader),
-          if (bmiStr.isNotEmpty) _buildVitalChip('BMI', bmiStr, bmiOutOfRange, isHeader: isHeader),
-          if (bsr.isNotEmpty) _buildVitalChip('BSR', bsr, bsrOutOfRange, isHeader: isHeader),
-        ],
+        if (bp.isNotEmpty) _buildVitalChip('BP', bp, bpOutOfRange),
+        if (hr.isNotEmpty) _buildVitalChip('HR', hr, hrOutOfRange),
+        if (temp.isNotEmpty) _buildVitalChip('Temp', temp, tempOutOfRange),
+        if (spo2.isNotEmpty) _buildVitalChip('SpO₂', spo2, spo2OutOfRange),
+        if (rr.isNotEmpty) _buildVitalChip('RR', rr, rrOutOfRange),
+        if (weight.isNotEmpty) _buildVitalChip('Wt', weight, false),
+        if (height.isNotEmpty) _buildVitalChip('Ht', height, false),
+        if (bmiStr.isNotEmpty) _buildVitalChip('BMI', bmiStr, bmiOutOfRange),
+        if (bsr.isNotEmpty) _buildVitalChip('BSR', bsr, bsrOutOfRange),
       ],
     );
   }
