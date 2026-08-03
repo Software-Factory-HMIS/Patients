@@ -236,6 +236,7 @@ class _SetPasswordPhoneScreenState extends State<SetPasswordPhoneScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 

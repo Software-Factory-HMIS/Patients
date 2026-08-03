@@ -814,7 +814,7 @@ class EmrApiClient {
   Future<List<dynamic>> fetchHospitalDepartments(int hospitalId) async {
     final uri = Uri.parse('$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId');
     try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final res = await _authenticatedGet(uri).timeout(const Duration(seconds: 10));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);

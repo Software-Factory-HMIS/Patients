@@ -247,6 +247,7 @@ class _SetPasswordOtpScreenState extends State<SetPasswordOtpScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 

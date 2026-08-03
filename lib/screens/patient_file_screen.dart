@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../utils/emr_api_client.dart';
 import 'patient_file_print_helper.dart';
+import 'History/patient_history_dashboard_screen.dart';
 
 class PatientFileScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
@@ -965,6 +966,20 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       appBar: AppBar(
         title: Text('Patient File', style: theme.appBarTheme.titleTextStyle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PatientHistoryDashboardScreen(
+                    patient: widget.patient,
+                  ),
+                ),
+              );
+            },
+            tooltip: 'View Full History',
+          ),
           IconButton(
             icon: const Icon(Icons.print),
             onPressed: _generateAndPrintAllEncounters,

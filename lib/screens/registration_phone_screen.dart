@@ -243,6 +243,7 @@ class _RegistrationPhoneScreenState extends State<RegistrationPhoneScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 

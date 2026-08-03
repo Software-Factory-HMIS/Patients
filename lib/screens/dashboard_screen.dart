@@ -13,6 +13,7 @@ import '../services/inactivity_service.dart';
 import '../models/appointment_models.dart' show Hospital, Department, HospitalDepartment, QueueResponse, AppointmentDetails;
 import 'appointment_success_screen.dart';
 import 'patient_file_screen.dart';
+import 'History/patient_history_dashboard_screen.dart';
 import 'settings_screen.dart';
 import 'signin_screen.dart';
 
@@ -382,7 +383,9 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       ),
       body: _currentNavIndex == 0
           ? _buildAppointmentsScreen()
-          : _buildFileScreen(),
+          : _currentNavIndex == 1
+              ? _buildFileScreen()
+              : _buildHistoryScreen(),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -418,7 +421,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               // Reload recent appointments when switching to appointments tab
               _loadRecentAppointments();
             }
-            // Load medical records data when switching to medical records tab (index 1)
+            // Load medical records when switching to tab (index 1)
             if (index == 1) {
               // Medical records are loaded via PatientFileScreen
             }
@@ -451,6 +454,11 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
               activeIcon: Icon(Icons.medical_information),
               label: 'Medical Records',
             ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history_outlined),
+              activeIcon: Icon(Icons.history),
+              label: 'History',
+            ),
           ],
         ),
       ),
@@ -462,6 +470,13 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
       return const Center(child: CircularProgressIndicator());
     }
     return PatientFileScreen(patient: _patient!);
+  }
+
+  Widget _buildHistoryScreen() {
+    if (_patient == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return PatientHistoryDashboardScreen(patient: _patient!);
   }
 
   Widget _buildAppointmentsScreen() {
@@ -2145,6 +2160,17 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
                   },
                   colorScheme,
                 ),
+                _buildDrawerTile(
+                  context,
+                  Icons.history_outlined,
+                  'History',
+                  _currentNavIndex == 2,
+                  () {
+                    setState(() => _currentNavIndex = 2);
+                    Navigator.pop(context);
+                  },
+                  colorScheme,
+                ),
                 const Divider(height: 32),
                 _buildDrawerTile(
                   context,
@@ -2571,7 +2597,7 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
             padding: const pw.EdgeInsets.all(8),
             child: pw.Text(
               col,
-              style: const pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
           )).toList(),
         ),

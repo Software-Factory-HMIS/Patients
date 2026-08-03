@@ -257,6 +257,7 @@ class _RegistrationOtpScreenState extends State<RegistrationOtpScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
