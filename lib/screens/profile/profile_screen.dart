@@ -91,7 +91,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final name = PatientFields.displayName(widget.patient, widget.savedUserData);
+    final name = PatientFields.displayName(
+      widget.patient,
+      widget.savedUserData,
+    );
     final mrn = _field('mrn', 'MRN');
     final cnic = _field('cnic', 'CNIC');
     final phone = _field('phone', 'ContactNumber');
@@ -105,10 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         PunjabBottomNav.navBarHeight,
       ),
       children: [
-        PunjabPageHeader(
-          title: l.tabProfile,
-          subtitle: l.profileSubtitle,
-        ),
+        PunjabPageHeader(title: l.tabProfile, subtitle: l.profileSubtitle),
         PunjabCard(
           child: Column(
             children: [
@@ -145,7 +145,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: _pickPhoto,
                         child: const Padding(
                           padding: EdgeInsets.all(8),
-                          child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                          child: Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
@@ -153,8 +157,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const Gap(12),
               Text(name, style: Theme.of(context).textTheme.titleMedium),
-              if (mrn != null) Text(l.mrnLabel(mrn), style: Theme.of(context).textTheme.bodySmall),
-              if (cnic != null) Text(l.cnicLabel(cnic), style: Theme.of(context).textTheme.bodySmall),
+              if (mrn != null)
+                Text(
+                  l.mrnLabel(mrn),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if (cnic != null)
+                Text(
+                  l.cnicLabel(cnic),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               const Gap(12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -211,7 +223,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: Text(l.help),
                       content: Text(l.helpDialogContent),
                       actions: [
-                        FilledButton(onPressed: () => Navigator.pop(ctx), child: Text(l.ok)),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(l.ok),
+                        ),
                       ],
                     ),
                   );
@@ -240,11 +255,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: AppTheme.elevatedCard(context),
           child: Column(
             children: [
-              Icon(Icons.verified_user_rounded, color: Theme.of(context).colorScheme.primary, size: 32),
+              Icon(
+                Icons.verified_user_rounded,
+                color: Theme.of(context).colorScheme.primary,
+                size: 32,
+              ),
               const Gap(8),
               Text(
                 l.trustedGovernmentApp,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const Gap(4),
               Text(
@@ -271,9 +292,15 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const Gap(12),
-          Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium)),
+          Expanded(
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+          ),
         ],
       ),
     );
@@ -298,7 +325,10 @@ class _MenuRow extends StatelessWidget {
     final c = color ?? Theme.of(context).colorScheme.onSurface;
     return ListTile(
       leading: Icon(icon, color: c),
-      title: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: c)),
+      title: Text(
+        label,
+        style: TextStyle(fontWeight: FontWeight.w700, color: c),
+      ),
       trailing: Icon(Icons.chevron_right, color: c.withValues(alpha: 0.5)),
       onTap: onTap,
       contentPadding: EdgeInsets.zero,

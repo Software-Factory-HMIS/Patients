@@ -94,10 +94,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _cnic() =>
       widget.patient['cnic']?.toString() ?? widget.patient['CNIC']?.toString();
 
-  String? _mrn() => widget.patient['mrn']?.toString() ?? widget.patient['MRN']?.toString();
+  String? _mrn() =>
+      widget.patient['mrn']?.toString() ?? widget.patient['MRN']?.toString();
 
   String? _age() {
-    final raw = widget.patient['age'] ??
+    final raw =
+        widget.patient['age'] ??
         widget.patient['Age'] ??
         widget.savedUserData?['Age'] ??
         widget.savedUserData?['age'];
@@ -111,23 +113,28 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    final dobRaw = widget.patient['dateOfBirth'] ??
+    final dobRaw =
+        widget.patient['dateOfBirth'] ??
         widget.patient['DateOfBirth'] ??
         widget.savedUserData?['dateOfBirth'];
     if (dobRaw == null) return null;
-    final dob = dobRaw is DateTime ? dobRaw : DateTime.tryParse(dobRaw.toString());
+    final dob = dobRaw is DateTime
+        ? dobRaw
+        : DateTime.tryParse(dobRaw.toString());
     if (dob == null) return null;
 
     final now = DateTime.now();
     var years = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
       years--;
     }
     return years >= 0 ? '$years yrs' : null;
   }
 
   String? _gender() {
-    final raw = widget.patient['gender'] ??
+    final raw =
+        widget.patient['gender'] ??
         widget.patient['Gender'] ??
         widget.savedUserData?['Gender'] ??
         widget.savedUserData?['gender'];
@@ -144,9 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _labGlanceBadge(HomeStats? stats, AppLocalizations l) {
     if (stats == null || stats.labResults <= 0) return null;
-    if (stats.labSummary.critical > 0) return '${stats.labSummary.critical} ${l.critical}';
+    if (stats.labSummary.critical > 0)
+      return '${stats.labSummary.critical} ${l.critical}';
     if (stats.labSummary.hasAbnormal) return l.review;
-    if (stats.labSummary.pending > 0) return '${stats.labSummary.pending} ${l.pending}';
+    if (stats.labSummary.pending > 0)
+      return '${stats.labSummary.pending} ${l.pending}';
     return l.onFile;
   }
 
@@ -179,7 +188,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${d.substring(0, 5)}-${d.substring(5, 12)}-${d.substring(12)}';
   }
 
-  List<Widget> _glanceGridChildren(bool dark, AppLocalizations l, {bool compact = false}) {
+  List<Widget> _glanceGridChildren(
+    bool dark,
+    AppLocalizations l, {
+    bool compact = false,
+  }) {
     return [
       _GlanceStatCard(
         icon: Icons.how_to_reg_rounded,
@@ -240,8 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final l = context.l10n;
     final metrics = _HomeMetrics.of(context);
 
-    final bottomNavSpace =
-        PunjabBottomNav.navBarHeight;
+    final bottomNavSpace = PunjabBottomNav.navBarHeight;
 
     return SafeArea(
       top: true,
@@ -254,20 +266,21 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: _HomeMetrics.maxContentWidth),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    metrics.horizontalPadding,
-                    8,
-                    metrics.horizontalPadding,
-                    0,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate(
-                      [
+              constraints: const BoxConstraints(
+                maxWidth: _HomeMetrics.maxContentWidth,
+              ),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      metrics.horizontalPadding,
+                      8,
+                      metrics.horizontalPadding,
+                      0,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
                         const PunjabAppBrandRow(),
                         Gap(metrics.isCompact ? 12 : 16),
                         _ProfileHeaderCard(
@@ -328,39 +341,42 @@ class _HomeScreenState extends State<HomeScreen> {
                           dark: dark,
                         ),
                         const Gap(14),
-                      ],
+                      ]),
                     ),
                   ),
-                ),
-                if (_loading)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(horizontal: metrics.horizontalPadding),
-                    sliver: SliverGrid(
-                      delegate: SliverChildListDelegate(
-                        _glanceGridChildren(dark, l, compact: metrics.isCompact),
+                  if (_loading)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(child: CircularProgressIndicator()),
                       ),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisExtent: metrics.gridMainAxisExtent,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
+                    )
+                  else
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: metrics.horizontalPadding,
+                      ),
+                      sliver: SliverGrid(
+                        delegate: SliverChildListDelegate(
+                          _glanceGridChildren(
+                            dark,
+                            l,
+                            compact: metrics.isCompact,
+                          ),
+                        ),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisExtent: metrics.gridMainAxisExtent,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
                       ),
                     ),
-                  ),
-                SliverToBoxAdapter(
-                  child: SizedBox(height: bottomNavSpace),
-                ),
-              ],
+                  SliverToBoxAdapter(child: SizedBox(height: bottomNavSpace)),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -389,10 +405,18 @@ class _HomeMetrics {
     final compact = width < 380;
 
     return _HomeMetrics(
-      horizontalPadding: veryCompact ? 10 : compact ? 12 : 16,
+      horizontalPadding: veryCompact
+          ? 10
+          : compact
+          ? 12
+          : 16,
       isCompact: compact,
       isVeryCompact: veryCompact,
-      gridMainAxisExtent: veryCompact ? 98 : compact ? 104 : 112,
+      gridMainAxisExtent: veryCompact
+          ? 98
+          : compact
+          ? 104
+          : 112,
     );
   }
 }
@@ -432,7 +456,12 @@ class _ProfileHeaderCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(compact ? 16 : 20, compact ? 16 : 20, 16, compact ? 14 : 18),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 16 : 20,
+        compact ? 16 : 20,
+        16,
+        compact ? 14 : 18,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
@@ -513,7 +542,9 @@ class _ProfileHeaderCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
                             color: Colors.white.withValues(alpha: 0.08),
                           ),
                           child: Text(
@@ -546,7 +577,11 @@ class _ProfileHeaderCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: const Padding(
                   padding: EdgeInsets.all(10),
-                  child: Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                  child: Icon(
+                    Icons.edit_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
@@ -594,7 +629,9 @@ class _QuickActionTile extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outline.withValues(alpha: dark ? 0.4 : 0.25)),
+            border: Border.all(
+              color: scheme.outline.withValues(alpha: dark ? 0.4 : 0.25),
+            ),
           ),
           child: Row(
             children: [
@@ -655,7 +692,10 @@ class _SectionHeader extends StatelessWidget {
                 const Gap(2),
                 Text(
                   subtitle!,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],
@@ -670,7 +710,10 @@ class _SectionHeader extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               foregroundColor: PunjabColors.primary,
             ),
-            child: Text(action!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            child: Text(
+              action!,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
           ),
       ],
     );
@@ -723,9 +766,9 @@ class _UpcomingVisitCard extends StatelessWidget {
             Gap(compact ? 6 : 8),
             Text(
               context.l10n.noUpcomingVisit,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const Gap(4),
             Text(
@@ -746,11 +789,16 @@ class _UpcomingVisitCard extends StatelessWidget {
     final hospital = appointment!['hospitalName']?.toString().trim();
     final dept = appointment!['departmentName']?.toString().trim();
     final l = context.l10n;
-    final hospitalLabel = (hospital != null && hospital.isNotEmpty) ? hospital : l.hospital;
+    final hospitalLabel = (hospital != null && hospital.isNotEmpty)
+        ? hospital
+        : l.hospital;
     final deptLabel = (dept != null && dept.isNotEmpty) ? dept : l.department;
     final token = appointment!['tokenNumber']?.toString() ?? '—';
-    final room = appointment!['room']?.toString() ?? appointment!['roomNumber']?.toString();
-    final dateStr = appointment!['appointmentDate'] ??
+    final room =
+        appointment!['room']?.toString() ??
+        appointment!['roomNumber']?.toString();
+    final dateStr =
+        appointment!['appointmentDate'] ??
         appointment!['queueDate'] ??
         appointment!['addedToQueueAt'] ??
         appointment!['AddedToQueueAt'];
@@ -761,12 +809,30 @@ class _UpcomingVisitCard extends StatelessWidget {
     final tokenDateLabel = AppDateFormat.formatDate(apptDate);
     final tokenTimeLabel = AppDateFormat.formatTime(apptDate);
 
-    final iconBoxColor = dark ? scheme.primaryContainer.withValues(alpha: 0.35) : _HomeScreenState._timeBoxBlue;
-    final tokenBoxColor = dark ? scheme.primaryContainer.withValues(alpha: 0.25) : _HomeScreenState._tokenBoxBlue;
-    final footerColor = dark ? PunjabColors.primary.withValues(alpha: 0.15) : _HomeScreenState._visitFooterGreen;
-    final iconBox = veryCompact ? 44.0 : compact ? 48.0 : 52.0;
-    final hospitalIcon = veryCompact ? 24.0 : compact ? 26.0 : 28.0;
-    final sectionPadding = veryCompact ? 10.0 : compact ? 12.0 : 14.0;
+    final iconBoxColor = dark
+        ? scheme.primaryContainer.withValues(alpha: 0.35)
+        : _HomeScreenState._timeBoxBlue;
+    final tokenBoxColor = dark
+        ? scheme.primaryContainer.withValues(alpha: 0.25)
+        : _HomeScreenState._tokenBoxBlue;
+    final footerColor = dark
+        ? PunjabColors.primary.withValues(alpha: 0.15)
+        : _HomeScreenState._visitFooterGreen;
+    final iconBox = veryCompact
+        ? 44.0
+        : compact
+        ? 48.0
+        : 52.0;
+    final hospitalIcon = veryCompact
+        ? 24.0
+        : compact
+        ? 26.0
+        : 28.0;
+    final sectionPadding = veryCompact
+        ? 10.0
+        : compact
+        ? 12.0
+        : 14.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -819,7 +885,11 @@ class _UpcomingVisitCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: veryCompact ? 14 : compact ? 15 : 16,
+                          fontSize: veryCompact
+                              ? 14
+                              : compact
+                              ? 15
+                              : 16,
                           fontWeight: FontWeight.w800,
                           color: scheme.onSurface,
                           height: 1.25,
@@ -831,7 +901,11 @@ class _UpcomingVisitCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: veryCompact ? 12 : compact ? 13 : 14,
+                          fontSize: veryCompact
+                              ? 12
+                              : compact
+                              ? 13
+                              : 14,
                           fontWeight: FontWeight.w600,
                           color: scheme.onSurfaceVariant,
                         ),
@@ -842,7 +916,9 @@ class _UpcomingVisitCard extends StatelessWidget {
                           Icon(
                             Icons.event_rounded,
                             size: compact ? 13 : 14,
-                            color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                            color: scheme.onSurfaceVariant.withValues(
+                              alpha: 0.85,
+                            ),
                           ),
                           const Gap(5),
                           Expanded(
@@ -871,7 +947,9 @@ class _UpcomingVisitCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: PunjabColors.danger.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: PunjabColors.danger.withValues(alpha: 0.25)),
+                      border: Border.all(
+                        color: PunjabColors.danger.withValues(alpha: 0.25),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -916,7 +994,11 @@ class _UpcomingVisitCard extends StatelessWidget {
                   Icon(
                     Icons.confirmation_number_outlined,
                     color: PunjabColors.primary,
-                    size: veryCompact ? 24 : compact ? 26 : 28,
+                    size: veryCompact
+                        ? 24
+                        : compact
+                        ? 26
+                        : 28,
                   ),
                   Gap(compact ? 8 : 10),
                   Expanded(
@@ -935,7 +1017,11 @@ class _UpcomingVisitCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: veryCompact ? 15 : compact ? 16 : 17,
+                            fontSize: veryCompact
+                                ? 15
+                                : compact
+                                ? 16
+                                : 17,
                             fontWeight: FontWeight.w900,
                             color: PunjabColors.primary,
                             letterSpacing: 0.5,
@@ -955,7 +1041,9 @@ class _UpcomingVisitCard extends StatelessWidget {
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       textStyle: TextStyle(
                         fontSize: compact ? 12 : 13,
                         fontWeight: FontWeight.w700,
@@ -976,7 +1064,9 @@ class _UpcomingVisitCard extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: footerColor,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(13)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(13),
+              ),
             ),
             child: Row(
               children: [
@@ -1062,14 +1152,19 @@ class _HealthGlanceHeader extends StatelessWidget {
                   ),
                   const Gap(8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: dark
                           ? scheme.primaryContainer.withValues(alpha: 0.45)
                           : PunjabColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: PunjabColors.primary.withValues(alpha: dark ? 0.35 : 0.15),
+                        color: PunjabColors.primary.withValues(
+                          alpha: dark ? 0.35 : 0.15,
+                        ),
                       ),
                     ),
                     child: Text(
@@ -1133,7 +1228,9 @@ class _GlanceStatCard extends StatelessWidget {
             color: fill,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: dark ? scheme.outline.withValues(alpha: 0.4) : const Color(0xFFE2E8E4),
+              color: dark
+                  ? scheme.outline.withValues(alpha: 0.4)
+                  : const Color(0xFFE2E8E4),
             ),
             boxShadow: dark
                 ? null
@@ -1165,10 +1262,19 @@ class _GlanceStatCard extends StatelessWidget {
                         color: iconBg,
                         borderRadius: BorderRadius.circular(9),
                       ),
-                      child: Icon(icon, color: iconColor, size: compact ? 16 : 18),
+                      child: Icon(
+                        icon,
+                        color: iconColor,
+                        size: compact ? 16 : 18,
+                      ),
                     ),
                     const Spacer(),
-                    if (badge != null) _GlanceBadge(label: badge!, style: badgeStyle, dark: dark),
+                    if (badge != null)
+                      _GlanceBadge(
+                        label: badge!,
+                        style: badgeStyle,
+                        dark: dark,
+                      ),
                   ],
                 ),
                 const Spacer(),
@@ -1219,25 +1325,25 @@ class _GlanceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (bg, fg, border) = switch (style) {
       _GlanceBadgeStyle.success => (
-          PunjabColors.primary.withValues(alpha: dark ? 0.2 : 0.1),
-          PunjabColors.primary,
-          PunjabColors.primary.withValues(alpha: 0.2),
-        ),
+        PunjabColors.primary.withValues(alpha: dark ? 0.2 : 0.1),
+        PunjabColors.primary,
+        PunjabColors.primary.withValues(alpha: 0.2),
+      ),
       _GlanceBadgeStyle.alert => (
-          PunjabColors.danger.withValues(alpha: dark ? 0.2 : 0.1),
-          PunjabColors.danger,
-          PunjabColors.danger.withValues(alpha: 0.25),
-        ),
+        PunjabColors.danger.withValues(alpha: dark ? 0.2 : 0.1),
+        PunjabColors.danger,
+        PunjabColors.danger.withValues(alpha: 0.25),
+      ),
       _GlanceBadgeStyle.muted => (
-          Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
-          Theme.of(context).colorScheme.onSurfaceVariant,
-          Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
-        ),
+        Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
+        Theme.of(context).colorScheme.onSurfaceVariant,
+        Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+      ),
       _GlanceBadgeStyle.neutral => (
-          Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
-          Theme.of(context).colorScheme.onSurfaceVariant,
-          Colors.transparent,
-        ),
+        Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
+        Theme.of(context).colorScheme.onSurfaceVariant,
+        Colors.transparent,
+      ),
     };
 
     return Container(

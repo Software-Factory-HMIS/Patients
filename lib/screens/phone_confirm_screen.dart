@@ -34,6 +34,7 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
     final l = context.l10n;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: SignInAuthLayout(
         showBackButton: true,
         child: SignInAuthCard(
@@ -67,14 +68,20 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
               const Gap(16),
               Text(
                 l.helloName(widget.patientName),
-                style: SignInAuthTheme.titleStyleFor(context).copyWith(fontSize: 22),
+                style: SignInAuthTheme.titleStyleFor(
+                  context,
+                ).copyWith(fontSize: 22),
                 textAlign: TextAlign.center,
               ),
               const Gap(8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.phone_android_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
+                  Icon(
+                    Icons.phone_android_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 22,
+                  ),
                   const Gap(8),
                   LtrText(
                     widget.maskedPhone,
@@ -89,35 +96,43 @@ class _PhoneConfirmScreenState extends State<PhoneConfirmScreen> {
               ),
               const Gap(16),
               SignInInfoBox(message: l.phoneVerifyInfo),
-              const Gap(20),
-              Text(
-                l.howToSendCode,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: SignInAuthTheme.bodyTextColor(context),
+              if (whatsappOtpEnabled) ...[
+                const Gap(20),
+                Text(
+                  l.howToSendCode,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: SignInAuthTheme.bodyTextColor(context),
+                  ),
                 ),
-              ),
-              const Gap(12),
-              Row(
-                children: [
-                  _DeliveryTile(
-                    icon: Icons.sms_rounded,
-                    label: l.channelSms,
-                    selected: _otpDeliveryChannel == OtpDeliveryChannel.sms,
-                    onTap: () => setState(() => _otpDeliveryChannel = OtpDeliveryChannel.sms),
-                  ),
-                  const Gap(12),
-                  _DeliveryTile(
-                    icon: Icons.chat_rounded,
-                    label: l.channelWhatsApp,
-                    selected: _otpDeliveryChannel == OtpDeliveryChannel.whatsApp,
-                    onTap: () => setState(() => _otpDeliveryChannel = OtpDeliveryChannel.whatsApp),
-                  ),
-                ],
-              ),
-              const Gap(22),
+                const Gap(12),
+                Row(
+                  children: [
+                    _DeliveryTile(
+                      icon: Icons.sms_rounded,
+                      label: l.channelSms,
+                      selected: _otpDeliveryChannel == OtpDeliveryChannel.sms,
+                      onTap: () => setState(
+                        () => _otpDeliveryChannel = OtpDeliveryChannel.sms,
+                      ),
+                    ),
+                    const Gap(12),
+                    _DeliveryTile(
+                      icon: Icons.chat_rounded,
+                      label: l.channelWhatsApp,
+                      selected:
+                          _otpDeliveryChannel == OtpDeliveryChannel.whatsApp,
+                      onTap: () => setState(
+                        () => _otpDeliveryChannel = OtpDeliveryChannel.whatsApp,
+                      ),
+                    ),
+                  ],
+                ),
+                const Gap(22),
+              ] else
+                const Gap(22),
               SignInContinueButton(
                 label: l.sendCode,
                 loading: _loading,
@@ -207,7 +222,9 @@ class _DeliveryTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selected
                     ? scheme.primary.withValues(alpha: 0.12)
-                    : (isDark ? const Color(0xFF232D28) : SignInAuthTheme.inputFill),
+                    : (isDark
+                          ? const Color(0xFF232D28)
+                          : SignInAuthTheme.inputFill),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: selected ? scheme.primary : scheme.outline,
@@ -218,7 +235,9 @@ class _DeliveryTile extends StatelessWidget {
                 children: [
                   Icon(
                     icon,
-                    color: selected ? scheme.primary : SignInAuthTheme.mutedTextColor(context),
+                    color: selected
+                        ? scheme.primary
+                        : SignInAuthTheme.mutedTextColor(context),
                     size: 28,
                   ),
                   const Gap(8),
@@ -226,7 +245,9 @@ class _DeliveryTile extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: selected ? scheme.primary : SignInAuthTheme.bodyTextColor(context),
+                      color: selected
+                          ? scheme.primary
+                          : SignInAuthTheme.bodyTextColor(context),
                     ),
                   ),
                 ],

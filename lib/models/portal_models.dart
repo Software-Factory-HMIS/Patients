@@ -114,10 +114,12 @@ class LabReport {
     return LabReport(
       test: json['test']?.toString() ?? 'Unknown test',
       result: json['result']?.toString(),
-      normalRange: json['normalRange']?.toString() ?? json['Normal Range']?.toString(),
+      normalRange:
+          json['normalRange']?.toString() ?? json['Normal Range']?.toString(),
       status: json['status']?.toString(),
       date: AppDateFormat.formatDateOrNull(json['date'] ?? json['sampleDate']),
-      orderedBy: json['orderedBy']?.toString() ?? json['Ordered By']?.toString(),
+      orderedBy:
+          json['orderedBy']?.toString() ?? json['Ordered By']?.toString(),
       abnormalFlags: json['abnormalFlags']?.toString(),
       resultId: _asIntOrNull(json['resultId']),
       sampleId: _asIntOrNull(json['sampleId']),
@@ -159,14 +161,20 @@ class RadiologyReport {
 
   factory RadiologyReport.fromJson(Map<String, dynamic> json) {
     return RadiologyReport(
-      testName: json['testName']?.toString() ??
+      testName:
+          json['testName']?.toString() ??
           json['procedure']?.toString() ??
           'Radiology study',
-      orderDate: AppDateFormat.formatDateOrNull(json['orderDate'] ?? json['date']),
+      orderDate: AppDateFormat.formatDateOrNull(
+        json['orderDate'] ?? json['date'],
+      ),
       finalReportDate: AppDateFormat.formatDateOrNull(json['finalReportDate']),
-      findings: json['finalFindings']?.toString() ?? json['findings']?.toString(),
+      findings:
+          json['finalFindings']?.toString() ?? json['findings']?.toString(),
       impression: json['impression']?.toString(),
-      radiologist: json['radiologist_Name']?.toString() ?? json['radiologist']?.toString(),
+      radiologist:
+          json['radiologist_Name']?.toString() ??
+          json['radiologist']?.toString(),
       recommendations: json['recommendations']?.toString(),
       orderId: _asIntOrNull(json['orderId']),
       orderDetailId: _asIntOrNull(json['orderDetailId']),
@@ -215,26 +223,40 @@ class PrescriptionItem {
   });
 
   factory PrescriptionItem.fromJson(Map<String, dynamic> json) {
-    final dosageAmount = json['dosageAmount'] ?? json['dosageValue'] ?? json['dosage'] ?? json['Dosage'];
+    final dosageAmount =
+        json['dosageAmount'] ??
+        json['dosageValue'] ??
+        json['dosage'] ??
+        json['Dosage'];
     final dosageUnit = json['dosageUnit'] ?? json['DosageUnit'];
     final dosageText = _formatDosage(dosageAmount, dosageUnit);
 
     return PrescriptionItem(
-      medication: json['medication']?.toString() ??
+      medication:
+          json['medication']?.toString() ??
           json['Medication']?.toString() ??
           json['medicineName']?.toString() ??
           json['MedicineName']?.toString() ??
           json['name']?.toString() ??
           'Medicine',
-      salt: json['salt']?.toString() ?? json['Salt']?.toString() ?? json['SaltName']?.toString(),
+      salt:
+          json['salt']?.toString() ??
+          json['Salt']?.toString() ??
+          json['SaltName']?.toString(),
       dosage: dosageText,
       frequency: json['frequency']?.toString() ?? json['Frequency']?.toString(),
       duration: json['duration']?.toString() ?? json['Duration']?.toString(),
-      indication: json['indication']?.toString() ?? json['Indication']?.toString(),
-      prescriber: json['prescriber']?.toString() ?? json['Prescriber']?.toString(),
+      indication:
+          json['indication']?.toString() ?? json['Indication']?.toString(),
+      prescriber:
+          json['prescriber']?.toString() ?? json['Prescriber']?.toString(),
       status: json['status']?.toString() ?? json['Status']?.toString(),
-      startDate: AppDateFormat.formatDateOrNull(json['startDate'] ?? json['StartDate']),
-      endDate: AppDateFormat.formatDateOrNull(json['endDate'] ?? json['EndDate']),
+      startDate: AppDateFormat.formatDateOrNull(
+        json['startDate'] ?? json['StartDate'],
+      ),
+      endDate: AppDateFormat.formatDateOrNull(
+        json['endDate'] ?? json['EndDate'],
+      ),
       discontinuedDate: AppDateFormat.formatDateOrNull(
         json['discontinuedDate'] ?? json['DiscontinuedDate'],
       ),
@@ -265,7 +287,11 @@ class PrescriptionItem {
     if (endDate != null && endDate!.isNotEmpty) {
       final end = DateTime.tryParse(endDate!) ?? _parseDdMmYyyy(endDate!);
       if (end != null) {
-        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final today = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
         final endDay = DateTime(end.year, end.month, end.day);
         if (endDay.isBefore(today)) return false;
       }
@@ -285,7 +311,8 @@ String? _formatDosage(dynamic amount, dynamic unit) {
   final unitText = unit?.toString().trim();
   if (unitText == null || unitText.isEmpty) return amountText;
 
-  if (amountText.toLowerCase().endsWith(unitText.toLowerCase())) return amountText;
+  if (amountText.toLowerCase().endsWith(unitText.toLowerCase()))
+    return amountText;
   return '$amountText $unitText';
 }
 

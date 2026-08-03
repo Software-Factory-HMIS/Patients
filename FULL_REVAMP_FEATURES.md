@@ -103,26 +103,14 @@ ElevatedButton(
 // Example usage
 await showSuccessDialog(
   context,
-  title: 'Registration Successful!',
+  title: 'Signed in',
   message: 'Welcome to HMIS',
   onDismiss: () => navigateToDashboard(),
 );
 ```
 
 ### 6. **Onboarding/Tutorial Screen**
-- **File**: `lib/screens/onboarding_screen.dart`
-- **Features**:
-  - 4-page onboarding flow
-  - Beautiful illustrations
-  - Skip and Next buttons
-  - Remembers completion status
-  - Automatic routing (only shows once)
-- **Pages**:
-  1. Welcome to HMIS
-  2. View Medical Records
-  3. Book Appointments
-  4. Secure & Private
-- **Auto-triggered**: Shows automatically on first app launch
+- Removed: app opens directly to CNIC/OTP sign-in (no self-registration or onboarding flow).
 
 ### 7. **Settings Screen**
 - **File**: `lib/screens/settings_screen.dart`
@@ -287,9 +275,9 @@ Navigator.of(context).push(
 6. Add haptic feedback on PDF download
 7. Add share button (using share_plus)
 
-### Registration Screen
-8. Add haptic feedback on form submission
-9. Show animated success on registration complete
+### Sign-in Screen
+8. Add haptic feedback on CNIC submit / OTP verify
+9. Show animated success after OTP sign-in
 10. Add haptic on validation errors
 
 ### Other Screens
@@ -315,10 +303,10 @@ Navigator.of(context).push(
 
 Before merging to main:
 
-1. **Test onboarding flow**:
-   - Uninstall/reinstall app to see onboarding
-   - Verify skip and next buttons work
-   - Confirm onboarding only shows once
+1. **Test sign-in flow**:
+   - Fresh install opens splash then CNIC sign-in
+   - Unknown CNIC shows patient-not-found + reception guidance
+   - OTP completes into the patient shell
 
 2. **Test pull-to-refresh**:
    - Pull down on each medical records tab
@@ -389,7 +377,7 @@ git merge full-revamp
 | Empty lists | Generic "No data" text | Illustrated empty states |
 | Interactions | No feedback | Haptic vibrations |
 | Success/Error | Simple SnackBar | Animated dialogs |
-| First launch | Direct to login | Beautiful onboarding |
+| First launch | Direct to CNIC sign-in | Same (no onboarding) |
 | Settings | None | Full settings screen |
 | Refresh data | Manual reload only | Pull-to-refresh gesture |
 | Notifications | None | Appointment reminders |

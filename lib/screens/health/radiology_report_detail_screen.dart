@@ -39,9 +39,12 @@ class RadiologyReportDetailScreen extends StatelessWidget {
     final theme = HealthReportTheme.radiology(context, dark: dark);
     final isFinal = report.hasReportText;
     final meta = <HealthMetaItem>[
-      if (report.displayDate != null) HealthMetaItem(label: 'Report Date', value: report.displayDate!),
-      if (report.orderNumber != null) HealthMetaItem(label: 'Order No.', value: report.orderNumber!),
-      if (report.radiologist != null) HealthMetaItem(label: 'Radiologist', value: report.radiologist!),
+      if (report.displayDate != null)
+        HealthMetaItem(label: 'Report Date', value: report.displayDate!),
+      if (report.orderNumber != null)
+        HealthMetaItem(label: 'Order No.', value: report.orderNumber!),
+      if (report.radiologist != null)
+        HealthMetaItem(label: 'Radiologist', value: report.radiologist!),
     ];
 
     return Scaffold(
@@ -58,17 +61,32 @@ class RadiologyReportDetailScreen extends StatelessWidget {
             statusColor: isFinal ? PunjabColors.success : PunjabColors.warning,
             metaItems: meta,
           ),
-          if (report.findings != null && report.findings!.trim().isNotEmpty) ...[
+          if (report.findings != null &&
+              report.findings!.trim().isNotEmpty) ...[
             const Gap(14),
-            HealthDetailSection(theme: theme, title: 'Findings', body: report.findings!),
+            HealthDetailSection(
+              theme: theme,
+              title: 'Findings',
+              body: report.findings!,
+            ),
           ],
-          if (report.impression != null && report.impression!.trim().isNotEmpty) ...[
+          if (report.impression != null &&
+              report.impression!.trim().isNotEmpty) ...[
             const Gap(12),
-            HealthDetailSection(theme: theme, title: 'Impression', body: report.impression!),
+            HealthDetailSection(
+              theme: theme,
+              title: 'Impression',
+              body: report.impression!,
+            ),
           ],
-          if (report.recommendations != null && report.recommendations!.trim().isNotEmpty) ...[
+          if (report.recommendations != null &&
+              report.recommendations!.trim().isNotEmpty) ...[
             const Gap(12),
-            HealthDetailSection(theme: theme, title: 'Recommendations', body: report.recommendations!),
+            HealthDetailSection(
+              theme: theme,
+              title: 'Recommendations',
+              body: report.recommendations!,
+            ),
           ],
           if (!isFinal) ...[
             const Gap(14),

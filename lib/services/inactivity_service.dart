@@ -48,7 +48,7 @@ class InactivityService {
   Future<void> _handleInactivity() async {
     if (AuthService.instance.isLoggedIn) {
       await AuthService.instance.logout();
-      
+
       // Navigate to splash screen (which will route to sign-in) if navigator key is available
       if (_navigatorKey?.currentContext != null) {
         // Use a post-frame callback to ensure navigation happens after logout completes
@@ -56,9 +56,7 @@ class InactivityService {
           if (_navigatorKey?.currentContext != null) {
             final navigator = Navigator.of(_navigatorKey!.currentContext!);
             navigator.pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => const SplashScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const SplashScreen()),
               (route) => false,
             );
           }
@@ -100,4 +98,3 @@ class InactivityService {
     _isInitialized = false;
   }
 }
-

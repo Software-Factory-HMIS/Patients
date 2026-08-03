@@ -44,8 +44,10 @@ class ApiMessageLocalizer {
     if (lower.contains('invalid otp') || lower.contains('invalid code')) {
       return l.apiInvalidOtp;
     }
-    if (lower.contains('invalid cnic or password')) {
-      return l.apiInvalidCnicPassword;
+    if (lower.contains('invalid cnic or password') ||
+        lower.contains('patient not found') ||
+        lower.contains('account not found')) {
+      return l.apiPatientNotFound;
     }
     if (lower.contains('failed to request otp')) {
       return l.apiFailedRequestOtp;
@@ -53,14 +55,12 @@ class ApiMessageLocalizer {
     if (lower.contains('failed to verify otp')) {
       return l.apiFailedVerifyOtp;
     }
-    if (lower.contains('failed to lookup patient') || lower.contains('failed to load patient')) {
+    if (lower.contains('failed to lookup patient') ||
+        lower.contains('failed to load patient')) {
       return l.apiFailedLookupPatient;
     }
     if (lower.contains('failed to initialize api client')) {
       return l.apiFailedInitClient;
-    }
-    if (lower.contains('patient not found') || lower.contains('account not found')) {
-      return l.apiPatientNotFound;
     }
     if (lower.contains('socketexception') ||
         lower.contains('connection refused') ||
@@ -71,7 +71,7 @@ class ApiMessageLocalizer {
     }
 
     final accountOtp = RegExp(
-      r'we found your account\. otp will be sent to (.+)\.',
+      r'we found your (?:account|patient record)\. otp will be sent to (.+)\.',
       caseSensitive: false,
     ).firstMatch(message);
     if (accountOtp != null) {

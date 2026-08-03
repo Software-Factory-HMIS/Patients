@@ -2,11 +2,14 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'api_config.dart';
+import 'versioned_http_client.dart';
 import '../services/auth_service.dart';
 import '../models/otp_delivery_channel.dart';
 
 // Conditional import for dart:io (not available on web)
-import 'emr_api_client_io.dart' if (dart.library.html) 'emr_api_client_web.dart' as platform_client;
+import 'emr_api_client_io.dart'
+    if (dart.library.html) 'emr_api_client_web.dart'
+    as platform_client;
 
 class EmrApiClient {
   final String baseUrl;
@@ -21,10 +24,15 @@ class EmrApiClient {
     http.Client? client,
     String? authServerUrl,
     http.Client? authClient,
-  })  : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
-        _client = client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl()),
-        authServerUrl = authServerUrl ?? resolveAuthServerBaseUrl(),
-        _authClient = authClient ?? _createHttpClient(authServerUrl ?? resolveAuthServerBaseUrl());
+  }) : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
+       _client = VersionedHttpClient(
+         client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl()),
+       ),
+       authServerUrl = authServerUrl ?? resolveAuthServerBaseUrl(),
+       _authClient = VersionedHttpClient(
+         authClient ??
+             _createHttpClient(authServerUrl ?? resolveAuthServerBaseUrl()),
+       );
 
   /// Creates an HTTP client with appropriate SSL certificate handling
   /// - For development URLs (localhost, private IPs): Bypasses SSL validation (native only)
@@ -34,11 +42,11 @@ class EmrApiClient {
     if (kIsWeb) {
       return http.Client();
     }
-    
+
     // On native platforms, use platform-specific client with SSL bypass for dev URLs
     return platform_client.createHttpClient(url, _isDevelopmentUrl(url));
   }
-  
+
   /// Determines if a URL is a development/local URL
   /// Returns true for localhost, loopback, emulator, and private IP ranges
   static bool _isDevelopmentUrl(String url) {
@@ -46,17 +54,17 @@ class EmrApiClient {
     try {
       final uri = Uri.parse(url);
       final host = uri.host.toLowerCase();
-      
+
       // Check for localhost variants
       if (host == 'localhost' || host == '127.0.0.1' || host == '::1') {
         return true;
       }
-      
+
       // Check for Android emulator host
       if (host == '10.0.2.2') {
         return true;
       }
-      
+
       // Check for private IP ranges (RFC 1918)
       // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
       final parts = host.split('.');
@@ -64,27 +72,27 @@ class EmrApiClient {
         try {
           final octet1 = int.parse(parts[0]);
           final octet2 = int.parse(parts[1]);
-          
+
           // 10.0.0.0/8
           if (octet1 == 10) return true;
-          
+
           // 172.16.0.0/12
           if (octet1 == 172 && octet2 >= 16 && octet2 <= 31) return true;
-          
+
           // 192.168.0.0/16
           if (octet1 == 192 && octet2 == 168) return true;
         } catch (e) {
           // Not a valid IP, continue
         }
       }
-      
+
       return false;
     } catch (e) {
       // If URL parsing fails, check string contains common development patterns
-      return url.contains('localhost') || 
-             url.contains('127.0.0.1') || 
-             url.contains('10.0.2.2') ||
-             url.contains('192.168.');
+      return url.contains('localhost') ||
+          url.contains('127.0.0.1') ||
+          url.contains('10.0.2.2') ||
+          url.contains('192.168.');
     }
   }
 
@@ -99,20 +107,24 @@ class EmrApiClient {
 
   Future<http.Response> _authenticatedPost(Uri uri, {Object? body}) async {
     final headers = await _getAuthHeaders();
-    return await _client.post(uri, headers: headers, body: body is String ? body : json.encode(body));
+    return await _client.post(
+      uri,
+      headers: headers,
+      body: body is String ? body : json.encode(body),
+    );
   }
 
   Future<Map<String, dynamic>> fetchPatient(String identifier) async {
     // Clean the identifier - remove any non-digit characters
     final cleaned = identifier.replaceAll(RegExp(r'[^\d]'), '').trim();
-    
+
     if (cleaned.isEmpty) {
       throw Exception('Invalid identifier: identifier cannot be empty');
     }
-    
+
     // Determine the type of identifier and try appropriate endpoints
     final List<Uri> uris = [];
-    
+
     // If it's 13 digits, it's likely a CNIC
     if (cleaned.length == 13) {
       final encodedCnic = Uri.encodeComponent(cleaned);
@@ -132,17 +144,17 @@ class EmrApiClient {
         // Not a valid integer, skip
       }
     }
-    
+
     // If no specific format matched, try all possible endpoints
     if (uris.isEmpty) {
       // Try as CNIC (13 digits)
       final encodedCnic = Uri.encodeComponent(cleaned);
       uris.add(Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic'));
-      
+
       // Try as phone
       final encodedPhone = Uri.encodeComponent(cleaned);
       uris.add(Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone'));
-      
+
       // Try as patient ID if it's numeric
       if (RegExp(r'^\d+$').hasMatch(cleaned)) {
         try {
@@ -153,16 +165,18 @@ class EmrApiClient {
         }
       }
     }
-    
+
     Exception? lastError;
-    
+
     for (final uri in uris) {
       try {
-        final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-        
+        final res = await _authenticatedGet(
+          uri,
+        ).timeout(const Duration(seconds: 10));
+
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body);
-          
+
           // Handle both single object and array responses
           Map<String, dynamic> patient;
           if (response is List && response.isNotEmpty) {
@@ -173,18 +187,22 @@ class EmrApiClient {
           } else {
             throw Exception('Unexpected response format');
           }
-          
+
           return patient;
         }
-        
+
         // If 400 or 404, try next format
         if (res.statusCode == 400 || res.statusCode == 404) {
-          lastError = Exception('Failed to load patient (${res.statusCode}): ${res.body}');
+          lastError = Exception(
+            'Failed to load patient (${res.statusCode}): ${res.body}',
+          );
           continue; // Try next format
         }
-        
+
         // For other errors, throw immediately
-        throw Exception('Failed to load patient (${res.statusCode}): ${res.body}');
+        throw Exception(
+          'Failed to load patient (${res.statusCode}): ${res.body}',
+        );
       } catch (e) {
         if (e.toString().contains('400') || e.toString().contains('404')) {
           lastError = e as Exception;
@@ -193,291 +211,12 @@ class EmrApiClient {
         rethrow;
       }
     }
-    
+
     // If all formats failed, throw the last error
     if (lastError != null) {
       throw lastError;
     }
     throw Exception('Failed to load patient: All formats failed');
-  }
-
-  // Login with CNIC and password - returns list of patients with matching CNIC and verified password
-  Future<List<Map<String, dynamic>>> loginByCnic(String cnic, {String? password}) async {
-    // Clean and normalize CNIC - remove any non-digit characters
-    final cleanedCnic = cnic.replaceAll(RegExp(r'[^\d]'), '').trim();
-    
-    if (cleanedCnic.isEmpty) {
-      throw Exception('Invalid CNIC: CNIC cannot be empty');
-    }
-    
-    if (cleanedCnic.length != 13) {
-      throw Exception('Invalid CNIC: CNIC must be exactly 13 digits');
-    }
-    
-    
-    // Use POST endpoint for login with password, or GET if no password provided
-    if (password != null && password.isNotEmpty) {
-      // POST request with CNIC and password
-      final uri = Uri.parse('$baseUrl/api/patient-auth/login');
-      
-      try {
-        
-        final body = json.encode({
-          'cnic': cleanedCnic,
-          'password': password,
-        });
-        
-        final res = await _client.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: body,
-        ).timeout(const Duration(seconds: 15));
-        
-        
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          final response = json.decode(res.body) as Map<String, dynamic>;
-          
-          // Handle API response wrapper
-          List<dynamic> patientsList;
-          if (response.containsKey('data')) {
-            final data = response['data'];
-            patientsList = data is List ? data : [data];
-          } else {
-            patientsList = [response];
-          }
-          
-          // Convert to List<Map<String, dynamic>>
-          final patients = patientsList
-              .map((p) => p as Map<String, dynamic>)
-              .toList();
-          
-          return patients;
-        }
-        
-        if (res.statusCode == 401 || res.statusCode == 403) {
-          throw Exception('Invalid CNIC or password');
-        }
-        
-        if (res.statusCode == 404) {
-          return [];
-        }
-        
-        throw Exception('Failed to login (${res.statusCode}): ${res.body}');
-      } catch (e) {
-        rethrow;
-      }
-    } else {
-      // Fallback to GET endpoint if no password provided (for backward compatibility)
-      final encodedCnic = Uri.encodeComponent(cleanedCnic);
-      final uri = Uri.parse('$baseUrl/api/min-patients/by-cnic/$encodedCnic');
-      
-      try {
-        
-        final res = await _client.get(uri).timeout(const Duration(seconds: 15));
-        
-        
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          final response = json.decode(res.body);
-          
-          // Handle both single object and array responses
-          List<dynamic> patientsList;
-          if (response is List) {
-            patientsList = response;
-          } else if (response is Map<String, dynamic> && response.containsKey('data')) {
-            // Handle API response wrapper
-            final data = response['data'];
-            patientsList = data is List ? data : [data];
-          } else {
-            // Single patient object
-            patientsList = [response];
-          }
-          
-          // Convert to List<Map<String, dynamic>>
-          final patients = patientsList
-              .map((p) => p as Map<String, dynamic>)
-              .toList();
-          
-          return patients;
-        }
-        
-        if (res.statusCode == 404) {
-          return [];
-        }
-        
-        throw Exception('Failed to login with CNIC (${res.statusCode}): ${res.body}');
-      } catch (e) {
-        rethrow;
-      }
-    }
-  }
-
-  // Login with phone number - returns list of patients with matching phone number
-  Future<List<Map<String, dynamic>>> loginByPhoneNumber(String phoneNumber) async {
-    // Clean and normalize phone number - remove any non-digit characters
-    final cleanedPhone = phoneNumber.replaceAll(RegExp(r'[^\d]'), '').trim();
-    
-    if (cleanedPhone.isEmpty) {
-      throw Exception('Invalid phone number: phone number cannot be empty');
-    }
-    
-    
-    // URL encode the phone number to handle special characters
-    final encodedPhone = Uri.encodeComponent(cleanedPhone);
-    final uri = Uri.parse('$baseUrl/api/min-patients/by-phone/$encodedPhone');
-    
-    try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body);
-        
-        // Handle both single object and array responses
-        List<dynamic> patientsList;
-        if (response is List) {
-          patientsList = response;
-        } else if (response is Map<String, dynamic> && response.containsKey('data')) {
-          // Handle API response wrapper
-          final data = response['data'];
-          patientsList = data is List ? data : [data];
-        } else {
-          // Single patient object
-          patientsList = [response];
-        }
-        
-        // Convert to List<Map<String, dynamic>>
-        final patients = patientsList
-            .map((p) => p as Map<String, dynamic>)
-            .toList();
-        
-        return patients;
-      }
-      
-      if (res.statusCode == 404) {
-        return [];
-      }
-      
-      throw Exception('Failed to login with phone number (${res.statusCode}): ${res.body}');
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Register a new patient using the new /api/patient-auth/register endpoint
-  // NOTE: Password is sent as plain text and hashed server-side with PBKDF2
-  Future<Map<String, dynamic>> registerPatient({
-    required String fullName,
-    required String cnic,
-    required String phone,
-    String? email,
-    required DateTime dateOfBirth,
-    required String gender,
-    String? address,
-    String? bloodGroup,
-    String? password,
-    String? registrationType,
-    String? parentType,
-    int? createdBy,
-  }) async {
-    // Use new dedicated registration endpoint
-    final uri = Uri.parse('$baseUrl/api/patient-auth/register');
-    try {
-      
-      final cleanCnic = cnic.replaceAll(RegExp(r'[^0-9]'), '');
-      final trimmedPassword = password?.trim();
-      
-      final body = <String, dynamic>{
-        'cnic': cleanCnic,
-        'fullName': fullName.trim(),
-        'contactNumber': phone.trim(),
-        'dateOfBirth': dateOfBirth.toIso8601String(),
-        'gender': gender,
-        'source': 'Flutter',
-        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
-        if (address != null && address.trim().isNotEmpty) 'address': address.trim(),
-        if (bloodGroup != null && bloodGroup.isNotEmpty && bloodGroup != 'Not Known') 'bloodGroup': bloodGroup,
-        // Send plain password - server will hash with PBKDF2
-        if (trimmedPassword != null && trimmedPassword.isNotEmpty) 'password': trimmedPassword,
-      };
-      
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
-      
-      // Handle 409 Conflict - Patient already exists
-      if (res.statusCode == 409) {
-        try {
-          final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-          final conflictMessage = errorResponse['message'] as String? ?? 
-                                 errorResponse['error'] as String? ??
-                                 'Patient with this CNIC already exists';
-          throw Exception('Patient already exists: $conflictMessage');
-        } catch (e) {
-          if (e is Exception && e.toString().contains('already exists')) {
-            rethrow;
-          }
-          throw Exception('Patient with this CNIC already exists');
-        }
-      }
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as Map<String, dynamic>;
-        }
-        return response;
-      }
-      
-      // Parse error message from response
-      String errorMessage = 'Failed to register patient';
-      String? detailedError;
-      try {
-        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorResponse['title'] as String? ??
-                      errorResponse['detail'] as String? ??
-                      res.body;
-        
-        // Extract detailed error information if available
-        if (errorResponse.containsKey('errors')) {
-          detailedError = errorResponse['errors'].toString();
-        } else if (errorResponse.containsKey('traceId')) {
-          detailedError = 'Trace ID: ${errorResponse['traceId']}';
-        }
-      } catch (e) {
-        errorMessage = res.body;
-      }
-      
-      // Check for specific database errors
-      if (errorMessage.toLowerCase().contains('database trigger') || 
-          errorMessage.toLowerCase().contains('dbupdateexception')) {
-        errorMessage = 'Database Configuration Error: The API server needs to be configured to handle database triggers.\n\n'
-            'This is a backend API issue that needs to be fixed by the API developer.\n\n'
-            'Full error: ${detailedError ?? errorMessage}';
-      } else if (errorMessage.toLowerCase().contains('dbnull') || 
-                 errorMessage.toLowerCase().contains('store type mapping')) {
-        errorMessage = 'Database Mapping Error: The API server encountered an issue mapping data to the database.\n\n'
-            'This might be due to:\n'
-            '- Missing or invalid field values\n'
-            '- Database schema mismatch\n'
-            '- Null value handling issues\n\n'
-            'Please check the data you entered and try again.\n\n'
-            'Full error: ${detailedError ?? errorMessage}';
-      }
-      
-      final fullError = detailedError != null 
-          ? '$errorMessage\n\nDetails: $detailedError'
-          : errorMessage;
-      
-      throw Exception('Failed to register patient (${res.statusCode}): $fullError');
-    } catch (e) {
-      rethrow;
-    }
   }
 
   Future<List<dynamic>> fetchVitals(String mrn) async {
@@ -589,15 +328,18 @@ class EmrApiClient {
     final queryParams = <String, String>{};
     if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
     if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
-    final uri = Uri.parse('$baseUrl/api/patient-queue/patient-vitals/$patientId')
-        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final uri = Uri.parse(
+      '$baseUrl/api/patient-queue/patient-vitals/$patientId',
+    ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
     final res = await _authenticatedGet(uri);
     if (res.statusCode == 200 && res.body.trim().isEmpty) return [];
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
       if (data is List) return data;
-      if (data is Map && data['data'] != null) return data['data'] as List<dynamic>;
-      if (data is Map && data['vitalSigns'] != null) return data['vitalSigns'] as List<dynamic>;
+      if (data is Map && data['data'] != null)
+        return data['data'] as List<dynamic>;
+      if (data is Map && data['vitalSigns'] != null)
+        return data['vitalSigns'] as List<dynamic>;
       return [];
     }
     return [];
@@ -612,10 +354,12 @@ class EmrApiClient {
     final queryParams = <String, String>{};
     if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
     if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
-    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/all')
-        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final uri = Uri.parse(
+      '$baseUrl/api/encounters/patient/$patientId/all',
+    ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
     final res = await _authenticatedGet(uri);
-    if (res.statusCode != 200) throw Exception('Failed to load encounters (${res.statusCode})');
+    if (res.statusCode != 200)
+      throw Exception('Failed to load encounters (${res.statusCode})');
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
     return List<Map<String, dynamic>>.from(data['encounters'] ?? []);
@@ -623,8 +367,11 @@ class EmrApiClient {
 
   /// GET /api/encounters/{encounterId}
   Future<Map<String, dynamic>> getEncounterDetails(int encounterId) async {
-    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/encounters/$encounterId'));
-    if (res.statusCode != 200) throw Exception('Failed to get encounter details (${res.statusCode})');
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/encounters/$encounterId'),
+    );
+    if (res.statusCode != 200)
+      throw Exception('Failed to get encounter details (${res.statusCode})');
     return json.decode(res.body) as Map<String, dynamic>;
   }
 
@@ -639,33 +386,46 @@ class EmrApiClient {
     }
     final res = await _authenticatedGet(uri);
     if (res.statusCode == 404) return {};
-    if (res.statusCode != 200) throw Exception('Failed to load consultation data (${res.statusCode})');
+    if (res.statusCode != 200)
+      throw Exception('Failed to load consultation data (${res.statusCode})');
     if (res.body.trim().isEmpty) return {};
     return json.decode(res.body) as Map<String, dynamic>;
   }
 
   /// GET /api/encounters/admission/{admissionId}
-  Future<List<Map<String, dynamic>>> getEncountersByAdmissionId(int admissionId) async {
-    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/encounters/admission/$admissionId'));
+  Future<List<Map<String, dynamic>>> getEncountersByAdmissionId(
+    int admissionId,
+  ) async {
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/encounters/admission/$admissionId'),
+    );
     if (res.statusCode == 404) return [];
     if (res.statusCode != 200) return [];
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
-    return List<Map<String, dynamic>>.from(data['encounters'] ?? data['data'] ?? []);
+    return List<Map<String, dynamic>>.from(
+      data['encounters'] ?? data['data'] ?? [],
+    );
   }
 
   /// GET /api/patient-chronic-conditions/{patientId}
   Future<List<dynamic>> getPatientChronicConditions(int patientId) async {
-    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-chronic-conditions/$patientId'));
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/patient-chronic-conditions/$patientId'),
+    );
     if (res.statusCode != 200) return [];
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
-    return List<dynamic>.from(data['chronicConditions'] ?? data['conditions'] ?? []);
+    return List<dynamic>.from(
+      data['chronicConditions'] ?? data['conditions'] ?? [],
+    );
   }
 
   /// GET /api/patient-allergies/{patientId}
   Future<List<Map<String, dynamic>>> getPatientAllergies(int patientId) async {
-    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-allergies/$patientId'));
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/patient-allergies/$patientId'),
+    );
     if (res.statusCode != 200) return [];
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
@@ -673,8 +433,12 @@ class EmrApiClient {
   }
 
   /// GET /api/patient-risk-factors/{patientId}
-  Future<List<Map<String, dynamic>>> getPatientRiskFactors(int patientId) async {
-    final res = await _authenticatedGet(Uri.parse('$baseUrl/api/patient-risk-factors/$patientId'));
+  Future<List<Map<String, dynamic>>> getPatientRiskFactors(
+    int patientId,
+  ) async {
+    final res = await _authenticatedGet(
+      Uri.parse('$baseUrl/api/patient-risk-factors/$patientId'),
+    );
     if (res.statusCode != 200) return [];
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
@@ -686,7 +450,9 @@ class EmrApiClient {
     required int patientId,
     bool getAllHistory = false,
   }) async {
-    var uri = Uri.parse('$baseUrl/api/pharmacy/patient/$patientId/active-medicines');
+    var uri = Uri.parse(
+      '$baseUrl/api/pharmacy/patient/$patientId/active-medicines',
+    );
     if (getAllHistory) {
       uri = uri.replace(queryParameters: {'getAllHistory': 'true'});
     }
@@ -701,16 +467,23 @@ class EmrApiClient {
   }
 
   /// GET /api/patient-queue/nurse-vitals (for print - vitals by encounter)
-  Future<List<dynamic>> getEncounterVitals(int encounterId, int patientId) async {
+  Future<List<dynamic>> getEncounterVitals(
+    int encounterId,
+    int patientId,
+  ) async {
     final uri = Uri.parse('$baseUrl/api/patient-queue/nurse-vitals').replace(
-      queryParameters: {'encounterId': encounterId.toString(), 'patientId': patientId.toString()},
+      queryParameters: {
+        'encounterId': encounterId.toString(),
+        'patientId': patientId.toString(),
+      },
     );
     final res = await _authenticatedGet(uri);
     if (res.statusCode != 200) return [];
     try {
       final data = json.decode(res.body);
       if (data is List) return data;
-      if (data is Map && data['data'] != null) return data['data'] as List<dynamic>;
+      if (data is Map && data['data'] != null)
+        return data['data'] as List<dynamic>;
       return [];
     } catch (_) {
       return [];
@@ -741,7 +514,9 @@ class EmrApiClient {
   }
 
   /// GET /api/encounters/patient/{patientId}/radiology
-  Future<List<Map<String, dynamic>>> getPatientRadiologyReports(int patientId) async {
+  Future<List<Map<String, dynamic>>> getPatientRadiologyReports(
+    int patientId,
+  ) async {
     final res = await _authenticatedGet(
       Uri.parse('$baseUrl/api/encounters/patient/$patientId/radiology'),
     );
@@ -764,7 +539,9 @@ class EmrApiClient {
   }
 
   /// GET /api/pharmacy/patient/{patientId}/medications
-  Future<List<Map<String, dynamic>>> getPatientPrescriptions(int patientId) async {
+  Future<List<Map<String, dynamic>>> getPatientPrescriptions(
+    int patientId,
+  ) async {
     final res = await _authenticatedGet(
       Uri.parse('$baseUrl/api/pharmacy/patient/$patientId/medications'),
     );
@@ -779,13 +556,16 @@ class EmrApiClient {
   /// GET /api/Surgeries/getPatientSurgeries
   Future<List<Map<String, dynamic>>> getPatientSurgeries(int patientId) async {
     final res = await _authenticatedGet(
-      Uri.parse('$baseUrl/api/Surgeries/getPatientSurgeries?PatientID=$patientId'),
+      Uri.parse(
+        '$baseUrl/api/Surgeries/getPatientSurgeries?PatientID=$patientId',
+      ),
     );
     if (res.statusCode != 200) return [];
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
     if (data is List) return data.cast<Map<String, dynamic>>();
-    if (data is Map && data['data'] != null) return List<Map<String, dynamic>>.from(data['data']);
+    if (data is Map && data['data'] != null)
+      return List<Map<String, dynamic>>.from(data['data']);
     return [];
   }
 
@@ -804,7 +584,10 @@ class EmrApiClient {
     return searchHospitals('');
   }
 
-  Future<List<dynamic>> searchHospitals(String searchTerm, {int limit = 20}) async {
+  Future<List<dynamic>> searchHospitals(
+    String searchTerm, {
+    int limit = 20,
+  }) async {
     final uri = Uri.parse('$baseUrl/api/hospitals').replace(
       queryParameters: {
         'page': '1',
@@ -819,7 +602,9 @@ class EmrApiClient {
       if (res.statusCode >= 200 && res.statusCode < 300) {
         return _parseHospitalListResponse(res.body);
       }
-      throw Exception('Failed to load hospitals (${res.statusCode}): ${res.body}');
+      throw Exception(
+        'Failed to load hospitals (${res.statusCode}): ${res.body}',
+      );
     } catch (e) {
       rethrow;
     }
@@ -877,18 +662,18 @@ class EmrApiClient {
     final uri = Uri.parse('$baseUrl/api/departments');
     try {
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final decoded = json.decode(res.body);
-        
+
         // Handle direct list response
         if (decoded is List) {
           return decoded;
         }
-        
+
         // Handle wrapped response
         final response = decoded as Map<String, dynamic>;
-        
+
         // Check for data.departments (nested structure)
         if (response.containsKey('data')) {
           final data = response['data'];
@@ -900,7 +685,7 @@ class EmrApiClient {
             return departments is List ? departments : [];
           }
         }
-        
+
         // Check for departments at root level
         if (response.containsKey('departments')) {
           final departments = response['departments'];
@@ -908,7 +693,9 @@ class EmrApiClient {
         }
         return [];
       }
-      throw Exception('Failed to load departments (${res.statusCode}): ${res.body}');
+      throw Exception(
+        'Failed to load departments (${res.statusCode}): ${res.body}',
+      );
     } catch (e) {
       rethrow;
     }
@@ -916,10 +703,12 @@ class EmrApiClient {
 
   // Fetch hospital departments by hospital ID (returns hospitalDepartmentID)
   Future<List<dynamic>> fetchHospitalDepartments(int hospitalId) async {
-    final uri = Uri.parse('$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId');
+    final uri = Uri.parse(
+      '$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId',
+    );
     try {
       final res = await _client.get(uri).timeout(const Duration(seconds: 10));
-      
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);
         // Handle both list and wrapped responses
@@ -932,7 +721,9 @@ class EmrApiClient {
         }
         return [];
       }
-      throw Exception('Failed to load hospital departments (${res.statusCode}): ${res.body}');
+      throw Exception(
+        'Failed to load hospital departments (${res.statusCode}): ${res.body}',
+      );
     } catch (e) {
       rethrow;
     }
@@ -974,6 +765,7 @@ class EmrApiClient {
   /// GET /api/patient-queue — search queue rows (e.g. by CNIC/MRN for today).
   Future<List<Map<String, dynamic>>> searchPatientQueue({
     required int hospitalId,
+    required int patientId,
     String? searchText,
     DateTime? startDate,
     DateTime? endDate,
@@ -982,6 +774,7 @@ class EmrApiClient {
   }) async {
     final query = <String, String>{
       'hospitalId': hospitalId.toString(),
+      'patientId': patientId.toString(),
       'queueStatus': queueStatus,
       'pageNumber': '1',
       'pageSize': pageSize.toString(),
@@ -996,7 +789,9 @@ class EmrApiClient {
       query['endDate'] = endDate.toIso8601String();
     }
 
-    final uri = Uri.parse('$baseUrl/api/patient-queue').replace(queryParameters: query);
+    final uri = Uri.parse(
+      '$baseUrl/api/patient-queue',
+    ).replace(queryParameters: query);
     try {
       final res = await _authenticatedGet(uri);
       if (res.statusCode != 200) return [];
@@ -1032,7 +827,7 @@ class EmrApiClient {
     String? notes,
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-queue');
-    
+
     final body = {
       'patientId': patientId,
       'hospitalId': hospitalId,
@@ -1047,47 +842,50 @@ class EmrApiClient {
       if (referralId != null) 'referralId': referralId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
-    
+
     // Retry logic for token generation failures (transient errors)
     const maxRetries = 2;
     Exception? lastError;
-    
+
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         if (attempt > 0) {
           // Wait a bit before retrying to allow any concurrent operations to complete
           await Future.delayed(Duration(milliseconds: 300 * attempt));
         }
-        
-        final res = await _client.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode(body),
-        ).timeout(const Duration(seconds: 15));
-        
+
+        final res = await _client
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(body),
+            )
+            .timeout(const Duration(seconds: 15));
+
         if (res.statusCode == 409) {
           // Patient already in queue or other conflict - return existing queue info if available
           final response = json.decode(res.body) as Map<String, dynamic>;
-          final message = response['message'] as String? ?? 'Patient already in queue';
+          final message =
+              response['message'] as String? ?? 'Patient already in queue';
           final queueId = response['queueId'];
           final tokenNumber = response['tokenNumber'];
-          
+
           if (queueId != null && tokenNumber != null) {
             // Patient is already in queue - return the existing queue info
-            return {
-              'queueId': queueId,
-              'tokenNumber': tokenNumber,
-            };
-          } else if (message.contains('Failed to generate token number') && attempt < maxRetries) {
+            return {'queueId': queueId, 'tokenNumber': tokenNumber};
+          } else if (message.contains('Failed to generate token number') &&
+              attempt < maxRetries) {
             // Token generation failed - retry
             lastError = Exception('Token generation failed. Please try again.');
             continue;
           } else {
             // Other conflict or max retries reached
-            throw Exception('$message${queueId != null ? ' Queue ID: $queueId' : ''}${tokenNumber != null ? ' Token: $tokenNumber' : ''}');
+            throw Exception(
+              '$message${queueId != null ? ' Queue ID: $queueId' : ''}${tokenNumber != null ? ' Token: $tokenNumber' : ''}',
+            );
           }
         }
-        
+
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body) as Map<String, dynamic>;
           // Handle API response wrapper if present
@@ -1096,38 +894,40 @@ class EmrApiClient {
           }
           return response;
         }
-        
-        throw Exception('Failed to add patient to queue (${res.statusCode}): ${res.body}');
+
+        throw Exception(
+          'Failed to add patient to queue (${res.statusCode}): ${res.body}',
+        );
       } catch (e) {
         lastError = e is Exception ? e : Exception(e.toString());
-        
+
         // If it's a token generation error and we haven't exhausted retries, continue
-        if (e.toString().contains('Failed to generate token number') && attempt < maxRetries) {
+        if (e.toString().contains('Failed to generate token number') &&
+            attempt < maxRetries) {
           continue;
         }
-        
+
         // For other errors or max retries reached, break and throw
-        if (attempt >= maxRetries || !e.toString().contains('Failed to generate token number')) {
+        if (attempt >= maxRetries ||
+            !e.toString().contains('Failed to generate token number')) {
           break;
         }
       }
     }
-    
+
     // If we get here, all retries failed
-    throw lastError ?? Exception('Failed to add patient to queue after multiple attempts');
+    throw lastError ??
+        Exception('Failed to add patient to queue after multiple attempts');
   }
 
   // Print queue receipt - returns receipt data as it appears in the print API
-  Future<Map<String, dynamic>> printQueueReceipt({
-    required int queueId,
-  }) async {
+  Future<Map<String, dynamic>> printQueueReceipt({required int queueId}) async {
     final uri = Uri.parse('$baseUrl/api/queue/$queueId/print');
     try {
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 15));
-      
+      final res = await _client
+          .post(uri, headers: {'Content-Type': 'application/json'})
+          .timeout(const Duration(seconds: 15));
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Parse and return the receipt data
         try {
@@ -1138,7 +938,9 @@ class EmrApiClient {
           return {};
         }
       }
-      throw Exception('Failed to print queue receipt (${res.statusCode}): ${res.body}');
+      throw Exception(
+        'Failed to print queue receipt (${res.statusCode}): ${res.body}',
+      );
     } catch (e) {
       // Return empty map instead of throwing - allows UI to still show appointment details
       return {};
@@ -1155,12 +957,14 @@ class EmrApiClient {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
       };
 
-      final res = await _authClient.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
+      final res = await _authClient
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
         // Handle API response wrapper if present
@@ -1169,18 +973,19 @@ class EmrApiClient {
         }
         return response;
       }
-      
+
       // Parse error message
       String errorMessage = 'Failed to lookup patient';
       try {
         final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
+        errorMessage =
+            errorResponse['message'] as String? ??
+            errorResponse['error'] as String? ??
+            errorMessage;
       } catch (e) {
         errorMessage = res.body;
       }
-      
+
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
       rethrow;
@@ -1199,12 +1004,14 @@ class EmrApiClient {
         'channel': deliveryChannel.apiValue,
       };
 
-      final res = await _authClient.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
+      final res = await _authClient
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
         // Handle API response wrapper if present
@@ -1213,18 +1020,19 @@ class EmrApiClient {
         }
         return response;
       }
-      
+
       // Parse error message
       String errorMessage = 'Failed to request OTP';
       try {
         final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
+        errorMessage =
+            errorResponse['message'] as String? ??
+            errorResponse['error'] as String? ??
+            errorMessage;
       } catch (e) {
         errorMessage = res.body;
       }
-      
+
       throw Exception('$errorMessage (${res.statusCode})');
     } catch (e) {
       rethrow;
@@ -1242,13 +1050,15 @@ class EmrApiClient {
         'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
         'code': otpCode.trim(),
       };
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
+
+      final res = await _client
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body) as Map<String, dynamic>;
         // Handle API response wrapper if present
@@ -1257,178 +1067,22 @@ class EmrApiClient {
         }
         return response;
       }
-      
+
       // Parse error message
       String errorMessage = 'Invalid OTP';
       try {
         final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
+        errorMessage =
+            errorResponse['message'] as String? ??
+            errorResponse['error'] as String? ??
+            errorMessage;
       } catch (e) {
         errorMessage = res.body;
       }
-      
+
       throw Exception(errorMessage);
     } catch (e) {
       rethrow;
     }
   }
-
-  // Request registration OTP (backend generates and sends OTP)
-  Future<void> requestRegistrationOtp({
-    required String phoneNumber,
-    OtpDeliveryChannel deliveryChannel = OtpDeliveryChannel.sms,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/send-registration');
-    try {
-      
-      final body = {
-        'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
-        'channel': deliveryChannel.apiValue,
-      };
-      
-      // Increase timeout to 30 seconds for SMS operations
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 30));
-      
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        final data = response['data'] as Map<String, dynamic>?;
-        final message = response['message'] as String? ?? 'OTP sent successfully';
-        final smsStatus = data?['smsStatus'] as String?;
-        final canProceed = data?['canProceed'] as bool? ?? false;
-        
-        // Check if we can proceed regardless of SMS status
-        if (canProceed) {
-          return; // Success - allow user to proceed
-        }
-        
-        // Check SMS status from response (only if CanProceed is false)
-        if (smsStatus != null) {
-          if (smsStatus == 'Failed' || smsStatus == 'Timeout' || smsStatus == 'Error') {
-            // Extract OTP from message if available
-            final otpMatch = RegExp(r'OTP:\s*(\d{4})').firstMatch(message);
-            // Throw exception to indicate SMS failed (only if CanProceed is false)
-            throw Exception('SMS delivery failed: $message');
-          }
-        } else if (message.contains('OTP:') || message.contains('OTP generated') || 
-                   message.contains('SMS delivery') || message.contains('timed out') ||
-                   message.contains('not sent')) {
-          // Only throw if CanProceed is false
-          if (!canProceed) {
-            throw Exception('SMS delivery issue: $message');
-          }
-        }
-        
-        return;
-      }
-      
-      // Parse error message
-      String errorMessage = 'Failed to send registration OTP';
-      try {
-        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
-      } catch (e) {
-        errorMessage = res.body;
-      }
-      
-      throw Exception('$errorMessage (${res.statusCode})');
-    } catch (e) {
-      // Don't rethrow - let the fallback mechanism handle it
-      // The backend now returns success even if SMS fails, with OTP in message
-      rethrow;
-    }
-  }
-
-  // Verify registration OTP
-  Future<Map<String, dynamic>> verifyRegistrationOtp({
-    required String phoneNumber,
-    required String otpCode,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/verify-registration');
-    try {
-      final body = {
-        'phoneNumber': phoneNumber.replaceAll(RegExp(r'[^0-9]'), ''), // Clean phone
-        'code': otpCode.trim(),
-      };
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final response = json.decode(res.body) as Map<String, dynamic>;
-        // Handle API response wrapper if present
-        if (response.containsKey('data')) {
-          return response['data'] as Map<String, dynamic>;
-        }
-        return response;
-      }
-      
-      // Parse error message
-      String errorMessage = 'Invalid OTP';
-      try {
-        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
-      } catch (e) {
-        errorMessage = res.body;
-      }
-      
-      throw Exception(errorMessage);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Set password for a patient by CNIC
-  Future<void> setPasswordByCnic({
-    required String cnic,
-    required String password,
-  }) async {
-    final uri = Uri.parse('$baseUrl/api/patient-auth/set-password');
-    try {
-      final body = {
-        'cnic': cnic.replaceAll(RegExp(r'[^0-9]'), ''), // Clean CNIC
-        'password': password,
-      };
-      
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        return;
-      }
-      
-      // Parse error message
-      String errorMessage = 'Failed to set password';
-      try {
-        final errorResponse = json.decode(res.body) as Map<String, dynamic>;
-        errorMessage = errorResponse['message'] as String? ?? 
-                      errorResponse['error'] as String? ?? 
-                      errorMessage;
-      } catch (e) {
-        errorMessage = res.body;
-      }
-      
-      throw Exception('$errorMessage (${res.statusCode})');
-    } catch (e) {
-      rethrow;
-    }
-  }
-
 }
-

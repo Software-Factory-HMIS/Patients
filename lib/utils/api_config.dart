@@ -13,7 +13,10 @@ const String _productionEmrBaseUrl = 'https://hmis-api.pshealthpunjab.gov.pk';
 /// 2. Release/profile builds → production host
 /// 3. Debug → localhost:7287
 String resolveEmrBaseUrl() {
-  const String defined = String.fromEnvironment('EMR_BASE_URL', defaultValue: '');
+  const String defined = String.fromEnvironment(
+    'EMR_BASE_URL',
+    defaultValue: '',
+  );
   if (defined.isNotEmpty) return defined;
 
   if (!kDebugMode) return _productionEmrBaseUrl;
@@ -26,7 +29,8 @@ String resolveEmrBaseUrl() {
 // ─── HMIS_AuthServer (OTP gateway — lookup + OTP send only) ──────────────────
 
 /// Production HMIS_AuthServer host. Handles patient lookup and OTP delivery only.
-const String _productionAuthServerBaseUrl = 'https://hmis-authapi.pshealthpunjab.gov.pk';
+const String _productionAuthServerBaseUrl =
+    'https://hmis-authapi.pshealthpunjab.gov.pk';
 
 /// Resolves the base URL for HMIS_AuthServer.
 ///
@@ -35,7 +39,10 @@ const String _productionAuthServerBaseUrl = 'https://hmis-authapi.pshealthpunjab
 /// 2. Release/profile builds → production host
 /// 3. Debug → localhost:7143
 String resolveAuthServerBaseUrl() {
-  const String defined = String.fromEnvironment('AUTH_SERVER_BASE_URL', defaultValue: '');
+  const String defined = String.fromEnvironment(
+    'AUTH_SERVER_BASE_URL',
+    defaultValue: '',
+  );
   if (defined.isNotEmpty) return defined;
 
   if (!kDebugMode) return _productionAuthServerBaseUrl;
@@ -44,5 +51,3 @@ String resolveAuthServerBaseUrl() {
   if (Platform.isAndroid) return 'http://10.0.2.2:5045';
   return 'http://localhost:5045';
 }
-
-

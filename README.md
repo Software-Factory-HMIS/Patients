@@ -1,6 +1,6 @@
 # patients
 
-Flutter client for the **Healthcare Management System** patient experience: registration, sign-in, medical records, appointments, ID scanning, PDF/printing, and theming.
+Flutter client for **SehatLink** (Government of Punjab patient experience): CNIC/OTP sign-in, medical records, appointments, ID scanning, PDF/printing, and theming.
 
 ## Prerequisites
 

@@ -51,25 +51,27 @@ class RecordListTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       const Gap(4),
                       Text(subtitle!, style: theme.textTheme.bodySmall),
                     ],
-                    if (badge != null) ...[
-                      const Gap(8),
-                      badge!,
-                    ],
+                    if (badge != null) ...[const Gap(8), badge!],
                   ],
                 ),
               ),
               if (trailing != null)
                 Text(
                   trailing!,
-                  style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              if (onTap != null) Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+              if (onTap != null)
+                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
             ],
           ),
         ),

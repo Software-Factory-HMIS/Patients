@@ -94,29 +94,29 @@ class _IDScannerScreenState extends State<IDScannerScreen>
   bool _isInitialized = false;
   String? _errorMessage;
   String? _capturedImagePath;
-  
+
   // Status tracking
   ScannerStatus _status = ScannerStatus.searching;
-  
+
   // Stability tracking for auto-capture
   int _stableFrameCount = 0;
   static const int _requiredStableFrames = 3;
-  
+
   // Detection states
   bool _objectInFrame = false;
   bool _cardAligned = false;
   int _frameSkipCounter = 0;
-  
+
   // Animation controllers
   late AnimationController _pulseController;
   late AnimationController _cornerController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _cornerAnimation;
-  
+
   // Overlay dimensions (ID card aspect ratio ~1.586)
   static const double _overlayWidthRatio = 0.85;
   static const double _overlayAspectRatio = 1.586;
-  
+
   // Detection thresholds
   static const double _minCoverageRatio = 0.55;
   static const double _highCoverageRatio = 0.70;
@@ -125,7 +125,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Pulse animation for capturing state
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -134,7 +134,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     // Corner bracket animation
     _cornerController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -143,7 +143,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
     _cornerAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _cornerController, curve: Curves.easeOut),
     );
-    
+
     _initializeScanner();
   }
 
@@ -210,7 +210,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
   void _updateStatus(ScannerStatus newStatus) {
     if (_status != newStatus) {
       setState(() => _status = newStatus);
-      
+
       // Handle animations based on status
       if (newStatus == ScannerStatus.capturing) {
         _pulseController.repeat(reverse: true);
@@ -218,7 +218,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
         _pulseController.stop();
         _pulseController.reset();
       }
-      
+
       if (newStatus.index >= ScannerStatus.objectDetected.index) {
         _cornerController.forward();
       } else {
@@ -230,15 +230,15 @@ class _IDScannerScreenState extends State<IDScannerScreen>
   /// Fast edge-based rectangle detection
   void _processFrame(CameraImage image) async {
     if (_isBusy || _captured) return;
-    
+
     _frameSkipCounter++;
     if (_frameSkipCounter % 2 != 0) return;
-    
+
     _isBusy = true;
 
     try {
       final result = _detectRectangle(image);
-      
+
       if (!mounted || _captured) {
         _isBusy = false;
         return;
@@ -249,7 +249,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
 
       if (_cardAligned) {
         _stableFrameCount++;
-        
+
         if (_stableFrameCount >= _requiredStableFrames) {
           _updateStatus(ScannerStatus.capturing);
           await _captureImage();
@@ -265,116 +265,118 @@ class _IDScannerScreenState extends State<IDScannerScreen>
         _stableFrameCount = 0;
         _updateStatus(ScannerStatus.searching);
       }
-    } catch (e) {
-      debugPrint('Detection error: $e');
+    } catch (_) {
     } finally {
       _isBusy = false;
     }
   }
 
   /// Detection result with multiple states
-  ({bool objectDetected, bool cardAligned}) _detectRectangle(CameraImage image) {
+  ({bool objectDetected, bool cardAligned}) _detectRectangle(
+    CameraImage image,
+  ) {
     if (image.planes.isEmpty) {
       return (objectDetected: false, cardAligned: false);
     }
-    
+
     final int width = image.width;
     final int height = image.height;
     final plane = image.planes[0];
     final bytes = plane.bytes;
-    
+
     final overlayWidth = (width * _overlayWidthRatio).toInt();
     final overlayHeight = (overlayWidth / _overlayAspectRatio).toInt();
     final overlayLeft = ((width - overlayWidth) / 2).toInt();
     final overlayTop = ((height - overlayHeight) / 2).toInt();
-    
+
     int edgeCount = 0;
     const int samplePoints = 12;
     const int edgeThreshold = 25;
     const int borderOffset = 10;
-    
+
     // Sample top edge
     for (int i = 0; i < samplePoints; i++) {
       final x = overlayLeft + (overlayWidth * i ~/ samplePoints);
       final yOuter = math.max(0, overlayTop - borderOffset);
       final yInner = math.min(height - 1, overlayTop + borderOffset);
-      
+
       final outerIdx = yOuter * plane.bytesPerRow + x;
       final innerIdx = yInner * plane.bytesPerRow + x;
-      
+
       if (outerIdx < bytes.length && innerIdx < bytes.length) {
         final diff = (bytes[outerIdx] - bytes[innerIdx]).abs();
         if (diff > edgeThreshold) edgeCount++;
       }
     }
-    
+
     // Sample bottom edge
     final bottomY = overlayTop + overlayHeight;
     for (int i = 0; i < samplePoints; i++) {
       final x = overlayLeft + (overlayWidth * i ~/ samplePoints);
       final yInner = math.max(0, bottomY - borderOffset);
       final yOuter = math.min(height - 1, bottomY + borderOffset);
-      
+
       final innerIdx = yInner * plane.bytesPerRow + x;
       final outerIdx = yOuter * plane.bytesPerRow + x;
-      
+
       if (innerIdx < bytes.length && outerIdx < bytes.length) {
         final diff = (bytes[innerIdx] - bytes[outerIdx]).abs();
         if (diff > edgeThreshold) edgeCount++;
       }
     }
-    
+
     // Sample left edge
     for (int i = 0; i < samplePoints; i++) {
       final y = overlayTop + (overlayHeight * i ~/ samplePoints);
       final xOuter = math.max(0, overlayLeft - borderOffset);
       final xInner = math.min(width - 1, overlayLeft + borderOffset);
-      
+
       final outerIdx = y * plane.bytesPerRow + xOuter;
       final innerIdx = y * plane.bytesPerRow + xInner;
-      
+
       if (outerIdx < bytes.length && innerIdx < bytes.length) {
         final diff = (bytes[outerIdx] - bytes[innerIdx]).abs();
         if (diff > edgeThreshold) edgeCount++;
       }
     }
-    
+
     // Sample right edge
     final rightX = overlayLeft + overlayWidth;
     for (int i = 0; i < samplePoints; i++) {
       final y = overlayTop + (overlayHeight * i ~/ samplePoints);
       final xInner = math.max(0, rightX - borderOffset);
       final xOuter = math.min(width - 1, rightX + borderOffset);
-      
+
       final innerIdx = y * plane.bytesPerRow + xInner;
       final outerIdx = y * plane.bytesPerRow + xOuter;
-      
+
       if (innerIdx < bytes.length && outerIdx < bytes.length) {
         final diff = (bytes[innerIdx] - bytes[outerIdx]).abs();
         if (diff > edgeThreshold) edgeCount++;
       }
     }
-    
+
     // Check center brightness
     final centerX = width ~/ 2;
     final centerY = height ~/ 2;
     final centerIdx = centerY * plane.bytesPerRow + centerX;
-    final cornerIdx = (overlayTop - 20).clamp(0, height - 1) * plane.bytesPerRow + 
-                      (overlayLeft - 20).clamp(0, width - 1);
-    
+    final cornerIdx =
+        (overlayTop - 20).clamp(0, height - 1) * plane.bytesPerRow +
+        (overlayLeft - 20).clamp(0, width - 1);
+
     bool hasBrightnessContrast = false;
     if (centerIdx < bytes.length && cornerIdx < bytes.length) {
       final centerBrightness = bytes[centerIdx];
       final cornerBrightness = bytes[cornerIdx];
       hasBrightnessContrast = centerBrightness > cornerBrightness + 15;
     }
-    
+
     final totalSamples = samplePoints * 4;
     final edgeRatio = edgeCount / totalSamples;
-    
+
     final objectDetected = edgeRatio > _minCoverageRatio;
     final cardAligned = edgeRatio > _highCoverageRatio && hasBrightnessContrast;
-    
+
     return (objectDetected: objectDetected, cardAligned: cardAligned);
   }
 
@@ -382,7 +384,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
     if (_captured || _controller == null) return;
 
     _captured = true;
-    
+
     // Haptic feedback
     HapticFeedback.mediumImpact();
 
@@ -395,8 +397,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
       setState(() {
         _capturedImagePath = file.path;
       });
-    } catch (e) {
-      debugPrint('Capture error: $e');
+    } catch (_) {
       _captured = false;
       _stableFrameCount = 0;
       _updateStatus(ScannerStatus.searching);
@@ -438,7 +439,7 @@ class _IDScannerScreenState extends State<IDScannerScreen>
         fit: StackFit.expand,
         children: [
           Image.file(File(_capturedImagePath!), fit: BoxFit.contain),
-          
+
           Positioned(
             top: 0,
             left: 0,
@@ -459,12 +460,16 @@ class _IDScannerScreenState extends State<IDScannerScreen>
               ),
               child: const Text(
                 'Preview',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
           ),
-          
+
           Positioned(
             bottom: 0,
             left: 0,
@@ -489,14 +494,20 @@ class _IDScannerScreenState extends State<IDScannerScreen>
                   TextButton.icon(
                     onPressed: _retake,
                     icon: const Icon(Icons.refresh, color: Colors.white),
-                    label: const Text('Retake', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    label: const Text(
+                      'Retake',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
                   FilledButton.icon(
                     onPressed: _confirmCapture,
                     icon: const Icon(Icons.check),
                     label: const Text('Use Photo'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -526,7 +537,11 @@ class _IDScannerScreenState extends State<IDScannerScreen>
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(_errorMessage!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
               ),
             )
           else
@@ -536,7 +551,10 @@ class _IDScannerScreenState extends State<IDScannerScreen>
           if (_isInitialized)
             CustomPaint(
               size: screenSize,
-              painter: _OverlayPainter(overlayWidth: overlayWidth, overlayHeight: overlayHeight),
+              painter: _OverlayPainter(
+                overlayWidth: overlayWidth,
+                overlayHeight: overlayHeight,
+              ),
             ),
 
           // Animated corner brackets
@@ -565,7 +583,9 @@ class _IDScannerScreenState extends State<IDScannerScreen>
                 animation: _pulseAnimation,
                 builder: (context, child) {
                   return Transform.scale(
-                    scale: _status == ScannerStatus.capturing ? _pulseAnimation.value : 1.0,
+                    scale: _status == ScannerStatus.capturing
+                        ? _pulseAnimation.value
+                        : 1.0,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       width: overlayWidth,
@@ -573,7 +593,10 @@ class _IDScannerScreenState extends State<IDScannerScreen>
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: _status.color,
-                          width: _status.index >= ScannerStatus.cnicAligned.index ? 4 : 2,
+                          width:
+                              _status.index >= ScannerStatus.cnicAligned.index
+                              ? 4
+                              : 2,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -589,11 +612,15 @@ class _IDScannerScreenState extends State<IDScannerScreen>
               top: centerY - overlayHeight / 2 - 60,
               left: 0,
               right: 0,
-              child: _StatusIndicator(status: _status, stableCount: _stableFrameCount),
+              child: _StatusIndicator(
+                status: _status,
+                stableCount: _stableFrameCount,
+              ),
             ),
 
           // Progress dots (stability indicator)
-          if (_isInitialized && _status.index >= ScannerStatus.cnicAligned.index)
+          if (_isInitialized &&
+              _status.index >= ScannerStatus.cnicAligned.index)
             Positioned(
               top: centerY + overlayHeight / 2 + 20,
               left: 0,
@@ -661,7 +688,8 @@ class _IDScannerScreenState extends State<IDScannerScreen>
                         margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _status.index >= ScannerStatus.cnicAligned.index
+                          color:
+                              _status.index >= ScannerStatus.cnicAligned.index
                               ? _status.color
                               : Colors.white,
                         ),
@@ -795,20 +823,52 @@ class _CornerBracketPainter extends CustomPainter {
     final bottom = centerY + height / 2;
 
     // Top-left corner
-    canvas.drawLine(Offset(left, top + bracketLength), Offset(left, top), paint);
-    canvas.drawLine(Offset(left, top), Offset(left + bracketLength, top), paint);
+    canvas.drawLine(
+      Offset(left, top + bracketLength),
+      Offset(left, top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(left, top),
+      Offset(left + bracketLength, top),
+      paint,
+    );
 
     // Top-right corner
-    canvas.drawLine(Offset(right - bracketLength, top), Offset(right, top), paint);
-    canvas.drawLine(Offset(right, top), Offset(right, top + bracketLength), paint);
+    canvas.drawLine(
+      Offset(right - bracketLength, top),
+      Offset(right, top),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(right, top),
+      Offset(right, top + bracketLength),
+      paint,
+    );
 
     // Bottom-left corner
-    canvas.drawLine(Offset(left, bottom - bracketLength), Offset(left, bottom), paint);
-    canvas.drawLine(Offset(left, bottom), Offset(left + bracketLength, bottom), paint);
+    canvas.drawLine(
+      Offset(left, bottom - bracketLength),
+      Offset(left, bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(left, bottom),
+      Offset(left + bracketLength, bottom),
+      paint,
+    );
 
     // Bottom-right corner
-    canvas.drawLine(Offset(right - bracketLength, bottom), Offset(right, bottom), paint);
-    canvas.drawLine(Offset(right, bottom), Offset(right, bottom - bracketLength), paint);
+    canvas.drawLine(
+      Offset(right - bracketLength, bottom),
+      Offset(right, bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(right, bottom),
+      Offset(right, bottom - bracketLength),
+      paint,
+    );
   }
 
   @override
@@ -847,6 +907,7 @@ class _OverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _OverlayPainter oldDelegate) {
-    return overlayWidth != oldDelegate.overlayWidth || overlayHeight != oldDelegate.overlayHeight;
+    return overlayWidth != oldDelegate.overlayWidth ||
+        overlayHeight != oldDelegate.overlayHeight;
   }
 }

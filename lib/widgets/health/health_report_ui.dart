@@ -36,7 +36,10 @@ class HealthReportTheme {
     );
   }
 
-  static HealthReportTheme radiology(BuildContext context, {bool dark = false}) {
+  static HealthReportTheme radiology(
+    BuildContext context, {
+    bool dark = false,
+  }) {
     if (dark) {
       return const HealthReportTheme(
         accent: Color(0xFF818CF8),
@@ -53,7 +56,10 @@ class HealthReportTheme {
     );
   }
 
-  static HealthReportTheme prescription(BuildContext context, {bool dark = false}) {
+  static HealthReportTheme prescription(
+    BuildContext context, {
+    bool dark = false,
+  }) {
     if (dark) {
       return const HealthReportTheme(
         accent: Color(0xFF34D399),
@@ -124,16 +130,16 @@ class HealthSummaryPanel extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: theme.onAccent,
-                          ),
+                        fontWeight: FontWeight.w800,
+                        color: theme.onAccent,
+                      ),
                     ),
                     if (subtitle != null && subtitle!.isNotEmpty)
                       Text(
                         subtitle!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                   ],
                 ),
@@ -142,16 +148,9 @@ class HealthSummaryPanel extends StatelessWidget {
           ),
           if (metrics.isNotEmpty) ...[
             const Gap(12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: metrics,
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: metrics),
           ],
-          if (footer != null) ...[
-            const Gap(10),
-            footer!,
-          ],
+          if (footer != null) ...[const Gap(10), footer!],
         ],
       ),
     );
@@ -180,7 +179,9 @@ class HealthMetricPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: scheme.brightness == Brightness.dark ? 0.35 : 0.92),
+        color: scheme.surface.withValues(
+          alpha: scheme.brightness == Brightness.dark ? 0.35 : 0.92,
+        ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
       ),
@@ -191,9 +192,9 @@ class HealthMetricPill extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const Gap(2),
           Text(
@@ -250,15 +251,15 @@ class HealthBorderStatCard extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
                 const Gap(2),
                 Text(
                   value,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -342,9 +343,8 @@ class HealthReportListCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               title,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                           ),
                           const Gap(8),
@@ -353,7 +353,10 @@ class HealthReportListCard extends StatelessWidget {
                       ),
                       if (subtitle != null && subtitle!.isNotEmpty) ...[
                         const Gap(4),
-                        Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                       if (preview != null && preview!.trim().isNotEmpty) ...[
                         const Gap(6),
@@ -361,7 +364,8 @@ class HealthReportListCard extends StatelessWidget {
                           preview!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 color: scheme.onSurfaceVariant,
                                 height: 1.35,
                               ),
@@ -371,16 +375,19 @@ class HealthReportListCard extends StatelessWidget {
                         const Gap(6),
                         Text(
                           meta!,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
                       ],
                     ],
                   ),
                 ),
                 if (onTap != null)
-                  Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant, size: 22),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: scheme.onSurfaceVariant,
+                    size: 22,
+                  ),
               ],
             ),
           ),
@@ -417,12 +424,8 @@ class HealthDetailHero extends StatelessWidget {
       icon: icon,
       title: title,
       subtitle: subtitle,
-      metrics: [
-        _OutlineBadge(label: statusLabel, color: statusColor),
-      ],
-      footer: metaItems.isEmpty
-          ? null
-          : HealthMetadataGrid(items: metaItems),
+      metrics: [_OutlineBadge(label: statusLabel, color: statusColor)],
+      footer: metaItems.isEmpty ? null : HealthMetadataGrid(items: metaItems),
     );
   }
 }
@@ -447,7 +450,9 @@ class HealthMetadataGrid extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: scheme.brightness == Brightness.dark ? 0.45 : 0.95),
+        color: scheme.surface.withValues(
+          alpha: scheme.brightness == Brightness.dark ? 0.45 : 0.95,
+        ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
       ),
@@ -507,16 +512,16 @@ class _MetaRow extends StatelessWidget {
         Text(
           item.label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+            color: scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const Gap(2),
         Text(
           item.value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -555,9 +560,9 @@ class HealthDetailSection extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.onAccent,
-                ),
+              fontWeight: FontWeight.w800,
+              color: theme.onAccent,
+            ),
           ),
           const Gap(10),
           Container(
@@ -571,10 +576,10 @@ class HealthDetailSection extends StatelessWidget {
             child: Text(
               body,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    height: 1.5,
-                    fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
-                    color: highlight ? PunjabColors.danger : scheme.onSurface,
-                  ),
+                height: 1.5,
+                fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
+                color: highlight ? PunjabColors.danger : scheme.onSurface,
+              ),
             ),
           ),
         ],
@@ -610,7 +615,9 @@ class HealthPendingBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(height: 1.4),
             ),
           ),
         ],

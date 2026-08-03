@@ -27,17 +27,25 @@ class EmptyStateWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 56, color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
+          Icon(
+            icon,
+            size: 56,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+          ),
           const Gap(16),
           Text(
             title,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
             textAlign: TextAlign.center,
           ),
           const Gap(8),
           Text(
             message,
-            style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
           if (actionLabel != null && onAction != null) ...[

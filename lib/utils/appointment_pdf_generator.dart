@@ -10,11 +10,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/appointment_models.dart';
 import 'app_date_format.dart';
 
-Future<void> generateAndPrintAppointmentPDF(AppointmentDetails appointment) async {
+Future<void> generateAndPrintAppointmentPDF(
+  AppointmentDetails appointment,
+) async {
   final pdf = await generateAppointmentPDF(appointment);
-  await Printing.layoutPdf(
-    onLayout: (PdfPageFormat format) async => pdf,
-  );
+  await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf);
 }
 
 // Generate QR code data from appointment details
@@ -34,7 +34,10 @@ String _generateQrCodeData(AppointmentDetails appointment) {
 }
 
 // Convert QR code to PDF image
-Future<pw.Image> _generateQrCodeImage(String data, {double size = 120.0}) async {
+Future<pw.Image> _generateQrCodeImage(
+  String data, {
+  double size = 120.0,
+}) async {
   final qrValidationResult = QrValidator.validate(
     data: data,
     version: QrVersions.auto,
@@ -52,7 +55,7 @@ Future<pw.Image> _generateQrCodeImage(String data, {double size = 120.0}) async 
 
     final picRecorder = ui.PictureRecorder();
     final canvas = ui.Canvas(picRecorder);
-    
+
     painter.paint(canvas, ui.Size(size, size));
     final picture = picRecorder.endRecording();
     final image = await picture.toImage(size.toInt(), size.toInt());
@@ -68,7 +71,7 @@ Future<pw.Image> _generateQrCodeImage(String data, {double size = 120.0}) async 
 
 Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
   final pdf = pw.Document();
-  
+
   // Generate QR code image (smaller size for compact layout)
   final qrData = _generateQrCodeData(appointment);
   final qrImage = await _generateQrCodeImage(qrData, size: 100.0);
@@ -99,7 +102,6 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
               ),
             ),
             pw.SizedBox(height: 12), // Reduced from 30
-
             // Token and QR Code in a Row
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -111,7 +113,10 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                     padding: const pw.EdgeInsets.all(12), // Reduced from 20
                     decoration: pw.BoxDecoration(
                       color: PdfColors.blue50,
-                      border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
+                      border: pw.Border.all(
+                        color: PdfColors.blue900,
+                        width: 1.5,
+                      ),
                       borderRadius: pw.BorderRadius.circular(8),
                     ),
                     child: pw.Center(
@@ -170,7 +175,6 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
               ],
             ),
             pw.SizedBox(height: 12), // Reduced from 30
-
             // Information sections in two columns
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -199,14 +203,19 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            _buildInfoRowCompact('Name:', appointment.patientName),
+                            _buildInfoRowCompact(
+                              'Name:',
+                              appointment.patientName,
+                            ),
                             pw.SizedBox(height: 5), // Reduced from 8
-                            _buildInfoRowCompact('MRN:', appointment.patientMRN),
+                            _buildInfoRowCompact(
+                              'MRN:',
+                              appointment.patientMRN,
+                            ),
                           ],
                         ),
                       ),
                       pw.SizedBox(height: 10), // Reduced from 20
-
                       // Appointment Details
                       pw.Text(
                         'APPOINTMENT',
@@ -228,18 +237,28 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                           children: [
                             _buildInfoRowCompact(
                               'Date:',
-                              AppDateFormat.formatDate(appointment.appointmentDate),
+                              AppDateFormat.formatDate(
+                                appointment.appointmentDate,
+                              ),
                             ),
                             pw.SizedBox(height: 5),
                             _buildInfoRowCompact(
                               'Time:',
-                              AppDateFormat.formatTime(appointment.appointmentDate),
+                              AppDateFormat.formatTime(
+                                appointment.appointmentDate,
+                              ),
                             ),
                             pw.SizedBox(height: 5),
-                            _buildInfoRowCompact('Queue ID:', appointment.queueResponse.queueId.toString()),
+                            _buildInfoRowCompact(
+                              'Queue ID:',
+                              appointment.queueResponse.queueId.toString(),
+                            ),
                             if (appointment.queuePosition != null) ...[
                               pw.SizedBox(height: 5),
-                              _buildInfoRowCompact('Position:', appointment.queuePosition.toString()),
+                              _buildInfoRowCompact(
+                                'Position:',
+                                appointment.queuePosition.toString(),
+                              ),
                             ],
                           ],
                         ),
@@ -272,13 +291,22 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            _buildInfoRowCompact('Name:', appointment.hospital.name),
+                            _buildInfoRowCompact(
+                              'Name:',
+                              appointment.hospital.name,
+                            ),
                             if (appointment.hospital.type != null) ...[
                               pw.SizedBox(height: 5),
-                              _buildInfoRowCompact('Type:', appointment.hospital.type!),
+                              _buildInfoRowCompact(
+                                'Type:',
+                                appointment.hospital.type!,
+                              ),
                             ],
                             pw.SizedBox(height: 5),
-                            _buildInfoRowCompact('Location:', appointment.hospital.location),
+                            _buildInfoRowCompact(
+                              'Location:',
+                              appointment.hospital.location,
+                            ),
                           ],
                         ),
                       ),
@@ -303,11 +331,20 @@ Future<Uint8List> generateAppointmentPDF(AppointmentDetails appointment) async {
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
-                            _buildInfoRowCompact('Name:', appointment.department.name),
+                            _buildInfoRowCompact(
+                              'Name:',
+                              appointment.department.name,
+                            ),
                             if (appointment.department.description != null &&
-                                appointment.department.description!.isNotEmpty) ...[
+                                appointment
+                                    .department
+                                    .description!
+                                    .isNotEmpty) ...[
                               pw.SizedBox(height: 5),
-                              _buildInfoRowCompact('Desc:', appointment.department.description!),
+                              _buildInfoRowCompact(
+                                'Desc:',
+                                appointment.department.description!,
+                              ),
                             ],
                           ],
                         ),
@@ -349,17 +386,11 @@ pw.Widget _buildInfoRow(String label, String value) {
         width: 120,
         child: pw.Text(
           label,
-          style: pw.TextStyle(
-            fontSize: 12,
-            fontWeight: pw.FontWeight.bold,
-          ),
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
         ),
       ),
       pw.Expanded(
-        child: pw.Text(
-          value,
-          style: const pw.TextStyle(fontSize: 12),
-        ),
+        child: pw.Text(value, style: const pw.TextStyle(fontSize: 12)),
       ),
     ],
   );
@@ -388,4 +419,3 @@ pw.Widget _buildInfoRowCompact(String label, String value) {
     ],
   );
 }
-

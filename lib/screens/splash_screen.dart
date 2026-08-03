@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'signin_screen.dart';
 import '../shell/patient_shell.dart';
 import '../services/auth_service.dart';
 import '../services/inactivity_service.dart';
+import '../utils/brand_assets.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,113 +19,45 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late AnimationController _particleController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _rotationAnimation;
-  late Animation<double> _pulseAnimation;
-  late Animation<Offset> _textSlideAnimation1;
-  late Animation<Offset> _textSlideAnimation2;
 
   @override
   void initState() {
     super.initState();
 
-    // Main animation controller (3 seconds)
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
-    // Particle animation controller (continuous)
     _particleController = AnimationController(
       duration: const Duration(seconds: 8),
       vsync: this,
     )..repeat();
 
-    // Fade in animation
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
-      ),
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
 
-    // Scale animation for logo with elastic bounce
-    _scaleAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.7, curve: Curves.elasticOut),
-      ),
-    );
-
-    // Subtle rotation animation
-    _rotationAnimation = Tween<double>(
-      begin: -0.05,
-      end: 0.05,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeInOut),
-      ),
-    );
-
-    // Pulsing glow animation
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.15,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeInOut),
-      ),
-    );
-
-    // Text slide animations
-    _textSlideAnimation1 = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.5, 0.8, curve: Curves.easeOut),
-      ),
-    );
-
-    _textSlideAnimation2 = Tween<Offset>(
-      begin: const Offset(0, 0.5),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.6, 0.9, curve: Curves.easeOut),
-      ),
-    );
-
-    // Start animation
     _controller.forward();
-
-    // Navigate after animation completes
     _navigateToNextScreen();
   }
 
   Future<void> _navigateToNextScreen() async {
-    // Wait for animation to complete (3 seconds) + a small delay
-    await Future.delayed(const Duration(milliseconds: 3500));
+    await Future.delayed(const Duration(milliseconds: 2800));
 
     if (!mounted) return;
 
-    // Check if user is logged in
     final authService = AuthService.instance;
-    if (authService.isLoggedIn && authService.patientData != null) {
+    final validToken = await authService.getValidAccessToken();
+    if (!mounted) return;
+
+    if (validToken != null && authService.patientData != null) {
       final data = authService.patientData!;
       final mrn = data['MRN'] ?? data['mrn'] ?? '';
       final cnic = data['cnic'] ?? data['CNIC'] ?? '';
-      final identifier = mrn.toString().isNotEmpty ? mrn.toString() : cnic.toString();
+      final identifier = mrn.toString().isNotEmpty
+          ? mrn.toString()
+          : cnic.toString();
       InactivityService.instance.resetActivity();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -134,9 +66,7 @@ class _SplashScreenState extends State<SplashScreen>
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const SignInScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const SignInScreen()),
       );
     }
   }
@@ -150,135 +80,60 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final bannerWidth = width.clamp(280.0, 520.0);
+
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topLeft,
-            radius: 1.8,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              const Color(0xFF059669), // Dark green
-              const Color(0xFF10B981), // Emerald
-              const Color(0xFF34D399), // Light green
-              const Color(0xFF6EE7B7), // Lighter green
+              Color(0xFFDFEDE4),
+              Color(0xFFF0F5F2),
+              Color(0xFFF6F8F7),
             ],
-            stops: const [0.0, 0.3, 0.7, 1.0],
+            stops: [0.0, 0.35, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // Floating particles
             ...List.generate(6, (index) => _buildFloatingParticle(index)),
-            
-            // Main content - Stationary logo and text
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo with glassmorphism (stationary)
-                  Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.95),
-                          Colors.white.withOpacity(0.85),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(35),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                          offset: const Offset(0, 15),
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Image.asset(
+                    BrandAssets.banner,
+                    width: bannerWidth,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'SehatLink',
+                    errorBuilder: (_, __, ___) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          BrandAssets.logo,
+                          width: 140,
+                          height: 140,
+                          fit: BoxFit.contain,
                         ),
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.6),
-                          blurRadius: 30,
-                          spreadRadius: -10,
-                          offset: const Offset(0, -10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(35),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: const EdgeInsets.all(30),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(35),
-                          ),
-                          child: Image.asset(
-                            'assets/images/punjab.png',
-                            fit: BoxFit.contain,
-                            semanticLabel: 'Government of Punjab Health logo',
-                            errorBuilder: (context, error, stackTrace) {
-                              return Semantics(
-                                label: 'Hospital logo',
-                                child: Icon(
-                                  Icons.local_hospital_rounded,
-                                  size: 100,
-                                  color: const Color(0xFF059669),
-                                ),
-                              );
-                            },
+                        const SizedBox(height: 16),
+                        const Text(
+                          'SehatLink',
+                          style: TextStyle(
+                            color: Color(0xFF0A3F2C),
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  // Text (stationary)
-                  Text(
-                    'Government of the Punjab',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.5),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
                       ],
                     ),
-                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Health Department',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.95),
-                      letterSpacing: 1.2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
             ),
-            
-            // Loading indicator at bottom
             Positioned(
               bottom: 80,
               left: 0,
@@ -290,8 +145,8 @@ class _SplashScreenState extends State<SplashScreen>
                     height: 35,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withOpacity(0.9),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF0B4D35),
                       ),
                     ),
                   ),
@@ -299,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     'Loading...',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: const Color(0xFF0B4D35).withValues(alpha: 0.75),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 1.5,
@@ -318,27 +173,29 @@ class _SplashScreenState extends State<SplashScreen>
     return AnimatedBuilder(
       animation: _particleController,
       builder: (context, child) {
-        final angle = (_particleController.value * 2 * math.pi + index * math.pi / 3) % (2 * math.pi);
+        final angle =
+            (_particleController.value * 2 * math.pi + index * math.pi / 3) %
+            (2 * math.pi);
         final radius = 180.0 + (index % 3) * 40.0;
         final screenWidth = MediaQuery.of(context).size.width;
         final screenHeight = MediaQuery.of(context).size.height;
-        
+
         return Positioned(
           left: screenWidth / 2 + radius * math.cos(angle) - 6,
           top: screenHeight / 2 + radius * math.sin(angle) - 6,
           child: Opacity(
-            opacity: 0.4 + 0.3 * math.sin(angle * 2),
+            opacity: 0.2 + 0.15 * math.sin(angle * 2),
             child: Container(
-              width: 12,
-              height: 12,
+              width: 10,
+              height: 10,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFF009091),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.5),
+                    color: const Color(0xFF009091).withValues(alpha: 0.35),
                     blurRadius: 8,
-                    spreadRadius: 2,
+                    spreadRadius: 1,
                   ),
                 ],
               ),
@@ -349,4 +206,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-

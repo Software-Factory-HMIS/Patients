@@ -9,16 +9,16 @@ class AppLocalizationsUr extends AppLocalizations {
   AppLocalizationsUr([String locale = 'ur']) : super(locale);
 
   @override
-  String get appTitle => 'حکومت پنجاب مریض ایپ';
+  String get appTitle => 'SehatLink';
 
   @override
-  String get appNameShort => 'حکومت پنجاب مریض ایپ';
+  String get appNameShort => 'SehatLink';
 
   @override
   String get governmentOfPunjab => 'حکومت پنجاب';
 
   @override
-  String get patientApp => 'مریض ایپ';
+  String get patientApp => 'SehatLink';
 
   @override
   String get healthDepartment => 'محکمہ صحت';
@@ -148,7 +148,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get myVisitsSubtitle => 'اپنی ہسپتال کی وزٹیں اور طبی ریکارڈ دیکھیں۔';
 
   @override
-  String get profileSubtitle => 'اپنا اکاؤنٹ اور ذاتی تفصیلات منظم کریں۔';
+  String get profileSubtitle => 'اپنا پروفائل اور ذاتی تفصیلات منظم کریں۔';
 
   @override
   String get healthRecords => 'صحت کے ریکارڈ';
@@ -324,7 +324,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get helpDialogMessage =>
-      'اکاؤنٹ یا طبی ریکارڈ کے مسائل کے لیے اپنے ہسپتال کی ریسیپشن یا پنجاب ہیلتھ سپورٹ سے رابطہ کریں۔';
+      'مریض ریکارڈ یا طبی ریکارڈ کے مسائل کے لیے اپنے ہسپتال کی ریسیپشن یا پنجاب ہیلتھ سپورٹ سے رابطہ کریں۔';
 
   @override
   String get trustedByPunjabHealth => 'پنجاب ہیلتھ کی طرف سے قابل اعتماد';
@@ -408,7 +408,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get signInInfoMessage =>
-      'ہسپتال کے ریکارڈ تک محفوظ رسائی کے لیے اپنا قومی شناختی کارڈ درج کریں۔ غیر رجسٹرڈ مریض ریسیپشن سے رابطہ کریں۔';
+      'ہسپتال کے ریکارڈ تک محفوظ رسائی کے لیے اپنا قومی شناختی کارڈ درج کریں۔ اگر ریکارڈ نہ ملے تو ہسپتال کی ریسیپشن سے رابطہ کریں۔';
 
   @override
   String get enterCnic => 'براہ کرم اپنا قومی شناختی کارڈ نمبر درج کریں';
@@ -427,11 +427,11 @@ class AppLocalizationsUr extends AppLocalizations {
   String get scanCnic => 'کارڈ اسکین کریں';
 
   @override
-  String get accountNotFound => 'اکاؤنٹ نہیں ملا';
+  String get accountNotFound => 'مریض نہیں ملا';
 
   @override
   String accountNotFoundMessage(String cnic) {
-    return 'ہمیں قومی شناختی کارڈ $cnic کے ساتھ کوئی مریض نہیں ملا۔\n\nبراہ کرم رجسٹریشن کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
+    return 'ہمیں قومی شناختی کارڈ $cnic کے ساتھ کوئی مریض نہیں ملا۔\n\nبراہ کرم مدد کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
   }
 
   @override
@@ -439,7 +439,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String phoneMissingMessage(String name) {
-    return 'سلام $name،\n\nآپ کے اکاؤنٹ میں فون نمبر نہیں ہے۔ براہ کرم رابطے کی تفصیلات اپ ڈیٹ کرنے کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
+    return 'سلام $name،\n\nآپ کے مریض ریکارڈ میں فون نمبر نہیں ہے۔ براہ کرم رابطے کی تفصیلات اپ ڈیٹ کرنے کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
   }
 
   @override
@@ -477,7 +477,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get contactSupport => 'مدد چاہیے؟ سپورٹ سے رابطہ کریں';
 
   @override
-  String get healthcarePortalFooter => 'ہیلتھ کیئر پورٹل  |  حکومت پنجاب';
+  String get healthcarePortalFooter => 'SEHATLINK  |  حکومت پنجاب';
 
   @override
   String get copyrightPitb => '© 2024 محکمہ صحت و آبادی';
@@ -574,7 +574,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get phoneVerifyInfo =>
-      'ہم آپ کے رجسٹرڈ نمبر پر ۶ ہندسوں کا کوڈ بھیجیں گے۔ اگر نمبر غلط ہے تو ریسیپشن پر جائیں۔';
+      'ہم آپ کے مریض ریکارڈ پر موجود فون نمبر پر ۶ ہندسوں کا کوڈ بھیجیں گے۔ اگر نمبر غلط ہے تو ریسیپشن پر جائیں۔';
 
   @override
   String get howToSendCode => 'کوڈ کس طرح بھیجیں؟';
@@ -616,7 +616,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get signIn => 'سائن ان';
 
   @override
-  String get registeredNumber => 'آپ کا رجسٹرڈ نمبر';
+  String get registeredNumber => 'آپ کا فون نمبر';
 
   @override
   String otpSentVia(String channel, String phone) {
@@ -644,9 +644,6 @@ class AppLocalizationsUr extends AppLocalizations {
   String get apiInvalidOtp => 'غلط کوڈ۔ دوبارہ کوشش کریں۔';
 
   @override
-  String get apiInvalidCnicPassword => 'غلط قومی شناختی کارڈ یا پاس ورڈ۔';
-
-  @override
   String get apiPatientNotFound => 'مریض نہیں ملا';
 
   @override
@@ -667,7 +664,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String apiAccountFoundOtp(String phone) {
-    return 'آپ کا اکاؤنٹ مل گیا۔ کوڈ $phone پر بھیجا جائے گا۔';
+    return 'آپ کا مریض ریکارڈ مل گیا۔ کوڈ $phone پر بھیجا جائے گا۔';
   }
 
   @override

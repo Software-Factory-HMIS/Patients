@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Government of Punjab Patient\'s App'**
+  /// **'SehatLink'**
   String get appTitle;
 
   /// No description provided for @appNameShort.
   ///
   /// In en, this message translates to:
-  /// **'Government of Punjab Patient\'s App'**
+  /// **'SehatLink'**
   String get appNameShort;
 
   /// No description provided for @governmentOfPunjab.
@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @patientApp.
   ///
   /// In en, this message translates to:
-  /// **'Patient App'**
+  /// **'SehatLink'**
   String get patientApp;
 
   /// No description provided for @healthDepartment.
@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Manage your account and personal details.'**
+  /// **'Manage your profile and personal details.'**
   String get profileSubtitle;
 
   /// No description provided for @healthRecords.
@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpDialogMessage.
   ///
   /// In en, this message translates to:
-  /// **'For account or medical record issues, contact your hospital reception or Punjab Health support.'**
+  /// **'For patient record or medical record issues, contact your hospital reception or Punjab Health support.'**
   String get helpDialogMessage;
 
   /// No description provided for @trustedByPunjabHealth.
@@ -857,7 +857,7 @@ abstract class AppLocalizations {
   /// No description provided for @signInInfoMessage.
   ///
   /// In en, this message translates to:
-  /// **'Enter your CNIC to securely access hospital records. Unregistered patients should contact reception.'**
+  /// **'Enter your CNIC to securely access hospital records. If your record is not found, contact hospital reception.'**
   String get signInInfoMessage;
 
   /// No description provided for @enterCnic.
@@ -893,13 +893,13 @@ abstract class AppLocalizations {
   /// No description provided for @accountNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Account not found'**
+  /// **'Patient not found'**
   String get accountNotFound;
 
   /// No description provided for @accountNotFoundMessage.
   ///
   /// In en, this message translates to:
-  /// **'We could not find a patient with CNIC {cnic}.\n\nPlease visit hospital reception for registration.'**
+  /// **'We could not find a patient with CNIC {cnic}.\n\nPlease visit hospital reception for assistance.'**
   String accountNotFoundMessage(String cnic);
 
   /// No description provided for @phoneMissing.
@@ -911,7 +911,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneMissingMessage.
   ///
   /// In en, this message translates to:
-  /// **'Hello {name},\n\nYour account does not have a phone number. Please visit hospital reception to update your contact details.'**
+  /// **'Hello {name},\n\nYour patient record does not have a phone number. Please visit hospital reception to update your contact details.'**
   String phoneMissingMessage(String name);
 
   /// No description provided for @cnicPhotoCaptured.
@@ -983,7 +983,7 @@ abstract class AppLocalizations {
   /// No description provided for @healthcarePortalFooter.
   ///
   /// In en, this message translates to:
-  /// **'HEALTHCARE PORTAL  |  PUNJAB GOVERNMENT'**
+  /// **'SEHATLINK  |  PUNJAB GOVERNMENT'**
   String get healthcarePortalFooter;
 
   /// No description provided for @copyrightPitb.
@@ -1145,7 +1145,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneVerifyInfo.
   ///
   /// In en, this message translates to:
-  /// **'We will send a 6-digit code to your registered number. Visit reception if this number is wrong.'**
+  /// **'We will send a 6-digit code to the phone number on your patient record. Visit reception if this number is wrong.'**
   String get phoneVerifyInfo;
 
   /// No description provided for @howToSendCode.
@@ -1223,7 +1223,7 @@ abstract class AppLocalizations {
   /// No description provided for @registeredNumber.
   ///
   /// In en, this message translates to:
-  /// **'your registered number'**
+  /// **'your phone number'**
   String get registeredNumber;
 
   /// No description provided for @otpSentVia.
@@ -1268,12 +1268,6 @@ abstract class AppLocalizations {
   /// **'Invalid OTP code. Please try again.'**
   String get apiInvalidOtp;
 
-  /// No description provided for @apiInvalidCnicPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid CNIC or password.'**
-  String get apiInvalidCnicPassword;
-
   /// No description provided for @apiPatientNotFound.
   ///
   /// In en, this message translates to:
@@ -1307,7 +1301,7 @@ abstract class AppLocalizations {
   /// No description provided for @apiAccountFoundOtp.
   ///
   /// In en, this message translates to:
-  /// **'We found your account. OTP will be sent to {phone}.'**
+  /// **'We found your patient record. OTP will be sent to {phone}.'**
   String apiAccountFoundOtp(String phone);
 
   /// No description provided for @apiNetworkError.

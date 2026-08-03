@@ -5,7 +5,8 @@ double haversineDistanceKm(double lat1, double lon1, double lat2, double lon2) {
   const earthRadiusKm = 6371.0;
   final dLat = _degToRad(lat2 - lat1);
   final dLon = _degToRad(lon2 - lon1);
-  final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+  final a =
+      math.sin(dLat / 2) * math.sin(dLat / 2) +
       math.cos(_degToRad(lat1)) *
           math.cos(_degToRad(lat2)) *
           math.sin(dLon / 2) *
@@ -57,7 +58,11 @@ class PunjabGeoLookup {
     'nankana sahib': (31.4500, 73.7000),
   };
 
-  static (double lat, double lon)? centroidFor({String? district, String? tehsil, String? division}) {
+  static (double lat, double lon)? centroidFor({
+    String? district,
+    String? tehsil,
+    String? division,
+  }) {
     for (final value in [tehsil, district, division]) {
       final key = _normalize(value);
       if (key == null) continue;

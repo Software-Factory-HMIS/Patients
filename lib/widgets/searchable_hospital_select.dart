@@ -9,7 +9,8 @@ import '../utils/app_localizations_ext.dart';
 import '../utils/geo_utils.dart';
 import 'punjab_ui.dart';
 
-typedef HospitalSearchCallback = Future<List<Hospital>> Function(String searchTerm);
+typedef HospitalSearchCallback =
+    Future<List<Hospital>> Function(String searchTerm);
 typedef NearbyHospitalsLoader = Future<NearbyHospitalsResponse> Function();
 
 /// Searchable hospital picker aligned with hmis-frontend super-admin SearchableSelect:
@@ -72,7 +73,11 @@ class SearchableHospitalSelect extends StatelessWidget {
         if (showHeader) ...[
           Row(
             children: [
-              Icon(Icons.local_hospital_outlined, color: colorScheme.primary, size: 22),
+              Icon(
+                Icons.local_hospital_outlined,
+                color: colorScheme.primary,
+                size: 22,
+              ),
               const Gap(8),
               Text(
                 label,
@@ -82,7 +87,10 @@ class SearchableHospitalSelect extends StatelessWidget {
                 ),
               ),
               const Gap(4),
-              Text('*', style: TextStyle(color: colorScheme.error, fontSize: 18)),
+              Text(
+                '*',
+                style: TextStyle(color: colorScheme.error, fontSize: 18),
+              ),
             ],
           ),
           const Gap(12),
@@ -134,7 +142,8 @@ class SearchableHospitalSelect extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (selectedHospital!.location != 'Location not specified') ...[
+                              if (selectedHospital!.location !=
+                                  'Location not specified') ...[
                                 Text(
                                   selectedHospital!.location,
                                   style: const TextStyle(
@@ -153,8 +162,15 @@ class SearchableHospitalSelect extends StatelessWidget {
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                      icon: const Icon(Icons.close, size: 18, color: PunjabColors.textSecondary),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: PunjabColors.textSecondary,
+                      ),
                       onPressed: () => onSelected(null),
                     ),
                     const Gap(4),
@@ -251,7 +267,8 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
       }
 
       for (final item in nearby.results) {
-        if (hospitals.any((h) => h.hospitalID == item.hospital.hospitalID)) continue;
+        if (hospitals.any((h) => h.hospitalID == item.hospital.hospitalID))
+          continue;
         hospitals.add(item.hospital);
         _distancesKm[item.hospital.hospitalID] = item.distanceKm;
       }
@@ -266,7 +283,9 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
       setState(() {
         _loading = false;
         _showingNearby = false;
-        _results = widget.initialSelection != null ? [widget.initialSelection!] : [];
+        _results = widget.initialSelection != null
+            ? [widget.initialSelection!]
+            : [];
       });
     }
   }
@@ -308,7 +327,9 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
   String? _subtitleFor(Hospital hospital) {
     final l = context.l10n;
     final distance = _distanceFor(hospital);
-    final location = hospital.location == 'Location not specified' ? null : hospital.location;
+    final location = hospital.location == 'Location not specified'
+        ? null
+        : hospital.location;
 
     if (distance != null && location != null) {
       return '$location · ${l.distanceAwayKm(_formatDistance(distance))}';
@@ -338,7 +359,9 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
 
       final merged = <Hospital>[];
       if (widget.initialSelection != null &&
-          !hospitals.any((h) => h.hospitalID == widget.initialSelection!.hospitalID)) {
+          !hospitals.any(
+            (h) => h.hospitalID == widget.initialSelection!.hospitalID,
+          )) {
         merged.add(widget.initialSelection!);
       }
       merged.addAll(hospitals);
@@ -353,7 +376,9 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
       setState(() {
         _loading = false;
         _error = 'Failed to search hospitals';
-        _results = widget.initialSelection != null ? [widget.initialSelection!] : [];
+        _results = widget.initialSelection != null
+            ? [widget.initialSelection!]
+            : [];
       });
     }
   }
@@ -363,114 +388,131 @@ class _HospitalPickerSheetState extends State<_HospitalPickerSheet> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l = context.l10n;
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.72,
-        child: Column(
-          children: [
-            const Gap(8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.outline.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(999),
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.72,
+      child: Column(
+        children: [
+          const Gap(8),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.outline.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              l.selectHospital,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                l.selectHospital,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: widget.searchPlaceholder,
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () => _searchController.clear(),
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: widget.searchPlaceholder,
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
-            if (_showingNearby && !_loading)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l.nearestHospitals,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: PunjabColors.primary,
-                    ),
+          ),
+          if (_showingNearby && !_loading)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l.nearestHospitals,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: PunjabColors.primary,
                   ),
                 ),
               ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(_error!, style: TextStyle(color: colorScheme.error)),
-              ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: PunjabColors.primary))
-                  : _results.isEmpty
-                      ? Center(
-                          child: Text(
-                            _searchController.text.trim().isEmpty
-                                ? l.typeToSearchMoreHospitals
-                                : widget.emptyText,
-                            style: TextStyle(color: colorScheme.onSurfaceVariant),
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _results.length,
-                          separatorBuilder: (_, __) => const Gap(8),
-                          itemBuilder: (context, index) {
-                            final hospital = _results[index];
-                            final isSelected =
-                                widget.initialSelection?.hospitalID == hospital.hospitalID;
-                            final subtitle = _subtitleFor(hospital);
-
-                            return ListTile(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.15)),
-                              ),
-                              tileColor: isSelected
-                                  ? colorScheme.primaryContainer.withValues(alpha: 0.35)
-                                  : colorScheme.surfaceContainerHighest,
-                              leading: const Icon(Icons.local_hospital, color: PunjabColors.primary),
-                              title: Text(
-                                hospital.name,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: subtitle == null ? null : Text(subtitle),
-                              trailing: isSelected
-                                  ? Icon(Icons.check, color: colorScheme.primary)
-                                  : null,
-                              onTap: () => Navigator.of(context).pop(hospital),
-                            );
-                          },
-                        ),
             ),
-          ],
-        ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                _error!,
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+          Expanded(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: PunjabColors.primary,
+                    ),
+                  )
+                : _results.isEmpty
+                ? Center(
+                    child: Text(
+                      _searchController.text.trim().isEmpty
+                          ? l.typeToSearchMoreHospitals
+                          : widget.emptyText,
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _results.length,
+                    separatorBuilder: (_, __) => const Gap(8),
+                    itemBuilder: (context, index) {
+                      final hospital = _results[index];
+                      final isSelected =
+                          widget.initialSelection?.hospitalID ==
+                          hospital.hospitalID;
+                      final subtitle = _subtitleFor(hospital);
+
+                      return ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: colorScheme.outline.withValues(
+                              alpha: 0.15,
+                            ),
+                          ),
+                        ),
+                        tileColor: isSelected
+                            ? colorScheme.primaryContainer.withValues(
+                                alpha: 0.35,
+                              )
+                            : colorScheme.surfaceContainerHighest,
+                        leading: const Icon(
+                          Icons.local_hospital,
+                          color: PunjabColors.primary,
+                        ),
+                          title: Text(
+                            hospital.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: subtitle == null ? null : Text(subtitle),
+                          trailing: isSelected
+                              ? Icon(Icons.check, color: colorScheme.primary)
+                              : null,
+                          onTap: () => Navigator.of(context).pop(hospital),
+                        );
+                      },
+                    ),
+          ),
+        ],
       ),
     );
   }

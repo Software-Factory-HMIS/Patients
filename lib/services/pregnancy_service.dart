@@ -7,12 +7,16 @@ class PregnancyService {
   Future<List<Map<String, dynamic>>> getPatientSurgeries(int patientId) =>
       _api.getPatientSurgeries(patientId);
 
-  Future<List<Map<String, dynamic>>> getPatientAllergies(dynamic patientId) async {
+  Future<List<Map<String, dynamic>>> getPatientAllergies(
+    dynamic patientId,
+  ) async {
     final id = patientId is int ? patientId : int.parse(patientId.toString());
     return _api.getPatientAllergies(id);
   }
 
-  Future<List<Map<String, dynamic>>> getPatientRiskFactors(dynamic patientId) async {
+  Future<List<Map<String, dynamic>>> getPatientRiskFactors(
+    dynamic patientId,
+  ) async {
     final id = patientId is int ? patientId : int.parse(patientId.toString());
     return _api.getPatientRiskFactors(id);
   }

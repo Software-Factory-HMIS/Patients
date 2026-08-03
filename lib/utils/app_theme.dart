@@ -7,36 +7,37 @@ class AppTheme {
   AppTheme._();
 
   static ColorScheme get _lightScheme => const ColorScheme.light(
-        primary: PunjabColors.primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFD8EDE3),
-        onPrimaryContainer: PunjabColors.primaryDark,
-        secondary: PunjabColors.accent,
-        onSecondary: Colors.white,
-        tertiary: PunjabColors.labBlue,
-        surface: PunjabColors.background,
-        onSurface: PunjabColors.textPrimary,
-        onSurfaceVariant: PunjabColors.textSecondary,
-        outline: PunjabColors.border,
-        error: PunjabColors.danger,
-        surfaceContainerHighest: Color(0xFFE8EDEA),
-      );
+    primary: PunjabColors.primary,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFFD8EDE3),
+    onPrimaryContainer: PunjabColors.primaryDark,
+    secondary: PunjabColors.accent,
+    onSecondary: Colors.white,
+    tertiary: PunjabColors.labBlue,
+    surface: PunjabColors.background,
+    onSurface: PunjabColors.textPrimary,
+    onSurfaceVariant: PunjabColors.textSecondary,
+    outline: PunjabColors.border,
+    error: PunjabColors.danger,
+    surfaceContainerHighest: Color(0xFFE8EDEA),
+  );
 
   static ColorScheme get _darkScheme => const ColorScheme.dark(
-        primary: Color(0xFF4CAF7A),
-        onPrimary: Color(0xFF0A1F14),
-        primaryContainer: Color(0xFF1B3D2B),
-        onPrimaryContainer: Color(0xFFB8E6CC),
-        secondary: Color(0xFF5CB896),
-        surface: Color(0xFF111714),
-        onSurface: Color(0xFFE8EDE9),
-        onSurfaceVariant: Color(0xFF9CA89F),
-        outline: Color(0xFF2D3B32),
-        error: Color(0xFFFF6B6B),
-        surfaceContainerHighest: Color(0xFF1A231E),
-      );
+    primary: Color(0xFF4CAF7A),
+    onPrimary: Color(0xFF0A1F14),
+    primaryContainer: Color(0xFF1B3D2B),
+    onPrimaryContainer: Color(0xFFB8E6CC),
+    secondary: Color(0xFF5CB896),
+    surface: Color(0xFF111714),
+    onSurface: Color(0xFFE8EDE9),
+    onSurfaceVariant: Color(0xFF9CA89F),
+    outline: Color(0xFF2D3B32),
+    error: Color(0xFFFF6B6B),
+    surfaceContainerHighest: Color(0xFF1A231E),
+  );
 
-  static ThemeData get lightTheme => _buildTheme(_lightScheme, Brightness.light);
+  static ThemeData get lightTheme =>
+      _buildTheme(_lightScheme, Brightness.light);
   static ThemeData get darkTheme => _buildTheme(_darkScheme, Brightness.dark);
 
   static ThemeData _buildTheme(ColorScheme scheme, Brightness brightness) {
@@ -55,7 +56,9 @@ class AppTheme {
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
         surfaceTintColor: Colors.transparent,
-        systemOverlayStyle: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        systemOverlayStyle: isDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w800,
@@ -102,7 +105,9 @@ class AppTheme {
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
           minimumSize: const Size(64, 54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
         ),
       ),
@@ -124,17 +129,50 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
-      dividerTheme: DividerThemeData(color: scheme.outline.withValues(alpha: 0.4)),
+      dividerTheme: DividerThemeData(
+        color: scheme.outline.withValues(alpha: 0.4),
+      ),
       textTheme: TextTheme(
-        headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: scheme.onSurface),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: scheme.onSurface),
-        titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: scheme.onSurface),
-        titleSmall: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: scheme.onSurface),
-        bodyLarge: TextStyle(fontSize: 16, color: scheme.onSurface, height: 1.45),
-        bodyMedium: TextStyle(fontSize: 15, color: scheme.onSurface, height: 1.4),
-        bodySmall: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, height: 1.35),
+        headlineSmall: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: scheme.onSurface,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: scheme.onSurface,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+        ),
+        titleSmall: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          color: scheme.onSurface,
+          height: 1.45,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 15,
+          color: scheme.onSurface,
+          height: 1.4,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 13,
+          color: scheme.onSurfaceVariant,
+          height: 1.35,
+        ),
       ),
     );
   }
@@ -144,8 +182,7 @@ class AppTheme {
 
   static Color cardColor(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.cardTheme.color ??
-        theme.colorScheme.surfaceContainerHighest;
+    return theme.cardTheme.color ?? theme.colorScheme.surfaceContainerHighest;
   }
 
   static Color inputFillColor(BuildContext context) {
@@ -160,7 +197,9 @@ class AppTheme {
     return BoxDecoration(
       color: cardColor(context),
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: scheme.outline.withValues(alpha: dark ? 0.45 : 0.8)),
+      border: Border.all(
+        color: scheme.outline.withValues(alpha: dark ? 0.45 : 0.8),
+      ),
       boxShadow: dark
           ? null
           : [
@@ -177,12 +216,14 @@ class AppTheme {
     return BoxDecoration(color: Theme.of(context).colorScheme.surface);
   }
 
-  static BoxDecoration screenGradient(BuildContext context) => pageBackground(context);
+  static BoxDecoration screenGradient(BuildContext context) =>
+      pageBackground(context);
 
   static BoxDecoration elevatedCard(BuildContext context, {Color? accent}) =>
       cardDecoration(context);
 
-  static BoxDecoration formCardDecoration(BuildContext context) => elevatedCard(context);
+  static BoxDecoration formCardDecoration(BuildContext context) =>
+      elevatedCard(context);
 
   static BoxDecoration drawerHeaderDecoration(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -194,7 +235,12 @@ class AppTheme {
     );
   }
 
-  static Widget heroIcon(BuildContext context, {required IconData icon, double size = 64, double containerSize = 96}) {
+  static Widget heroIcon(
+    BuildContext context, {
+    required IconData icon,
+    double size = 64,
+    double containerSize = 96,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: containerSize,

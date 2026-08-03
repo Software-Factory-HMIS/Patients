@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,6 +10,13 @@ import '../widgets/punjab_ui.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/app_snackbar.dart';
 import 'patient_file_print_helper.dart';
+
+// ponytail: legacy diagnostics stay available in debug without leaking PHI
+// from release builds; replace call sites with structured redacted logging if
+// production diagnostics are introduced.
+void print(Object? message) {
+  if (kDebugMode) debugPrint(message?.toString());
+}
 
 class PatientFileScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
@@ -30,16 +38,18 @@ class PatientFileScreen extends StatefulWidget {
 
 class _PatientFileScreenState extends State<PatientFileScreen> {
   EmrApiClient? _api;
-  
+
   List<Map<String, dynamic>> _encounters = [];
-  List<Map<String, dynamic>> _encounterDataList = []; // Full encounter data with all details
+  List<Map<String, dynamic>> _encounterDataList =
+      []; // Full encounter data with all details
   List<Map<String, dynamic>> _surgeries = []; // Patient surgeries
   List<dynamic> _allVitals = []; // All patient vitals
-  List<Map<String, dynamic>> _combinedTimeline = []; // Combined vitals, encounters and surgeries in chronological order
+  List<Map<String, dynamic>> _combinedTimeline =
+      []; // Combined vitals, encounters and surgeries in chronological order
   bool _loading = false;
   bool _loadingDetails = false;
   String? _error;
-  
+
   // Header summary data
   List<dynamic> _headerChronic = [];
   List<dynamic> _headerAllergies = [];
@@ -50,7 +60,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 15));
   DateTime _endDate = DateTime.now();
   bool _dataLoaded = false;
-  bool _loadingFile = false; // true while Show fetch is in progress (disables button, shows progress)
+  bool _loadingFile =
+      false; // true while Show fetch is in progress (disables button, shows progress)
 
   @override
   void initState() {
@@ -75,7 +86,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Future<void> _loadAllVitals(int patientId, {DateTime? fromDate, DateTime? toDate}) async {
+  Future<void> _loadAllVitals(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
     if (_api == null) return;
     try {
       final allVitals = await _api!.getPatientVitals(
@@ -101,39 +116,50 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     });
 
     try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
+      final patientId =
+          widget.patient['patientId'] ?? widget.patient['PatientID'];
       if (patientId == null) return;
 
       List<Map<String, dynamic>> encounterDataList = [];
-      
+
       // Create a map of vitals by encounterId for quick lookup
       final Map<int, List<dynamic>> vitalsByEncounterId = {};
       for (final vital in _allVitals) {
-        final encounterId = vital['encounterId'] ?? 
-                           vital['EncounterID'] ?? 
-                           vital['encounterID'];
+        final encounterId =
+            vital['encounterId'] ??
+            vital['EncounterID'] ??
+            vital['encounterID'];
         if (encounterId != null) {
-          final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
+          final parsedEncounterId = encounterId is int
+              ? encounterId
+              : int.tryParse(encounterId.toString());
           if (parsedEncounterId != null) {
-            vitalsByEncounterId.putIfAbsent(parsedEncounterId, () => []).add(vital);
+            vitalsByEncounterId
+                .putIfAbsent(parsedEncounterId, () => [])
+                .add(vital);
           }
         }
       }
-      
+
       for (final encounter in _encounters) {
-        final encounterId = encounter['encounterId'] ?? 
-                           encounter['EncounterID'] ?? 
-                           encounter['encounterID'];
+        final encounterId =
+            encounter['encounterId'] ??
+            encounter['EncounterID'] ??
+            encounter['encounterID'];
         if (encounterId == null) continue;
 
-        final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
+        final parsedEncounterId = encounterId is int
+            ? encounterId
+            : int.tryParse(encounterId.toString());
         if (parsedEncounterId == null) continue;
 
         try {
           // Get consultation data
           final consultationData = await _api!.getEncounterConsultationData(
             parsedEncounterId,
-            patientId: patientId is int ? patientId : int.parse(patientId.toString()),
+            patientId: patientId is int
+                ? patientId
+                : int.parse(patientId.toString()),
           );
 
           // Get vitals for this encounter from the pre-loaded list
@@ -148,8 +174,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             'labOrders': consultationData['labOrders'] ?? [],
             'radiologyOrders': consultationData['radiologyOrders'] ?? [],
             'medicines': consultationData['medicines'] ?? [],
-            'notes': consultationData['notes'] ?? consultationData['patientNotes'] ?? [],
-            'clinicalNotes': consultationData['clinicalNotes'] ?? consultationData['clinicalNote'] ?? '',
+            'notes':
+                consultationData['notes'] ??
+                consultationData['patientNotes'] ??
+                [],
+            'clinicalNotes':
+                consultationData['clinicalNotes'] ??
+                consultationData['clinicalNote'] ??
+                '',
           });
         } catch (e) {
           print('Error loading encounter data: $e');
@@ -183,7 +215,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
   Future<void> _loadSurgeries() async {
     try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
+      final patientId =
+          widget.patient['patientId'] ?? widget.patient['PatientID'];
       if (patientId == null) return;
 
       final surgeries = await _api!.getPatientSurgeries(
@@ -205,44 +238,41 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     // Add vitals with type marker (only vitals not associated with encounters)
     for (final vital in _allVitals) {
-      final encounterId = vital['encounterId'] ?? 
-                         vital['EncounterID'] ?? 
-                         vital['encounterID'];
-      
+      final encounterId =
+          vital['encounterId'] ?? vital['EncounterID'] ?? vital['encounterID'];
+
       // Only add vitals that are not part of an encounter
       if (encounterId == null) {
-        final recordedDate = vital['recordedDate'] ?? 
-                            vital['RecordedDate'] ?? 
-                            vital['recordedAt'] ??
-                            vital['createdAt'];
-        
+        final recordedDate =
+            vital['recordedDate'] ??
+            vital['RecordedDate'] ??
+            vital['recordedAt'] ??
+            vital['createdAt'];
+
         DateTime? parsedDate;
         if (recordedDate != null) {
-          parsedDate = recordedDate is DateTime 
-              ? recordedDate 
+          parsedDate = recordedDate is DateTime
+              ? recordedDate
               : DateTime.tryParse(recordedDate.toString());
         }
 
-        timeline.add({
-          'type': 'vitals',
-          'date': parsedDate,
-          'data': vital,
-        });
+        timeline.add({'type': 'vitals', 'date': parsedDate, 'data': vital});
       }
     }
 
     // Add encounters with type marker
     for (final encounterData in _encounterDataList) {
       final encounter = encounterData['encounter'] as Map<String, dynamic>;
-      final encounterDate = encounter['encounterDate'] ?? 
-                           encounter['EncounterDate'] ?? 
-                           encounter['checkInTime'] ?? 
-                           encounter['CheckInTime'];
-      
+      final encounterDate =
+          encounter['encounterDate'] ??
+          encounter['EncounterDate'] ??
+          encounter['checkInTime'] ??
+          encounter['CheckInTime'];
+
       DateTime? parsedDate;
       if (encounterDate != null) {
-        parsedDate = encounterDate is DateTime 
-            ? encounterDate 
+        parsedDate = encounterDate is DateTime
+            ? encounterDate
             : DateTime.tryParse(encounterDate.toString());
       }
 
@@ -256,26 +286,22 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     // Add surgeries with type marker
     for (final surgery in _surgeries) {
       final surgeryDate = surgery['surgeryDate'] ?? surgery['SurgeryDate'];
-      
+
       DateTime? parsedDate;
       if (surgeryDate != null) {
-        parsedDate = surgeryDate is DateTime 
-            ? surgeryDate 
+        parsedDate = surgeryDate is DateTime
+            ? surgeryDate
             : DateTime.tryParse(surgeryDate.toString());
       }
 
-      timeline.add({
-        'type': 'surgery',
-        'date': parsedDate,
-        'data': surgery,
-      });
+      timeline.add({'type': 'surgery', 'date': parsedDate, 'data': surgery});
     }
 
     // Sort by date (newest first - reverse chronological)
     timeline.sort((a, b) {
       final dateA = a['date'] as DateTime?;
       final dateB = b['date'] as DateTime?;
-      
+
       if (dateA == null && dateB == null) return 0;
       if (dateA == null) return 1;
       if (dateB == null) return -1;
@@ -290,14 +316,19 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   Future<void> _loadHeaderSummary() async {
     try {
       print('[IPD File] _loadHeaderSummary called');
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
-      print('[IPD File] Patient ID for header: $patientId, type: ${patientId.runtimeType}');
+      final patientId =
+          widget.patient['patientId'] ?? widget.patient['PatientID'];
+      print(
+        '[IPD File] Patient ID for header: $patientId, type: ${patientId.runtimeType}',
+      );
       if (patientId == null) {
         print('[IPD File] Patient ID is null, returning');
         return;
       }
 
-      final parsedPatientId = patientId is int ? patientId : int.tryParse(patientId.toString());
+      final parsedPatientId = patientId is int
+          ? patientId
+          : int.tryParse(patientId.toString());
       if (parsedPatientId == null) {
         print('[IPD File] Could not parse patient ID: $patientId');
         return;
@@ -311,7 +342,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         _api!.getPatientRiskFactors(parsedPatientId),
         _api!.getActivePatientMedicines(patientId: parsedPatientId),
       ]);
-      print('[IPD File] Header summary results loaded: ${results.length} items');
+      print(
+        '[IPD File] Header summary results loaded: ${results.length} items',
+      );
 
       setState(() {
         try {
@@ -322,27 +355,32 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           print('[IPD File] Allergies: ${_headerAllergies.length}');
           _headerRiskFactors = results[2] as List<dynamic>;
           print('[IPD File] Risk factors: ${_headerRiskFactors.length}');
-          
+
           // Extract unique salt names from active medicines for header display
           final activeMedicines = results[3] as List<Map<String, dynamic>>;
           print('[IPD File] Active medicines: ${activeMedicines.length}');
           final Set<String> uniqueSaltNames = {};
           for (final item in activeMedicines) {
             try {
-              final saltName = item['SaltName'] ?? item['saltName'] ?? item['Salt'] ?? item['salt'];
+              final saltName =
+                  item['SaltName'] ??
+                  item['saltName'] ??
+                  item['Salt'] ??
+                  item['salt'];
               if (saltName != null && saltName.toString().trim().isNotEmpty) {
                 uniqueSaltNames.add(saltName.toString().trim());
               }
             } catch (e) {
-              print('[IPD File] Error processing medicine item: $e, item: $item');
+              print(
+                '[IPD File] Error processing medicine item: $e, item: $item',
+              );
             }
           }
-          
+
           // Update header medications with salt names
-          _headerMedications = uniqueSaltNames.map((saltName) => {
-            'name': saltName,
-            'saltName': saltName,
-          }).toList();
+          _headerMedications = uniqueSaltNames
+              .map((saltName) => {'name': saltName, 'saltName': saltName})
+              .toList();
           print('[IPD File] Header medications: ${_headerMedications.length}');
         } catch (e, stackTrace) {
           print('[IPD File] Error in setState for header summary: $e');
@@ -373,18 +411,20 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     });
 
     try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
+      final patientId =
+          widget.patient['patientId'] ?? widget.patient['PatientID'];
       if (patientId == null) {
         throw Exception('Patient ID is required');
       }
 
       int? admissionId = widget.admissionId;
-      
+
       // Try to get admissionId from patient data if not provided
       if (admissionId == null) {
-        admissionId = widget.patient['admissionId'] ?? 
-                     widget.patient['AdmissionId'] ?? 
-                     widget.patient['admission_id'];
+        admissionId =
+            widget.patient['admissionId'] ??
+            widget.patient['AdmissionId'] ??
+            widget.patient['admission_id'];
         if (admissionId != null && admissionId is! int) {
           admissionId = int.tryParse(admissionId.toString());
         }
@@ -392,17 +432,23 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
       // If still no admissionId, try to get from current encounter
       if (admissionId == null) {
-        final encounterId = widget.patient['encounterId'] ?? 
-                           widget.patient['EncounterID'] ?? 
-                           widget.patient['encounterID'];
+        final encounterId =
+            widget.patient['encounterId'] ??
+            widget.patient['EncounterID'] ??
+            widget.patient['encounterID'];
         if (encounterId != null) {
-          final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
+          final parsedEncounterId = encounterId is int
+              ? encounterId
+              : int.tryParse(encounterId.toString());
           if (parsedEncounterId != null) {
             try {
-              final encounterDetails = await _api!.getEncounterDetails(parsedEncounterId);
-              admissionId = encounterDetails['admissionId'] ?? 
-                           encounterDetails['AdmissionId'] ?? 
-                           encounterDetails['admission_id'];
+              final encounterDetails = await _api!.getEncounterDetails(
+                parsedEncounterId,
+              );
+              admissionId =
+                  encounterDetails['admissionId'] ??
+                  encounterDetails['AdmissionId'] ??
+                  encounterDetails['admission_id'];
               if (admissionId != null && admissionId is! int) {
                 admissionId = int.tryParse(admissionId.toString());
               }
@@ -416,9 +462,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       List<Map<String, dynamic>> encounters = [];
 
       // If we have admissionId, try to get encounters by admission ID
-    if (admissionId != null) {
-      try {
-        encounters = await _api!.getEncountersByAdmissionId(admissionId);
+      if (admissionId != null) {
+        try {
+          encounters = await _api!.getEncountersByAdmissionId(admissionId);
         } catch (e) {
           print('Error getting encounters by admission ID: $e');
           // Fall through to get all IPD encounters
@@ -434,18 +480,21 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             fromDate: fromDate,
             toDate: toDate,
           );
-          
+
           // Show all encounters (OPD and IPD), not just IPD
           encounters = allEncounters.toList();
-          
+
           // If we have an admissionId, filter by it
           if (admissionId != null) {
             encounters = encounters.where((enc) {
-              final encAdmissionId = enc['admissionId'] ?? 
-                                   enc['AdmissionId'] ?? 
-                                   enc['admission_id'];
+              final encAdmissionId =
+                  enc['admissionId'] ??
+                  enc['AdmissionId'] ??
+                  enc['admission_id'];
               if (encAdmissionId == null) return false;
-              final parsed = encAdmissionId is int ? encAdmissionId : int.tryParse(encAdmissionId.toString());
+              final parsed = encAdmissionId is int
+                  ? encAdmissionId
+                  : int.tryParse(encAdmissionId.toString());
               return parsed == admissionId;
             }).toList();
           }
@@ -454,7 +503,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           throw Exception('Failed to load encounters: $e');
         }
       }
-      
+
       setState(() {
         _encounters = encounters;
         _loading = false;
@@ -478,13 +527,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       _combinedTimeline = [];
     });
 
-    final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
+    final patientId =
+        widget.patient['patientId'] ?? widget.patient['PatientID'];
     if (patientId == null) {
       setState(() => _loading = false);
       return;
     }
 
-    final parsedPatientId = patientId is int ? patientId : int.tryParse(patientId.toString());
+    final parsedPatientId = patientId is int
+        ? patientId
+        : int.tryParse(patientId.toString());
     if (parsedPatientId == null) {
       setState(() => _loading = false);
       return;
@@ -492,9 +544,23 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     try {
       // Set end date to end of day
-      final endDate = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59);
+      final endDate = DateTime(
+        _endDate.year,
+        _endDate.month,
+        _endDate.day,
+        23,
+        59,
+        59,
+      );
       // Set start date to start of day
-      final startDate = DateTime(_startDate.year, _startDate.month, _startDate.day, 0, 0, 0);
+      final startDate = DateTime(
+        _startDate.year,
+        _startDate.month,
+        _startDate.day,
+        0,
+        0,
+        0,
+      );
 
       await Future.wait([
         _loadAllVitals(parsedPatientId, fromDate: startDate, toDate: endDate),
@@ -537,7 +603,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             spreadRadius: 1,
           ),
         ],
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3), width: 1),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -573,7 +642,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: colorScheme.outline),
                       borderRadius: BorderRadius.circular(8),
@@ -583,9 +655,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       children: [
                         Text(
                           AppDateFormat.formatDate(_startDate),
-                          style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                        Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ),
@@ -618,7 +697,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   },
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: colorScheme.outline),
                       borderRadius: BorderRadius.circular(8),
@@ -628,9 +710,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                       children: [
                         Text(
                           AppDateFormat.formatDate(_endDate),
-                          style: TextStyle(fontSize: 13, color: colorScheme.onSurface),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                        Icon(Icons.calendar_today, size: 14, color: colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                   ),
@@ -640,14 +729,18 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
-            onPressed: (_loading || _loadingDetails) ? null : _loadDataWithFilters,
+            onPressed: (_loading || _loadingDetails)
+                ? null
+                : _loadDataWithFilters,
             icon: (_loading || _loadingDetails)
                 ? SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        colorScheme.onPrimary,
+                      ),
                     ),
                   )
                 : const Icon(Icons.search, size: 16),
@@ -668,273 +761,343 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     try {
       print('[IPD File] Building patient info card');
       print('[IPD File] Patient data keys: ${widget.patient.keys.toList()}');
-      
+
       // Safely extract and convert name
       final nameValue = widget.patient['fullName'] ?? widget.patient['name'];
-      print('[IPD File] Name value type: ${nameValue.runtimeType}, value: $nameValue');
+      print(
+        '[IPD File] Name value type: ${nameValue.runtimeType}, value: $nameValue',
+      );
       final String name = nameValue?.toString() ?? 'Unknown';
-      
+
       // Safely extract and convert MRN
       final mrnValue = widget.patient['mrn'];
-      print('[IPD File] MRN value type: ${mrnValue.runtimeType}, value: $mrnValue');
+      print(
+        '[IPD File] MRN value type: ${mrnValue.runtimeType}, value: $mrnValue',
+      );
       final String mrn = mrnValue?.toString() ?? 'N/A';
-      
+
       // Safely extract and convert gender
       final genderValue = widget.patient['gender'];
-      print('[IPD File] Gender value type: ${genderValue.runtimeType}, value: $genderValue');
+      print(
+        '[IPD File] Gender value type: ${genderValue.runtimeType}, value: $genderValue',
+      );
       final String gender = genderValue?.toString() ?? '';
-      
+
       // Safely extract and convert age
       final ageValue = widget.patient['age'];
-      print('[IPD File] Age value type: ${ageValue.runtimeType}, value: $ageValue');
+      print(
+        '[IPD File] Age value type: ${ageValue.runtimeType}, value: $ageValue',
+      );
       final String age = (ageValue != null) ? '${ageValue.toString()}y' : '';
-      
+
       // Safely extract and convert blood group
       final bloodValue = widget.patient['bloodGroup'];
-      print('[IPD File] Blood value type: ${bloodValue.runtimeType}, value: $bloodValue');
+      print(
+        '[IPD File] Blood value type: ${bloodValue.runtimeType}, value: $bloodValue',
+      );
       final String blood = bloodValue?.toString() ?? '';
-      
-      print('[IPD File] Extracted values - name: $name, mrn: $mrn, gender: $gender, age: $age, blood: $blood');
 
-    String joinWithComma(Iterable<String> items, {int max = 6}) {
-      try {
-        print('[IPD File] joinWithComma called with ${items.length} items');
-        final list = items.where((e) {
-          try {
-            return e.trim().isNotEmpty;
-          } catch (ex) {
-            print('[IPD File] Error in joinWithComma filter: $ex, item type: ${e.runtimeType}, item: $e');
-            return false;
-          }
-        }).toList();
-        if (list.length > max) {
-          return list.sublist(0, max).join(', ') + ' +' + (list.length - max).toString();
-        }
-        return list.join(', ');
-      } catch (e) {
-        print('[IPD File] Error in joinWithComma: $e');
-        return '';
-      }
-    }
+      print(
+        '[IPD File] Extracted values - name: $name, mrn: $mrn, gender: $gender, age: $age, blood: $blood',
+      );
 
-    final allergiesText = joinWithComma(
-      _headerAllergies.map((a) {
+      String joinWithComma(Iterable<String> items, {int max = 6}) {
         try {
-          print('[IPD File] Processing allergy: $a, type: ${a.runtimeType}');
-          final m = a as Map<String, dynamic>;
-          final nameValue = m['allergyName'] ?? m['AllergyName'];
-          final name = nameValue?.toString() ?? '';
-          final severityValue = m['severity'] ?? m['Severity'];
-          final severity = severityValue?.toString() ?? '';
-          final result = severity.isNotEmpty ? '$name (${severity.length >= 3 ? severity.substring(0, 3) : severity})' : name;
-          print('[IPD File] Allergy result: $result');
-          return result;
-        } catch (e) {
-          print('[IPD File] Error processing allergy: $e');
-          return '';
-        }
-      }).where((s) => s.isNotEmpty),
-    );
-
-    final chronicText = joinWithComma(
-      _headerChronic.map((c) {
-        try {
-          print('[IPD File] Processing chronic condition: $c, type: ${c.runtimeType}');
-          final m = c as Map<String, dynamic>;
-          final nameValue = m['conditionName'] ?? m['ConditionName'];
-          final name = nameValue?.toString() ?? '';
-          final codeValue = m['icd11Code'] ?? m['ICD11Code'];
-          final code = codeValue?.toString() ?? '';
-          final result = code.isNotEmpty ? '$name ($code)' : name;
-          print('[IPD File] Chronic result: $result');
-          return result;
-        } catch (e) {
-          print('[IPD File] Error processing chronic condition: $e');
-          return '';
-        }
-      }).where((s) => s.isNotEmpty),
-    );
-
-    final medsText = joinWithComma(
-      _headerMedications.map((m) {
-        try {
-          print('[IPD File] Processing medication: $m, type: ${m.runtimeType}');
-          final nameValue = m['name'] ?? m['medicineName'];
-          final result = nameValue?.toString() ?? '';
-          print('[IPD File] Medication result: $result');
-          return result;
-        } catch (e) {
-          print('[IPD File] Error processing medication: $e');
-          return '';
-        }
-      }).where((s) => s.isNotEmpty),
-      max: 4,
-    );
-
-    final risksText = joinWithComma(
-      _headerRiskFactors
-          .where((r) {
+          print('[IPD File] joinWithComma called with ${items.length} items');
+          final list = items.where((e) {
             try {
-              final isPresent = r['isPresent'] ?? r['is_present'] ?? true;
-              return isPresent == true || isPresent == 1;
-            } catch (e) {
-              print('[IPD File] Error filtering risk factor: $e');
+              return e.trim().isNotEmpty;
+            } catch (ex) {
+              print(
+                '[IPD File] Error in joinWithComma filter: $ex, item type: ${e.runtimeType}, item: $e',
+              );
               return false;
             }
-          })
-          .map((r) {
-            try {
-              print('[IPD File] Processing risk factor: $r, type: ${r.runtimeType}');
-              final nameValue = r['riskFactorName'] ?? r['risk_factor_name'];
-              final result = nameValue?.toString() ?? '';
-              print('[IPD File] Risk factor result: $result');
-              return result;
-            } catch (e) {
-              print('[IPD File] Error processing risk factor: $e');
-              return '';
-            }
-          }).where((s) => s.isNotEmpty),
-      max: 6,
-    );
+          }).toList();
+          if (list.length > max) {
+            return list.sublist(0, max).join(', ') +
+                ' +' +
+                (list.length - max).toString();
+          }
+          return list.join(', ');
+        } catch (e) {
+          print('[IPD File] Error in joinWithComma: $e');
+          return '';
+        }
+      }
 
-    print('[IPD File] Starting LayoutBuilder for patient info card');
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        try {
-          print('[IPD File] LayoutBuilder building');
-          final screenWidth = MediaQuery.of(context).size.width;
-          return Transform.translate(
-          offset: Offset(-12.0, 0),
-          child: SizedBox(
-            width: screenWidth,
-            child: Builder(
-              builder: (context) {
-                final cs = Theme.of(context).colorScheme;
-                return Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        cs.primary,
-                        cs.secondary,
-                      ],
-                      stops: const [0.0, 1.0],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: cs.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          cs.onPrimary.withValues(alpha: 0.1),
-                          Colors.transparent,
+      final allergiesText = joinWithComma(
+        _headerAllergies
+            .map((a) {
+              try {
+                print(
+                  '[IPD File] Processing allergy: $a, type: ${a.runtimeType}',
+                );
+                final m = a as Map<String, dynamic>;
+                final nameValue = m['allergyName'] ?? m['AllergyName'];
+                final name = nameValue?.toString() ?? '';
+                final severityValue = m['severity'] ?? m['Severity'];
+                final severity = severityValue?.toString() ?? '';
+                final result = severity.isNotEmpty
+                    ? '$name (${severity.length >= 3 ? severity.substring(0, 3) : severity})'
+                    : name;
+                print('[IPD File] Allergy result: $result');
+                return result;
+              } catch (e) {
+                print('[IPD File] Error processing allergy: $e');
+                return '';
+              }
+            })
+            .where((s) => s.isNotEmpty),
+      );
+
+      final chronicText = joinWithComma(
+        _headerChronic
+            .map((c) {
+              try {
+                print(
+                  '[IPD File] Processing chronic condition: $c, type: ${c.runtimeType}',
+                );
+                final m = c as Map<String, dynamic>;
+                final nameValue = m['conditionName'] ?? m['ConditionName'];
+                final name = nameValue?.toString() ?? '';
+                final codeValue = m['icd11Code'] ?? m['ICD11Code'];
+                final code = codeValue?.toString() ?? '';
+                final result = code.isNotEmpty ? '$name ($code)' : name;
+                print('[IPD File] Chronic result: $result');
+                return result;
+              } catch (e) {
+                print('[IPD File] Error processing chronic condition: $e');
+                return '';
+              }
+            })
+            .where((s) => s.isNotEmpty),
+      );
+
+      final medsText = joinWithComma(
+        _headerMedications
+            .map((m) {
+              try {
+                print(
+                  '[IPD File] Processing medication: $m, type: ${m.runtimeType}',
+                );
+                final nameValue = m['name'] ?? m['medicineName'];
+                final result = nameValue?.toString() ?? '';
+                print('[IPD File] Medication result: $result');
+                return result;
+              } catch (e) {
+                print('[IPD File] Error processing medication: $e');
+                return '';
+              }
+            })
+            .where((s) => s.isNotEmpty),
+        max: 4,
+      );
+
+      final risksText = joinWithComma(
+        _headerRiskFactors
+            .where((r) {
+              try {
+                final isPresent = r['isPresent'] ?? r['is_present'] ?? true;
+                return isPresent == true || isPresent == 1;
+              } catch (e) {
+                print('[IPD File] Error filtering risk factor: $e');
+                return false;
+              }
+            })
+            .map((r) {
+              try {
+                print(
+                  '[IPD File] Processing risk factor: $r, type: ${r.runtimeType}',
+                );
+                final nameValue = r['riskFactorName'] ?? r['risk_factor_name'];
+                final result = nameValue?.toString() ?? '';
+                print('[IPD File] Risk factor result: $result');
+                return result;
+              } catch (e) {
+                print('[IPD File] Error processing risk factor: $e');
+                return '';
+              }
+            })
+            .where((s) => s.isNotEmpty),
+        max: 6,
+      );
+
+      print('[IPD File] Starting LayoutBuilder for patient info card');
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          try {
+            print('[IPD File] LayoutBuilder building');
+            final screenWidth = MediaQuery.of(context).size.width;
+            return Transform.translate(
+              offset: Offset(-12.0, 0),
+              child: SizedBox(
+                width: screenWidth,
+                child: Builder(
+                  builder: (context) {
+                    final cs = Theme.of(context).colorScheme;
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [cs.primary, cs.secondary],
+                          stops: const [0.0, 1.0],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: cs.primary.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                            spreadRadius: 2,
+                          ),
                         ],
                       ),
-                    ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final cs = Theme.of(context).colorScheme;
-                            return Row(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              cs.onPrimary.withValues(alpha: 0.1),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 10.0,
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: cs.onPrimary.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    name,
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w800,
-                                      color: cs.onPrimary,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'MRN: $mrn',
-                                  style: TextStyle(
-                                    color: cs.onPrimary.withValues(alpha: 0.95),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  '$gender, $age',
-                                  style: TextStyle(
-                                    color: cs.onPrimary.withValues(alpha: 0.95),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                Row(
-                                  children: [
-                                    _pill(icon: Icons.warning_amber_rounded, label: 'Allergies', value: allergiesText),
-                                    const SizedBox(width: 14),
-                                    _pill(icon: Icons.healing, label: 'Chronic', value: chronicText),
-                                    const SizedBox(width: 14),
-                                    _pill(icon: Icons.local_pharmacy, label: 'Current Meds', value: medsText),
-                                    const SizedBox(width: 14),
-                                    _pill(icon: Icons.report_problem, label: 'Risk Factors', value: risksText),
-                                  ],
+                                Builder(
+                                  builder: (context) {
+                                    final cs = Theme.of(context).colorScheme;
+                                    return Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: cs.onPrimary.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.w800,
+                                              color: cs.onPrimary,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'MRN: $mrn',
+                                          style: TextStyle(
+                                            color: cs.onPrimary.withValues(
+                                              alpha: 0.95,
+                                            ),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          '$gender, $age',
+                                          style: TextStyle(
+                                            color: cs.onPrimary.withValues(
+                                              alpha: 0.95,
+                                            ),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 20),
+                                        Row(
+                                          children: [
+                                            _pill(
+                                              icon: Icons.warning_amber_rounded,
+                                              label: 'Allergies',
+                                              value: allergiesText,
+                                            ),
+                                            const SizedBox(width: 14),
+                                            _pill(
+                                              icon: Icons.healing,
+                                              label: 'Chronic',
+                                              value: chronicText,
+                                            ),
+                                            const SizedBox(width: 14),
+                                            _pill(
+                                              icon: Icons.local_pharmacy,
+                                              label: 'Current Meds',
+                                              value: medsText,
+                                            ),
+                                            const SizedBox(width: 14),
+                                            _pill(
+                                              icon: Icons.report_problem,
+                                              label: 'Risk Factors',
+                                              value: risksText,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ],
-                            );
-                          },
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
               ),
             );
-            },
-          ),
-        ),
-        );
-        } catch (e, stackTrace) {
-          print('[IPD File] Error in LayoutBuilder: $e');
-          print('[IPD File] Stack trace: $stackTrace');
-          return Container(
-            padding: const EdgeInsets.all(16),
-            child: Text('Error displaying patient info: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          );
-        }
-      },
-    );
+          } catch (e, stackTrace) {
+            print('[IPD File] Error in LayoutBuilder: $e');
+            print('[IPD File] Stack trace: $stackTrace');
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Error displaying patient info: $e',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            );
+          }
+        },
+      );
     } catch (e, stackTrace) {
       print('[IPD File] Error in _buildPatientInfoCard: $e');
       print('[IPD File] Stack trace: $stackTrace');
       return Container(
         padding: const EdgeInsets.all(16),
-        child: Text('Error: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        child: Text(
+          'Error: $e',
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
       );
     }
   }
 
-  Widget _pill({required IconData icon, required String label, required String value}) {
+  Widget _pill({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     final text = value.isNotEmpty ? value : 'None';
     return Container(
@@ -988,109 +1151,134 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
   Widget _buildBody(ColorScheme colorScheme) {
     return Column(
-        children: [
-          if (!widget.embedded) _buildPatientInfoCard(),
-          _buildDateFilterSection(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: !_dataLoaded && !_loading && !_loadingDetails && !widget.autoLoad
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.filter_alt, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Select date range and click Show to load data',
-                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+      children: [
+        if (!widget.embedded) _buildPatientInfoCard(),
+        _buildDateFilterSection(),
+        const SizedBox(height: 8),
+        Expanded(
+          child:
+              !_dataLoaded && !_loading && !_loadingDetails && !widget.autoLoad
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.filter_alt,
+                        size: 48,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
                         ),
-                      ],
-                    ),
-                  )
-                : (_loading || _loadingDetails)
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 16),
-                            Text(
-                              context.l10n.fetchingPatientData,
-                              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
-                            ),
-                          ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Select date range and click Show to load data',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                )
+              : (_loading || _loadingDetails)
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.fetchingPatientData,
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 14,
                         ),
-                      )
-                    : _error != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, size: 48, color: colorScheme.errorContainer),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _error!,
-                                  style: TextStyle(color: colorScheme.error),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _loadDataWithFilters,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          )
-                        : _encounterDataList.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.folder_open, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      context.l10n.noEncountersFound,
-                                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : SingleChildScrollView(
-                                padding: EdgeInsets.fromLTRB(
-                                  12,
-                                  12,
-                                  12,
-                                  widget.embedded ? PunjabBottomNav.navBarHeight : 12,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: _combinedTimeline.asMap().entries.map((entry) {
-                                    final index = entry.key;
-                                    final item = entry.value;
-                                    final type = item['type'] as String;
-                                    
-                                    if (type == 'vitals') {
-                                      final vital = item['data'] as Map<String, dynamic>;
-                                      return _buildVitalsCard(vital);
-                                    } else if (type == 'encounter') {
-                                      final data = item['data'] as Map<String, dynamic>;
-                                      // Count only encounters for numbering
-                                      final encounterNumber = _combinedTimeline
-                                          .where((i) => i['type'] == 'encounter')
-                                          .toList()
-                                          .indexOf(item) + 1;
-                                      return _buildDetailedEncounterCard(data, encounterNumber);
-                                    } else if (type == 'surgery') {
-                                      final surgery = item['data'] as Map<String, dynamic>;
-                                      return _buildSurgeryCard(surgery);
-                                    }
-                                    return const SizedBox.shrink();
-                                  }).toList(),
-                                ),
-                              ),
-          ),
-        ],
-      );
+                      ),
+                    ],
+                  ),
+                )
+              : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: colorScheme.errorContainer,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: TextStyle(color: colorScheme.error),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadDataWithFilters,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _encounterDataList.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.folder_open,
+                        size: 48,
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        context.l10n.noEncountersFound,
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    12,
+                    12,
+                    widget.embedded ? PunjabBottomNav.navBarHeight : 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _combinedTimeline.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      final type = item['type'] as String;
+
+                      if (type == 'vitals') {
+                        final vital = item['data'] as Map<String, dynamic>;
+                        return _buildVitalsCard(vital);
+                      } else if (type == 'encounter') {
+                        final data = item['data'] as Map<String, dynamic>;
+                        // Count only encounters for numbering
+                        final encounterNumber =
+                            _combinedTimeline
+                                .where((i) => i['type'] == 'encounter')
+                                .toList()
+                                .indexOf(item) +
+                            1;
+                        return _buildDetailedEncounterCard(
+                          data,
+                          encounterNumber,
+                        );
+                      } else if (type == 'surgery') {
+                        final surgery = item['data'] as Map<String, dynamic>;
+                        return _buildSurgeryCard(surgery);
+                      }
+                      return const SizedBox.shrink();
+                    }).toList(),
+                  ),
+                ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1115,26 +1303,30 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildDetailedEncounterCard(Map<String, dynamic> data, int encounterNumber) {
+  Widget _buildDetailedEncounterCard(
+    Map<String, dynamic> data,
+    int encounterNumber,
+  ) {
     final encounter = data['encounter'] as Map<String, dynamic>;
-    final encounterId = encounter['encounterId'] ?? 
-                       encounter['EncounterID'] ?? 
-                       encounter['encounterID'];
-    final encounterDate = encounter['encounterDate'] ?? 
-                          encounter['EncounterDate'] ?? 
-                          encounter['checkInTime'] ?? 
-                          encounter['CheckInTime'];
-    final status = encounter['encounterStatus'] ?? 
-                   encounter['EncounterStatus'] ?? 
-                   '';
-    final doctorName = encounter['doctorName'] ?? 
-                      encounter['DoctorName'] ?? 
-                      encounter['doctor'] ?? 
-                      'N/A';
-    final encounterType = encounter['encounterType'] ?? 
-                         encounter['EncounterType'] ?? 
-                         '';
-    
+    final encounterId =
+        encounter['encounterId'] ??
+        encounter['EncounterID'] ??
+        encounter['encounterID'];
+    final encounterDate =
+        encounter['encounterDate'] ??
+        encounter['EncounterDate'] ??
+        encounter['checkInTime'] ??
+        encounter['CheckInTime'];
+    final status =
+        encounter['encounterStatus'] ?? encounter['EncounterStatus'] ?? '';
+    final doctorName =
+        encounter['doctorName'] ??
+        encounter['DoctorName'] ??
+        encounter['doctor'] ??
+        'N/A';
+    final encounterType =
+        encounter['encounterType'] ?? encounter['EncounterType'] ?? '';
+
     DateTime? parsedDate;
     if (encounterDate != null) {
       if (encounterDate is DateTime) {
@@ -1149,15 +1341,15 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final symptoms = data['symptoms'] as List<dynamic>;
     final diagnoses = data['diagnoses'] as List<dynamic>;
     final labOrdersRaw = data['labOrders'] as List<dynamic>;
-    
+
     // Group lab orders: collect all tests per package, individual tests as-is
     final Map<String, Map<String, dynamic>> packageMap = {};
     final List<Map<String, dynamic>> testItems = [];
-    
+
     for (final order in labOrdersRaw) {
       final packageId = order['packageId'];
       final bool isPackage = packageId != null;
-      
+
       if (isPackage) {
         // Group by packageId - accumulate all tests in the package
         final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
@@ -1225,7 +1417,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         });
       }
     }
-    
+
     // Expand packages: one row per test in each package
     final List<Map<String, dynamic>> labOrders = [];
     for (final pkg in packageMap.values) {
@@ -1257,7 +1449,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final medicines = data['medicines'] as List<dynamic>;
     final clinicalNotesRaw = data['clinicalNotes'];
     final _cnStr = clinicalNotesRaw?.toString().trim() ?? '';
-    final clinicalNotes = (_cnStr.isNotEmpty && _cnStr != '[]' && _cnStr != '{}' && _cnStr != 'null')
+    final clinicalNotes =
+        (_cnStr.isNotEmpty &&
+            _cnStr != '[]' &&
+            _cnStr != '{}' &&
+            _cnStr != 'null')
         ? _cnStr
         : null;
 
@@ -1280,310 +1476,466 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               spreadRadius: 2,
             ),
           ],
-          border: Border.all(color: cs.outline.withValues(alpha: 0.4), width: 1),
+          border: Border.all(
+            color: cs.outline.withValues(alpha: 0.4),
+            width: 1,
+          ),
         ),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Encounter Header
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [cs.primary, cs.primary.withValues(alpha: 0.9)],
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Encounter Header
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cs.primary, cs.primary.withValues(alpha: 0.9)],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
               ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        encounterType.toString().isNotEmpty 
-                            ? '$encounterType Checkup'
-                            : 'Checkup',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: cs.onPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cs.onPrimary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: cs.onPrimary.withValues(alpha: 0.5), width: 1),
-                      ),
-                      child: Text(
-                        status.toString().toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    if (parsedDate != null) ...[
-                      Icon(Icons.calendar_today, size: 12, color: cs.onPrimary.withValues(alpha: 0.85)),
-                      const SizedBox(width: 4),
-                      Text(
-                        AppDateFormat.formatDateTime(parsedDate),
-                        style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Icon(Icons.person_outline, size: 12, color: cs.onPrimary.withValues(alpha: 0.85)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        doctorName.toString(),
-                        style: TextStyle(color: cs.onPrimary.withValues(alpha: 0.9), fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Encounter Details
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Vitals
-                if (vitals.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: cs.errorContainer.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: cs.error.withValues(alpha: 0.3), width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.favorite, color: cs.error, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Vitals',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: cs.error,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...vitals.map((v) {
-                          final bpSystolic = _stringOrEmpty(v['bpSystolic'] ?? v['BPSystolic'] ?? v['bloodPressureSystolic']);
-                          final bpDiastolic = _stringOrEmpty(v['bpDiastolic'] ?? v['BPDiastolic'] ?? v['bloodPressureDiastolic']);
-                          final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
-                              ? '$bpSystolic/$bpDiastolic'
-                              : _stringOrEmpty(v['bloodPressure'] ?? v['BloodPressure']);
-                          final hr = _stringOrEmpty(v['pulse'] ?? v['Pulse'] ?? v['heartRate'] ?? v['HeartRate']);
-                          final temp = _stringOrEmpty(v['temperature'] ?? v['Temperature']);
-                          final spo2 = _stringOrEmpty(v['spo2'] ?? v['SPO2'] ?? v['oxygenSaturation'] ?? v['OxygenSaturation']);
-                          final rr = _stringOrEmpty(v['respiratoryRate'] ?? v['RespiratoryRate'] ?? v['respiratory_rate']);
-                          final weight = _stringOrEmpty(v['weight'] ?? v['Weight']);
-                          final height = _stringOrEmpty(v['height'] ?? v['Height']);
-                          final bsr = _stringOrEmpty(v['bsr'] ?? v['BSR'] ?? v['bloodSugar'] ?? v['BloodSugar']);
-                          return _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr);
-                        }).toList(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-
-                // Complaints, Symptoms, Diagnosis - Stacked for reliable mobile layout
-                _buildCompactDetailSection(
-                  'Complaints',
-                  Icons.comment,
-                  cs.tertiary,
-                  complaints.map<String>((c) => 
-                    (c['diagnosisName'] ?? 
-                    c['icd10Description'] ?? 
-                    c['ICD10Description'] ?? 
-                    'N/A').toString()
-                  ).toList(),
-                ),
-                const SizedBox(height: 8),
-                _buildCompactDetailSection(
-                  'Symptoms',
-                  Icons.sick,
-                  cs.error,
-                  symptoms.map<String>((s) => 
-                    (s['diagnosisName'] ?? 
-                    s['icd10Description'] ?? 
-                    s['ICD10Description'] ?? 
-                    'N/A').toString()
-                  ).toList(),
-                ),
-                const SizedBox(height: 8),
-                _buildCompactDetailSection(
-                  'Diagnosis',
-                  Icons.medical_information,
-                  cs.secondary,
-                  diagnoses.map<String>((d) {
-                    final name = (d['diagnosisName'] ?? 
-                                d['icd10Description'] ?? 
-                                d['ICD10Description'] ?? 
-                                'N/A').toString();
-                    final isConfirmed = d['isConfirmed'] ?? d['IsConfirmed'] ?? false;
-                    return isConfirmed ? '$name (Confirmed)' : name;
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 8),
-
-                // Lab Tests, Radiology, Medicines - Full-width stacked sections
-                _buildLabResultsSection(labOrders),
-                const SizedBox(height: 8),
-                _buildRadiologyReportsSection(radiologyOrders),
-                const SizedBox(height: 8),
-                _buildCompactDetailSection(
-                  'Medicines',
-                  Icons.medication,
-                  cs.primary,
-                  medicines.map<String>((med) {
-                    final name = (med['medicineName'] ?? 
-                                 med['MedicineName'] ?? 
-                                 med['medicine']?['name'] ?? 
-                                 med['Medicine']?['name'] ?? 
-                                 med['medicine']?['Name'] ?? 
-                                 med['Medicine']?['Name'] ?? 
-                                 'N/A').toString();
-                    final dosage = med['dosageAmount'] ?? med['dosageValue'] ?? med['dosage'] ?? '';
-                    final dosageUnit = med['dosageUnit'] ?? med['DosageUnit'] ?? '';
-                    final frequency = med['frequency'] ?? med['Frequency'] ?? med['instructions'] ?? '';
-                    final duration = med['duration'] ?? med['durationValue'] ?? med['DurationValue'] ?? '';
-                    final durationUnit = med['durationUnit'] ?? med['DurationUnit'] ?? med['DurationUnitValue'] ?? '';
-                    final endDate = med['endDate'];
-                    final discontinuedDate = med['discontinuedDate'] ?? med['DiscontinuedDate'];
-                    
-                    String medText = name;
-                    if (dosage != null && dosageUnit != null && dosage.toString().isNotEmpty) {
-                      medText += ' — $dosage $dosageUnit';
-                    }
-                    if (frequency != null && frequency.toString().isNotEmpty) {
-                      medText += ' · $frequency';
-                    }
-                    if (duration != null && durationUnit != null && duration.toString().isNotEmpty) {
-                      medText += ' · $duration $durationUnit';
-                    }
-                    if (endDate != null) {
-                      try {
-                        final end = endDate is DateTime ? endDate : DateTime.tryParse(endDate.toString());
-                        if (end != null) {
-                          medText += ' (until ${AppDateFormat.formatDate(end)})';
-                        }
-                      } catch (e) {}
-                    }
-                    if (discontinuedDate != null) {
-                      medText += ' ✕ DISCONTINUED';
-                    }
-                    return medText;
-                  }).toList(),
-                ),
-
-                // Clinical Notes - shown at bottom
-                if (clinicalNotes != null && clinicalNotes.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: cs.primaryContainer.withValues(alpha: 0.2),
-                      border: Border.all(color: cs.primary.withValues(alpha: 0.2), width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.description_outlined, color: cs.primary, size: 15),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Clinical Notes',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: cs.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          clinicalNotes,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          encounterType.toString().isNotEmpty
+                              ? '$encounterType Checkup'
+                              : 'Checkup',
                           style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color: cs.onSurface,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: cs.onPrimary,
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.onPrimary.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: cs.onPrimary.withValues(alpha: 0.5),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          status.toString().toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: cs.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      if (parsedDate != null) ...[
+                        Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: cs.onPrimary.withValues(alpha: 0.85),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          AppDateFormat.formatDateTime(parsedDate),
+                          style: TextStyle(
+                            color: cs.onPrimary.withValues(alpha: 0.9),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                       ],
-                    ),
+                      Icon(
+                        Icons.person_outline,
+                        size: 12,
+                        color: cs.onPrimary.withValues(alpha: 0.85),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          doctorName.toString(),
+                          style: TextStyle(
+                            color: cs.onPrimary.withValues(alpha: 0.9),
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
+
+            // Encounter Details
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Vitals
+                  if (vitals.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.errorContainer.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: cs.error.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.favorite, color: cs.error, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Vitals',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.error,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...vitals.map((v) {
+                            final bpSystolic = _stringOrEmpty(
+                              v['bpSystolic'] ??
+                                  v['BPSystolic'] ??
+                                  v['bloodPressureSystolic'],
+                            );
+                            final bpDiastolic = _stringOrEmpty(
+                              v['bpDiastolic'] ??
+                                  v['BPDiastolic'] ??
+                                  v['bloodPressureDiastolic'],
+                            );
+                            final bp =
+                                bpSystolic.toString().isNotEmpty &&
+                                    bpDiastolic.toString().isNotEmpty
+                                ? '$bpSystolic/$bpDiastolic'
+                                : _stringOrEmpty(
+                                    v['bloodPressure'] ?? v['BloodPressure'],
+                                  );
+                            final hr = _stringOrEmpty(
+                              v['pulse'] ??
+                                  v['Pulse'] ??
+                                  v['heartRate'] ??
+                                  v['HeartRate'],
+                            );
+                            final temp = _stringOrEmpty(
+                              v['temperature'] ?? v['Temperature'],
+                            );
+                            final spo2 = _stringOrEmpty(
+                              v['spo2'] ??
+                                  v['SPO2'] ??
+                                  v['oxygenSaturation'] ??
+                                  v['OxygenSaturation'],
+                            );
+                            final rr = _stringOrEmpty(
+                              v['respiratoryRate'] ??
+                                  v['RespiratoryRate'] ??
+                                  v['respiratory_rate'],
+                            );
+                            final weight = _stringOrEmpty(
+                              v['weight'] ?? v['Weight'],
+                            );
+                            final height = _stringOrEmpty(
+                              v['height'] ?? v['Height'],
+                            );
+                            final bsr = _stringOrEmpty(
+                              v['bsr'] ??
+                                  v['BSR'] ??
+                                  v['bloodSugar'] ??
+                                  v['BloodSugar'],
+                            );
+                            return _buildVitalsContent(
+                              bp,
+                              hr,
+                              temp,
+                              spo2,
+                              rr,
+                              weight,
+                              height,
+                              bsr,
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Complaints, Symptoms, Diagnosis - Stacked for reliable mobile layout
+                  _buildCompactDetailSection(
+                    'Complaints',
+                    Icons.comment,
+                    cs.tertiary,
+                    complaints
+                        .map<String>(
+                          (c) =>
+                              (c['diagnosisName'] ??
+                                      c['icd10Description'] ??
+                                      c['ICD10Description'] ??
+                                      'N/A')
+                                  .toString(),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildCompactDetailSection(
+                    'Symptoms',
+                    Icons.sick,
+                    cs.error,
+                    symptoms
+                        .map<String>(
+                          (s) =>
+                              (s['diagnosisName'] ??
+                                      s['icd10Description'] ??
+                                      s['ICD10Description'] ??
+                                      'N/A')
+                                  .toString(),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildCompactDetailSection(
+                    'Diagnosis',
+                    Icons.medical_information,
+                    cs.secondary,
+                    diagnoses.map<String>((d) {
+                      final name =
+                          (d['diagnosisName'] ??
+                                  d['icd10Description'] ??
+                                  d['ICD10Description'] ??
+                                  'N/A')
+                              .toString();
+                      final isConfirmed =
+                          d['isConfirmed'] ?? d['IsConfirmed'] ?? false;
+                      return isConfirmed ? '$name (Confirmed)' : name;
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Lab Tests, Radiology, Medicines - Full-width stacked sections
+                  _buildLabResultsSection(labOrders),
+                  const SizedBox(height: 8),
+                  _buildRadiologyReportsSection(radiologyOrders),
+                  const SizedBox(height: 8),
+                  _buildCompactDetailSection(
+                    'Medicines',
+                    Icons.medication,
+                    cs.primary,
+                    medicines.map<String>((med) {
+                      final name =
+                          (med['medicineName'] ??
+                                  med['MedicineName'] ??
+                                  med['medicine']?['name'] ??
+                                  med['Medicine']?['name'] ??
+                                  med['medicine']?['Name'] ??
+                                  med['Medicine']?['Name'] ??
+                                  'N/A')
+                              .toString();
+                      final dosage =
+                          med['dosageAmount'] ??
+                          med['dosageValue'] ??
+                          med['dosage'] ??
+                          '';
+                      final dosageUnit =
+                          med['dosageUnit'] ?? med['DosageUnit'] ?? '';
+                      final frequency =
+                          med['frequency'] ??
+                          med['Frequency'] ??
+                          med['instructions'] ??
+                          '';
+                      final duration =
+                          med['duration'] ??
+                          med['durationValue'] ??
+                          med['DurationValue'] ??
+                          '';
+                      final durationUnit =
+                          med['durationUnit'] ??
+                          med['DurationUnit'] ??
+                          med['DurationUnitValue'] ??
+                          '';
+                      final endDate = med['endDate'];
+                      final discontinuedDate =
+                          med['discontinuedDate'] ?? med['DiscontinuedDate'];
+
+                      String medText = name;
+                      if (dosage != null &&
+                          dosageUnit != null &&
+                          dosage.toString().isNotEmpty) {
+                        medText += ' — $dosage $dosageUnit';
+                      }
+                      if (frequency != null &&
+                          frequency.toString().isNotEmpty) {
+                        medText += ' · $frequency';
+                      }
+                      if (duration != null &&
+                          durationUnit != null &&
+                          duration.toString().isNotEmpty) {
+                        medText += ' · $duration $durationUnit';
+                      }
+                      if (endDate != null) {
+                        try {
+                          final end = endDate is DateTime
+                              ? endDate
+                              : DateTime.tryParse(endDate.toString());
+                          if (end != null) {
+                            medText +=
+                                ' (until ${AppDateFormat.formatDate(end)})';
+                          }
+                        } catch (e) {}
+                      }
+                      if (discontinuedDate != null) {
+                        medText += ' ✕ DISCONTINUED';
+                      }
+                      return medText;
+                    }).toList(),
+                  ),
+
+                  // Clinical Notes - shown at bottom
+                  if (clinicalNotes != null &&
+                      clinicalNotes.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: cs.primaryContainer.withValues(alpha: 0.2),
+                        border: Border.all(
+                          color: cs.primary.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.description_outlined,
+                                color: cs.primary,
+                                size: 15,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Clinical Notes',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            clinicalNotes,
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.5,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildVitalsCard(Map<String, dynamic> vital) {
     final cs = Theme.of(context).colorScheme;
-    final recordedDate = vital['recordedDate'] ?? 
-                        vital['RecordedDate'] ?? 
-                        vital['recordedAt'] ??
-                        vital['createdAt'];
-    
+    final recordedDate =
+        vital['recordedDate'] ??
+        vital['RecordedDate'] ??
+        vital['recordedAt'] ??
+        vital['createdAt'];
+
     DateTime? parsedDate;
     if (recordedDate != null) {
-      parsedDate = recordedDate is DateTime 
-          ? recordedDate 
+      parsedDate = recordedDate is DateTime
+          ? recordedDate
           : DateTime.tryParse(recordedDate.toString());
     }
 
     // Format vitals data
-    final bpSystolic = _stringOrEmpty(vital['bpSystolic'] ?? vital['BPSystolic'] ?? vital['bloodPressureSystolic']);
-    final bpDiastolic = _stringOrEmpty(vital['bpDiastolic'] ?? vital['BPDiastolic'] ?? vital['bloodPressureDiastolic']);
-    final bp = bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
+    final bpSystolic = _stringOrEmpty(
+      vital['bpSystolic'] ??
+          vital['BPSystolic'] ??
+          vital['bloodPressureSystolic'],
+    );
+    final bpDiastolic = _stringOrEmpty(
+      vital['bpDiastolic'] ??
+          vital['BPDiastolic'] ??
+          vital['bloodPressureDiastolic'],
+    );
+    final bp =
+        bpSystolic.toString().isNotEmpty && bpDiastolic.toString().isNotEmpty
         ? '$bpSystolic/$bpDiastolic'
         : _stringOrEmpty(vital['bloodPressure'] ?? vital['BloodPressure']);
-    final hr = _stringOrEmpty(vital['pulse'] ?? vital['Pulse'] ?? vital['heartRate'] ?? vital['HeartRate']);
+    final hr = _stringOrEmpty(
+      vital['pulse'] ??
+          vital['Pulse'] ??
+          vital['heartRate'] ??
+          vital['HeartRate'],
+    );
     final temp = _stringOrEmpty(vital['temperature'] ?? vital['Temperature']);
-    final spo2 = _stringOrEmpty(vital['spo2'] ?? vital['SPO2'] ?? vital['oxygenSaturation'] ?? vital['OxygenSaturation']);
-    final rr = _stringOrEmpty(vital['respiratoryRate'] ?? vital['RespiratoryRate'] ?? vital['respiratory_rate']);
+    final spo2 = _stringOrEmpty(
+      vital['spo2'] ??
+          vital['SPO2'] ??
+          vital['oxygenSaturation'] ??
+          vital['OxygenSaturation'],
+    );
+    final rr = _stringOrEmpty(
+      vital['respiratoryRate'] ??
+          vital['RespiratoryRate'] ??
+          vital['respiratory_rate'],
+    );
     final weight = _stringOrEmpty(vital['weight'] ?? vital['Weight']);
     final height = _stringOrEmpty(vital['height'] ?? vital['Height']);
-    final bsr = _stringOrEmpty(vital['bsr'] ?? vital['BSR'] ?? vital['bloodSugar'] ?? vital['BloodSugar']);
-    final createdByName = vital['createdByName'] ?? vital['CreatedByName'] ?? vital['recordedBy'] ?? vital['RecordedBy'] ?? '';
+    final bsr = _stringOrEmpty(
+      vital['bsr'] ??
+          vital['BSR'] ??
+          vital['bloodSugar'] ??
+          vital['BloodSugar'],
+    );
+    final createdByName =
+        vital['createdByName'] ??
+        vital['CreatedByName'] ??
+        vital['recordedBy'] ??
+        vital['RecordedBy'] ??
+        '';
 
     // Parse values for range checking
     double? bpSystolicValue, bpDiastolicValue;
@@ -1595,7 +1947,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       bpDiastolicValue = double.tryParse(bpDiastolic);
     }
     // Fall back to parsing from combined BP string if individual values not available
-    if ((bpSystolicValue == null || bpDiastolicValue == null) && bp.contains('/')) {
+    if ((bpSystolicValue == null || bpDiastolicValue == null) &&
+        bp.contains('/')) {
       final parts = bp.split('/');
       if (parts.length == 2) {
         bpSystolicValue ??= double.tryParse(parts[0].trim());
@@ -1609,11 +1962,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final bmi = _calculateBMI(weight, height);
 
     // Check for out-of-range values
-    final bpOutOfRange = (bpSystolicValue != null && !_isSystolicNormal(bpSystolicValue)) ||
-                         (bpDiastolicValue != null && !_isDiastolicNormal(bpDiastolicValue));
+    final bpOutOfRange =
+        (bpSystolicValue != null && !_isSystolicNormal(bpSystolicValue)) ||
+        (bpDiastolicValue != null && !_isDiastolicNormal(bpDiastolicValue));
     final hrOutOfRange = hrValue != null && !_isPulseNormal(hrValue);
-    final tempOutOfRange = tempValue != null && !_isTemperatureNormal(tempValue);
-    final spo2OutOfRange = spo2Value != null && !_isO2SaturationNormal(spo2Value);
+    final tempOutOfRange =
+        tempValue != null && !_isTemperatureNormal(tempValue);
+    final spo2OutOfRange =
+        spo2Value != null && !_isO2SaturationNormal(spo2Value);
     final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
     final bmiOutOfRange = bmi != null && !_isBMINormal(bmi);
 
@@ -1630,14 +1986,20 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             spreadRadius: 1,
           ),
         ],
-        border: Border.all(color: cs.outline.withValues(alpha: 0.3), width: 0.5),
+        border: Border.all(
+          color: cs.outline.withValues(alpha: 0.3),
+          width: 0.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Vitals Header with vitals displayed inline
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [cs.error, cs.error.withValues(alpha: 0.9)],
@@ -1661,26 +2023,50 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 ),
                 if (parsedDate != null) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.calendar_today, size: 12, color: cs.onError.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 12,
+                    color: cs.onError.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     AppDateFormat.formatDateTime(parsedDate),
-                    style: TextStyle(color: cs.onError.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: cs.onError.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
                 if (createdByName.toString().isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  Icon(Icons.person, size: 12, color: cs.onError.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.person,
+                    size: 12,
+                    color: cs.onError.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     createdByName.toString(),
-                    style: TextStyle(color: cs.onError.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: cs.onError.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
                 const Spacer(),
                 // Display vitals in header
                 Flexible(
-                  child: _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr, isHeader: true),
+                  child: _buildVitalsContent(
+                    bp,
+                    hr,
+                    temp,
+                    spo2,
+                    rr,
+                    weight,
+                    height,
+                    bsr,
+                    isHeader: true,
+                  ),
                 ),
               ],
             ),
@@ -1689,7 +2075,17 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           // Vitals Details (only show if not in header or for detailed view)
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: _buildVitalsContent(bp, hr, temp, spo2, rr, weight, height, bsr, isHeader: false),
+            child: _buildVitalsContent(
+              bp,
+              hr,
+              temp,
+              spo2,
+              rr,
+              weight,
+              height,
+              bsr,
+              isHeader: false,
+            ),
           ),
         ],
       ),
@@ -1698,47 +2094,41 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
   Widget _buildSurgeryCard(Map<String, dynamic> surgery) {
     final cs = Theme.of(context).colorScheme;
-    final surgeryId = surgery['patientSurgeryID'] ?? 
-                     surgery['PatientSurgeryID'] ?? 
-                     surgery['patientSurgeryId'];
-    final surgeryName = surgery['surgeryName'] ?? 
-                       surgery['SurgeryName'] ?? 
-                       'N/A';
-    final surgeryDate = surgery['surgeryDate'] ?? 
-                       surgery['SurgeryDate'];
-    final surgeryStartTime = surgery['surgeryStartTime'] ?? 
-                            surgery['SurgeryStartTime'] ?? 
-                            '';
-    final surgeryEndTime = surgery['surgeryEndTime'] ?? 
-                          surgery['SurgeryEndTime'] ?? 
-                          '';
-    final surgeonName = surgery['surgeonName'] ?? 
-                       surgery['SurgeonName'] ?? 
-                       surgery['surgeon'] ?? 
-                       'N/A';
-    final assistantSurgeonName = surgery['assistantSurgeonName'] ?? 
-                                surgery['AssistantSurgeonName'] ?? 
-                                '';
-    final anesthesiaType = surgery['anesthesiaType'] ?? 
-                          surgery['AnesthesiaType'] ?? 
-                          '';
-    final procedureOutcome = surgery['procedureOutcome'] ?? 
-                            surgery['ProcedureOutcome'] ?? 
-                            '';
-    final procedureNote = surgery['procedureNote'] ?? 
-                         surgery['ProcedureNote'] ?? 
-                         '';
-    final complication = surgery['complication'] ?? 
-                       surgery['Complication'] ?? 
-                       '';
-    final surgeryStatus = surgery['surgeryStatus'] ?? 
-                        surgery['SurgeryStatus'] ?? 
-                        'Completed';
-    
+    final surgeryId =
+        surgery['patientSurgeryID'] ??
+        surgery['PatientSurgeryID'] ??
+        surgery['patientSurgeryId'];
+    final surgeryName =
+        surgery['surgeryName'] ?? surgery['SurgeryName'] ?? 'N/A';
+    final surgeryDate = surgery['surgeryDate'] ?? surgery['SurgeryDate'];
+    final surgeryStartTime =
+        surgery['surgeryStartTime'] ?? surgery['SurgeryStartTime'] ?? '';
+    final surgeryEndTime =
+        surgery['surgeryEndTime'] ?? surgery['SurgeryEndTime'] ?? '';
+    final surgeonName =
+        surgery['surgeonName'] ??
+        surgery['SurgeonName'] ??
+        surgery['surgeon'] ??
+        'N/A';
+    final assistantSurgeonName =
+        surgery['assistantSurgeonName'] ??
+        surgery['AssistantSurgeonName'] ??
+        '';
+    final anesthesiaType =
+        surgery['anesthesiaType'] ?? surgery['AnesthesiaType'] ?? '';
+    final procedureOutcome =
+        surgery['procedureOutcome'] ?? surgery['ProcedureOutcome'] ?? '';
+    final procedureNote =
+        surgery['procedureNote'] ?? surgery['ProcedureNote'] ?? '';
+    final complication =
+        surgery['complication'] ?? surgery['Complication'] ?? '';
+    final surgeryStatus =
+        surgery['surgeryStatus'] ?? surgery['SurgeryStatus'] ?? 'Completed';
+
     DateTime? parsedDate;
     if (surgeryDate != null) {
-      parsedDate = surgeryDate is DateTime 
-          ? surgeryDate 
+      parsedDate = surgeryDate is DateTime
+          ? surgeryDate
           : DateTime.tryParse(surgeryDate.toString());
     }
 
@@ -1755,7 +2145,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             spreadRadius: 2,
           ),
         ],
-        border: Border.all(color: cs.tertiary.withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(
+          color: cs.tertiary.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1795,19 +2188,33 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                           ),
                           if (parsedDate != null) ...[
                             const SizedBox(width: 8),
-                            Icon(Icons.calendar_today, size: 14, color: cs.onTertiary.withValues(alpha: 0.9)),
+                            Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: cs.onTertiary.withValues(alpha: 0.9),
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               AppDateFormat.formatDate(parsedDate),
-                              style: TextStyle(color: cs.onTertiary.withValues(alpha: 0.9), fontSize: 12),
+                              style: TextStyle(
+                                color: cs.onTertiary.withValues(alpha: 0.9),
+                                fontSize: 12,
+                              ),
                             ),
                             if (surgeryStartTime.toString().isNotEmpty) ...[
                               const SizedBox(width: 8),
-                              Icon(Icons.access_time, size: 14, color: cs.onTertiary.withValues(alpha: 0.9)),
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
+                                color: cs.onTertiary.withValues(alpha: 0.9),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '${surgeryStartTime}${surgeryEndTime.toString().isNotEmpty ? ' - $surgeryEndTime' : ''}',
-                                style: TextStyle(color: cs.onTertiary.withValues(alpha: 0.9), fontSize: 12),
+                                style: TextStyle(
+                                  color: cs.onTertiary.withValues(alpha: 0.9),
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ],
@@ -1817,7 +2224,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: cs.onTertiary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -1844,18 +2254,34 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               children: [
                 // Surgeon Information
                 if (surgeonName.toString().isNotEmpty) ...[
-                  _buildInfoRow(Icons.person, 'Surgeon', surgeonName.toString()),
+                  _buildInfoRow(
+                    Icons.person,
+                    'Surgeon',
+                    surgeonName.toString(),
+                  ),
                 ],
                 if (assistantSurgeonName.toString().isNotEmpty) ...[
-                  _buildInfoRow(Icons.person_outline, 'Assistant Surgeon', assistantSurgeonName.toString()),
+                  _buildInfoRow(
+                    Icons.person_outline,
+                    'Assistant Surgeon',
+                    assistantSurgeonName.toString(),
+                  ),
                 ],
                 if (anesthesiaType.toString().isNotEmpty) ...[
-                  _buildInfoRow(Icons.medication_liquid, 'Anesthesia Type', anesthesiaType.toString()),
+                  _buildInfoRow(
+                    Icons.medication_liquid,
+                    'Anesthesia Type',
+                    anesthesiaType.toString(),
+                  ),
                 ],
                 if (procedureOutcome.toString().isNotEmpty) ...[
-                  _buildInfoRow(Icons.check_circle, 'Outcome', procedureOutcome.toString()),
+                  _buildInfoRow(
+                    Icons.check_circle,
+                    'Outcome',
+                    procedureOutcome.toString(),
+                  ),
                 ],
-                
+
                 // Procedure Note
                 if (procedureNote.toString().isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -1864,7 +2290,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     decoration: BoxDecoration(
                       color: cs.tertiaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: cs.tertiary.withValues(alpha: 0.5), width: 1),
+                      border: Border.all(
+                        color: cs.tertiary.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1901,7 +2330,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     decoration: BoxDecoration(
                       color: cs.errorContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: cs.error.withValues(alpha: 0.5), width: 1),
+                      border: Border.all(
+                        color: cs.error.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1956,10 +2388,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),
         ],
@@ -1967,7 +2396,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildDetailSection(String title, IconData icon, Color color, List<String> items) {
+  Widget _buildDetailSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<String> items,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
@@ -2006,12 +2440,15 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('• ', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-                      Expanded(
-                        child: Text(
-                          item,
-                          style: const TextStyle(fontSize: 13),
+                      Text(
+                        '• ',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      Expanded(
+                        child: Text(item, style: const TextStyle(fontSize: 13)),
                       ),
                     ],
                   ),
@@ -2030,7 +2467,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final resultsWithData = labOrders.where((lab) {
       final resultId = lab['resultId'];
       final resultValue = lab['resultValue'];
-      return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
+      return resultId != null ||
+          (resultValue != null && resultValue.toString().isNotEmpty);
     }).toList();
 
     if (resultsWithData.isEmpty) {
@@ -2041,16 +2479,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         final name = isPackageTest
             ? (lab['testName'] ?? 'N/A')
             : (isPackage
-                ? (lab['packageName'] ?? 'N/A')
-                : (lab['testName'] ?? 'N/A'));
+                  ? (lab['packageName'] ?? 'N/A')
+                  : (lab['testName'] ?? 'N/A'));
         final type = (isPackage || isPackageTest) ? 'Package' : 'Test';
         return '$name ($type)';
       }).toList();
-      
+
       if (testNames.isEmpty) {
         return const SizedBox.shrink();
       }
-      
+
       return _buildCompactDetailSection(
         'Lab Tests',
         Icons.science,
@@ -2062,9 +2500,13 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final color = cs.primary;
     final colorLight = color.withValues(alpha: 0.15);
     final colorBorder = color.withValues(alpha: 0.5);
-    
+
     // Determine status from abnormal flags and result status (matching PDF format)
-    String _determineStatus(String abnormalFlags, String resultStatus, bool isCritical) {
+    String _determineStatus(
+      String abnormalFlags,
+      String resultStatus,
+      bool isCritical,
+    ) {
       final flag = abnormalFlags.toUpperCase().trim();
       if (isCritical || flag == 'HH' || flag == 'LL') return 'CRITICAL';
       if (flag == 'H' || resultStatus.toUpperCase() == 'HIGH') return 'HIGH';
@@ -2072,21 +2514,22 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       if (flag == 'A' || flag == 'AA') return 'ABNORMAL';
       return 'NORMAL';
     }
-    
+
     bool _shouldHighlightResult(String status, bool isCritical) {
-      return isCritical || status == 'HIGH' || status == 'LOW' || status == 'CRITICAL' || status == 'ABNORMAL';
+      return isCritical ||
+          status == 'HIGH' ||
+          status == 'LOW' ||
+          status == 'CRITICAL' ||
+          status == 'ABNORMAL';
     }
-    
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            cs.surface,
-            colorLight,
-          ],
+          colors: [cs.surface, colorLight],
         ),
         boxShadow: [
           BoxShadow(
@@ -2101,10 +2544,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(
-          color: colorBorder,
-          width: 1.5,
-        ),
+        border: Border.all(color: colorBorder, width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -2138,11 +2578,61 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Row(
                 children: [
-                  Expanded(flex: 3, child: Text('Test Name', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onSurface))),
-                  Expanded(flex: 2, child: Text('Result', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onSurface))),
-                  Expanded(flex: 1, child: Text('Unit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onSurface))),
-                  Expanded(flex: 2, child: Text('Ref Range', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onSurface))),
-                  Expanded(flex: 1, child: Text('Status', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: cs.onSurface))),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Test Name',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Result',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'Unit',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'Ref Range',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'Status',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2154,19 +2644,27 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               final testName = isPackageTest
                   ? (lab['testName'] ?? 'N/A')
                   : (isPackage
-                      ? (lab['packageName'] ?? lab['testName'] ?? 'N/A')
-                      : (lab['testName'] ?? 'N/A'));
+                        ? (lab['packageName'] ?? lab['testName'] ?? 'N/A')
+                        : (lab['testName'] ?? 'N/A'));
               final resultValue = (lab['resultValue'] ?? '').toString();
               final units = (lab['units'] ?? '').toString();
               final referenceRange = (lab['referenceRange'] ?? '').toString();
               final abnormalFlags = (lab['abnormalFlags'] ?? '').toString();
               final isCritical = lab['isCritical'] == true;
               final resultStatus = (lab['resultStatus'] ?? '').toString();
-              final resultInterpretation = (lab['resultInterpretation'] ?? '').toString();
-              
-              final status = _determineStatus(abnormalFlags, resultStatus, isCritical);
-              final shouldHighlight = _shouldHighlightResult(status, isCritical);
-              
+              final resultInterpretation = (lab['resultInterpretation'] ?? '')
+                  .toString();
+
+              final status = _determineStatus(
+                abnormalFlags,
+                resultStatus,
+                isCritical,
+              );
+              final shouldHighlight = _shouldHighlightResult(
+                status,
+                isCritical,
+              );
+
               // Background color matching PDF format
               Color? rowBgColor;
               if (isCritical) {
@@ -2174,7 +2672,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               } else if (status == 'HIGH' || status == 'LOW') {
                 rowBgColor = cs.tertiaryContainer.withValues(alpha: 0.5);
               }
-              
+
               // Status badge colors
               Color statusBgColor;
               Color statusTextColor;
@@ -2191,7 +2689,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 statusBgColor = cs.surfaceContainerHighest;
                 statusTextColor = cs.onSurfaceVariant;
               }
-              
+
               return Container(
                 decoration: BoxDecoration(
                   color: rowBgColor,
@@ -2221,8 +2719,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                               resultValue,
                               style: TextStyle(
                                 fontSize: 10,
-                                fontWeight: shouldHighlight ? FontWeight.bold : FontWeight.normal,
-                                color: shouldHighlight ? cs.error : cs.onSurface,
+                                fontWeight: shouldHighlight
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: shouldHighlight
+                                    ? cs.error
+                                    : cs.onSurface,
                               ),
                             ),
                           ),
@@ -2231,22 +2733,25 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     ),
                     Expanded(
                       flex: 1,
-                      child: Text(
-                        units,
-                        style: const TextStyle(fontSize: 10),
-                      ),
+                      child: Text(units, style: const TextStyle(fontSize: 10)),
                     ),
                     Expanded(
                       flex: 2,
                       child: Text(
                         referenceRange,
-                        style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     Expanded(
                       flex: 1,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: statusBgColor,
                           borderRadius: BorderRadius.circular(3),
@@ -2255,7 +2760,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                           status,
                           style: TextStyle(
                             fontSize: 9,
-                            fontWeight: shouldHighlight ? FontWeight.bold : FontWeight.w600,
+                            fontWeight: shouldHighlight
+                                ? FontWeight.bold
+                                : FontWeight.w600,
                             color: statusTextColor,
                           ),
                           textAlign: TextAlign.center,
@@ -2267,7 +2774,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               );
             }).toList(),
             // Interpretation section (if any)
-            if (resultsWithData.any((lab) => (lab['resultInterpretation'] ?? '').toString().isNotEmpty)) ...[
+            if (resultsWithData.any(
+              (lab) =>
+                  (lab['resultInterpretation'] ?? '').toString().isNotEmpty,
+            )) ...[
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(6),
@@ -2279,26 +2789,37 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: resultsWithData
-                      .where((lab) => (lab['resultInterpretation'] ?? '').toString().isNotEmpty)
+                      .where(
+                        (lab) => (lab['resultInterpretation'] ?? '')
+                            .toString()
+                            .isNotEmpty,
+                      )
                       .map((lab) {
-                    final testName = (lab['testName'] ?? 'N/A').toString();
-                    final interpretation = (lab['resultInterpretation'] ?? '').toString();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: RichText(
-                        text: TextSpan(
-                          style: TextStyle(fontSize: 10, color: cs.onSurface),
-                          children: [
-                            TextSpan(
-                              text: '$testName: ',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                        final testName = (lab['testName'] ?? 'N/A').toString();
+                        final interpretation =
+                            (lab['resultInterpretation'] ?? '').toString();
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: cs.onSurface,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: '$testName: ',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                TextSpan(text: interpretation),
+                              ],
                             ),
-                            TextSpan(text: interpretation),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                          ),
+                        );
+                      })
+                      .toList(),
                 ),
               ),
             ],
@@ -2319,16 +2840,17 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     if (reportsWithData.isEmpty) {
       // If no reports, show just test names like before
-      final testNames = radiologyOrders.map<String>((rad) => 
-        (rad['testName'] ?? 
-        rad['clinicalDisplayName'] ?? 
-        'N/A').toString()
-      ).toList();
-      
+      final testNames = radiologyOrders
+          .map<String>(
+            (rad) => (rad['testName'] ?? rad['clinicalDisplayName'] ?? 'N/A')
+                .toString(),
+          )
+          .toList();
+
       if (testNames.isEmpty) {
         return const SizedBox.shrink();
       }
-      
+
       return _buildCompactDetailSection(
         'Radiology Tests',
         Icons.scanner,
@@ -2340,17 +2862,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final color = cs.tertiary;
     final colorLight = color.withValues(alpha: 0.15);
     final colorBorder = color.withValues(alpha: 0.5);
-    
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            cs.surface,
-            colorLight,
-          ],
+          colors: [cs.surface, colorLight],
         ),
         boxShadow: [
           BoxShadow(
@@ -2365,10 +2884,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(
-          color: colorBorder,
-          width: 1.5,
-        ),
+        border: Border.all(color: colorBorder, width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -2394,16 +2910,21 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             ),
             const SizedBox(height: 4),
             ...reportsWithData.map((rad) {
-              final testName = (rad['testName'] ?? rad['clinicalDisplayName'] ?? 'N/A').toString();
+              final testName =
+                  (rad['testName'] ?? rad['clinicalDisplayName'] ?? 'N/A')
+                      .toString();
               final reportStatus = (rad['reportStatus'] ?? '').toString();
               final finalFindings = (rad['finalFindings'] ?? '').toString();
-              final preliminaryFindings = (rad['preliminaryFindings'] ?? '').toString();
+              final preliminaryFindings = (rad['preliminaryFindings'] ?? '')
+                  .toString();
               final impression = (rad['impression'] ?? '').toString();
               final recommendations = (rad['recommendations'] ?? '').toString();
               final addendumNotes = (rad['addendumNotes'] ?? '').toString();
-              
-              final findings = finalFindings.isNotEmpty ? finalFindings : preliminaryFindings;
-              
+
+              final findings = finalFindings.isNotEmpty
+                  ? finalFindings
+                  : preliminaryFindings;
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6.0),
                 child: Column(
@@ -2412,20 +2933,34 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('• ', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(
+                          '• ',
+                          style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 testName,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               if (reportStatus.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
                                   'Status: $reportStatus',
-                                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant, fontStyle: FontStyle.italic),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                 ),
                               ],
                               if (findings.isNotEmpty) ...[
@@ -2453,7 +2988,10 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Addendum: $addendumNotes',
-                                  style: TextStyle(fontSize: 11, color: cs.primary),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.primary,
+                                  ),
                                 ),
                               ],
                             ],
@@ -2471,24 +3009,26 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildCompactDetailSection(String title, IconData icon, Color color, List<String> items) {
+  Widget _buildCompactDetailSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<String> items,
+  ) {
     if (items.isEmpty) {
       return const SizedBox.shrink();
     }
     final cs = Theme.of(context).colorScheme;
     final colorLight = color.withValues(alpha: 0.15);
     final colorBorder = color.withValues(alpha: 0.5);
-    
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            cs.surface,
-            colorLight,
-          ],
+          colors: [cs.surface, colorLight],
         ),
         boxShadow: [
           BoxShadow(
@@ -2503,10 +3043,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(
-          color: colorBorder,
-          width: 1.5,
-        ),
+        border: Border.all(color: colorBorder, width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -2537,12 +3074,16 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('• ', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-                    Expanded(
-                      child: Text(
-                        item,
-                        style: const TextStyle(fontSize: 12),
+                    Text(
+                      '• ',
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
                       ),
+                    ),
+                    Expanded(
+                      child: Text(item, style: const TextStyle(fontSize: 12)),
                     ),
                   ],
                 ),
@@ -2554,13 +3095,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-
   Color _getStatusColor(BuildContext context, String status) {
     final cs = Theme.of(context).colorScheme;
     final statusLower = status.toString().toLowerCase();
     if (statusLower.contains('checked out') || statusLower == 'checked_out') {
       return cs.outline;
-    } else if (statusLower.contains('checked in') || statusLower == 'checked_in' || statusLower.contains('in progress')) {
+    } else if (statusLower.contains('checked in') ||
+        statusLower == 'checked_in' ||
+        statusLower.contains('in progress')) {
       return cs.secondary;
     } else {
       return cs.primary;
@@ -2592,7 +3134,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     if (weightStr == null || heightStr == null) return null;
     final weight = double.tryParse(weightStr.toString());
     final height = double.tryParse(heightStr.toString());
-    if (weight == null || height == null || weight <= 0 || height <= 0) return null;
+    if (weight == null || height == null || weight <= 0 || height <= 0)
+      return null;
     // Assume height is in cm, convert to meters
     final heightInMeters = height / 100.0;
     return weight / (heightInMeters * heightInMeters);
@@ -2658,7 +3201,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Widget _buildVitalChip(String label, String value, bool isOutOfRange, {bool isHeader = false}) {
+  Widget _buildVitalChip(
+    String label,
+    String value,
+    bool isOutOfRange, {
+    bool isHeader = false,
+  }) {
     final cs = Theme.of(context).colorScheme;
     final display = value.trim().isEmpty ? '-' : value;
 
@@ -2707,7 +3255,17 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildVitalsContent(String bp, String hr, String temp, String spo2, String rr, String weight, String height, String bsr, {bool isHeader = false}) {
+  Widget _buildVitalsContent(
+    String bp,
+    String hr,
+    String temp,
+    String spo2,
+    String rr,
+    String weight,
+    String height,
+    String bsr, {
+    bool isHeader = false,
+  }) {
     // Parse BP for out-of-range check
     double? bpSystolic, bpDiastolic;
     if (bp.contains('/')) {
@@ -2723,24 +3281,28 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     final bmiStr = bmi != null ? bmi.toStringAsFixed(1) : '';
 
     // Check which vitals are out of range
-    final bpSystolicOutOfRange = bpSystolic != null && !_isSystolicNormal(bpSystolic);
-    final bpDiastolicOutOfRange = bpDiastolic != null && !_isDiastolicNormal(bpDiastolic);
+    final bpSystolicOutOfRange =
+        bpSystolic != null && !_isSystolicNormal(bpSystolic);
+    final bpDiastolicOutOfRange =
+        bpDiastolic != null && !_isDiastolicNormal(bpDiastolic);
     final bpOutOfRange = bpSystolicOutOfRange || bpDiastolicOutOfRange;
-    
+
     final hrValue = double.tryParse(hr);
     final hrOutOfRange = hrValue != null && !_isPulseNormal(hrValue);
-    
+
     final tempValue = double.tryParse(temp);
-    final tempOutOfRange = tempValue != null && !_isTemperatureNormal(tempValue);
-    
+    final tempOutOfRange =
+        tempValue != null && !_isTemperatureNormal(tempValue);
+
     final spo2Value = double.tryParse(spo2);
-    final spo2OutOfRange = spo2Value != null && !_isO2SaturationNormal(spo2Value);
-    
+    final spo2OutOfRange =
+        spo2Value != null && !_isO2SaturationNormal(spo2Value);
+
     final rrValue = double.tryParse(rr);
     final rrOutOfRange = rrValue != null && !_isRespiratoryRateNormal(rrValue);
-    
+
     final bmiOutOfRange = bmi != null && !_isBMINormal(bmi);
-    
+
     final bsrValue = double.tryParse(bsr);
     final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
 
@@ -2748,16 +3310,25 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       spacing: 6,
       runSpacing: 6,
       children: [
-        if (bp.isNotEmpty) _buildVitalChip('BP', bp, bpOutOfRange, isHeader: isHeader),
-        if (hr.isNotEmpty) _buildVitalChip('HR', hr, hrOutOfRange, isHeader: isHeader),
-        if (temp.isNotEmpty) _buildVitalChip('Temp', temp, tempOutOfRange, isHeader: isHeader),
-        if (spo2.isNotEmpty) _buildVitalChip('SpO₂', spo2, spo2OutOfRange, isHeader: isHeader),
-        if (rr.isNotEmpty) _buildVitalChip('RR', rr, rrOutOfRange, isHeader: isHeader),
+        if (bp.isNotEmpty)
+          _buildVitalChip('BP', bp, bpOutOfRange, isHeader: isHeader),
+        if (hr.isNotEmpty)
+          _buildVitalChip('HR', hr, hrOutOfRange, isHeader: isHeader),
+        if (temp.isNotEmpty)
+          _buildVitalChip('Temp', temp, tempOutOfRange, isHeader: isHeader),
+        if (spo2.isNotEmpty)
+          _buildVitalChip('SpO₂', spo2, spo2OutOfRange, isHeader: isHeader),
+        if (rr.isNotEmpty)
+          _buildVitalChip('RR', rr, rrOutOfRange, isHeader: isHeader),
         if (!isHeader) ...[
-          if (weight.isNotEmpty) _buildVitalChip('Wt', weight, false, isHeader: isHeader),
-          if (height.isNotEmpty) _buildVitalChip('Ht', height, false, isHeader: isHeader),
-          if (bmiStr.isNotEmpty) _buildVitalChip('BMI', bmiStr, bmiOutOfRange, isHeader: isHeader),
-          if (bsr.isNotEmpty) _buildVitalChip('BSR', bsr, bsrOutOfRange, isHeader: isHeader),
+          if (weight.isNotEmpty)
+            _buildVitalChip('Wt', weight, false, isHeader: isHeader),
+          if (height.isNotEmpty)
+            _buildVitalChip('Ht', height, false, isHeader: isHeader),
+          if (bmiStr.isNotEmpty)
+            _buildVitalChip('BMI', bmiStr, bmiOutOfRange, isHeader: isHeader),
+          if (bsr.isNotEmpty)
+            _buildVitalChip('BSR', bsr, bsrOutOfRange, isHeader: isHeader),
         ],
       ],
     );
@@ -2780,7 +3351,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         encounterDataList: _encounterDataList,
         patient: widget.patient,
       );
-      
+
       if (mounted) {
         Navigator.pop(context);
         AppSnackBar.showSuccess(context, 'PDF generated successfully');
@@ -2793,4 +3364,3 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 }
-

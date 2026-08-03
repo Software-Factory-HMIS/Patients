@@ -9,16 +9,16 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Government of Punjab Patient\'s App';
+  String get appTitle => 'SehatLink';
 
   @override
-  String get appNameShort => 'Government of Punjab Patient\'s App';
+  String get appNameShort => 'SehatLink';
 
   @override
   String get governmentOfPunjab => 'Government of Punjab';
 
   @override
-  String get patientApp => 'Patient App';
+  String get patientApp => 'SehatLink';
 
   @override
   String get healthDepartment => 'Health Department';
@@ -149,7 +149,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'View your hospital visits and medical records.';
 
   @override
-  String get profileSubtitle => 'Manage your account and personal details.';
+  String get profileSubtitle => 'Manage your profile and personal details.';
 
   @override
   String get healthRecords => 'Health Records';
@@ -326,7 +326,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpDialogMessage =>
-      'For account or medical record issues, contact your hospital reception or Punjab Health support.';
+      'For patient record or medical record issues, contact your hospital reception or Punjab Health support.';
 
   @override
   String get trustedByPunjabHealth => 'Trusted by Punjab Health';
@@ -409,7 +409,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signInInfoMessage =>
-      'Enter your CNIC to securely access hospital records. Unregistered patients should contact reception.';
+      'Enter your CNIC to securely access hospital records. If your record is not found, contact hospital reception.';
 
   @override
   String get enterCnic => 'Please enter your CNIC number';
@@ -427,11 +427,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanCnic => 'Scan CNIC';
 
   @override
-  String get accountNotFound => 'Account not found';
+  String get accountNotFound => 'Patient not found';
 
   @override
   String accountNotFoundMessage(String cnic) {
-    return 'We could not find a patient with CNIC $cnic.\n\nPlease visit hospital reception for registration.';
+    return 'We could not find a patient with CNIC $cnic.\n\nPlease visit hospital reception for assistance.';
   }
 
   @override
@@ -439,7 +439,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String phoneMissingMessage(String name) {
-    return 'Hello $name,\n\nYour account does not have a phone number. Please visit hospital reception to update your contact details.';
+    return 'Hello $name,\n\nYour patient record does not have a phone number. Please visit hospital reception to update your contact details.';
   }
 
   @override
@@ -477,8 +477,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSupport => 'Need Help? Contact Support';
 
   @override
-  String get healthcarePortalFooter =>
-      'HEALTHCARE PORTAL  |  PUNJAB GOVERNMENT';
+  String get healthcarePortalFooter => 'SEHATLINK  |  PUNJAB GOVERNMENT';
 
   @override
   String get copyrightPitb => '© 2024 Health and Population Department';
@@ -575,7 +574,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneVerifyInfo =>
-      'We will send a 6-digit code to your registered number. Visit reception if this number is wrong.';
+      'We will send a 6-digit code to the phone number on your patient record. Visit reception if this number is wrong.';
 
   @override
   String get howToSendCode => 'How should we send the code?';
@@ -617,7 +616,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signIn => 'Sign In';
 
   @override
-  String get registeredNumber => 'your registered number';
+  String get registeredNumber => 'your phone number';
 
   @override
   String otpSentVia(String channel, String phone) {
@@ -645,9 +644,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiInvalidOtp => 'Invalid OTP code. Please try again.';
 
   @override
-  String get apiInvalidCnicPassword => 'Invalid CNIC or password.';
-
-  @override
   String get apiPatientNotFound => 'Patient not found';
 
   @override
@@ -666,7 +662,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String apiAccountFoundOtp(String phone) {
-    return 'We found your account. OTP will be sent to $phone.';
+    return 'We found your patient record. OTP will be sent to $phone.';
   }
 
   @override

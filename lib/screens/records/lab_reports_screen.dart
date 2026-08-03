@@ -85,71 +85,83 @@ class _LabReportsScreenState extends State<LabReportsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Lab Results')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: PunjabColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: PunjabColors.primary),
+            )
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!),
-                      const Gap(16),
-                      FilledButton(onPressed: _load, child: const Text('Retry')),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  color: PunjabColors.primary,
-                  onRefresh: _load,
-                  child: _reports.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 80),
-                            EmptyStateWidget(
-                              icon: Icons.science_outlined,
-                              title: 'No lab results yet',
-                              message: 'Your lab test results will appear here after your visits.',
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_error!),
+                  const Gap(16),
+                  FilledButton(onPressed: _load, child: const Text('Retry')),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              color: PunjabColors.primary,
+              onRefresh: _load,
+              child: _reports.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 80),
+                        EmptyStateWidget(
+                          icon: Icons.science_outlined,
+                          title: 'No lab results yet',
+                          message:
+                              'Your lab test results will appear here after your visits.',
+                        ),
+                      ],
+                    )
+                  : ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        HealthSummaryPanel(
+                          theme: theme,
+                          icon: Icons.biotech_rounded,
+                          title: 'Laboratory Results',
+                          subtitle: _summary.lastDate != null
+                              ? 'Latest: ${_summary.lastDate}'
+                              : null,
+                          metrics: [
+                            HealthMetricPill(
+                              label: 'Total',
+                              value: '${_summary.total}',
+                              accent: theme.onAccent,
+                              emphasize: true,
+                            ),
+                            HealthMetricPill(
+                              label: 'Normal',
+                              value: '${_summary.normal}',
+                              accent: PunjabColors.success,
+                            ),
+                            HealthMetricPill(
+                              label: 'Elevated',
+                              value: '${_summary.elevated}',
+                              accent: PunjabColors.warning,
+                            ),
+                            HealthMetricPill(
+                              label: 'Critical',
+                              value: '${_summary.critical}',
+                              accent: PunjabColors.danger,
                             ),
                           ],
-                        )
-                      : ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            HealthSummaryPanel(
-                              theme: theme,
-                              icon: Icons.biotech_rounded,
-                              title: 'Laboratory Results',
-                              subtitle: _summary.lastDate != null ? 'Latest: ${_summary.lastDate}' : null,
-                              metrics: [
-                                HealthMetricPill(
-                                  label: 'Total',
-                                  value: '${_summary.total}',
-                                  accent: theme.onAccent,
-                                  emphasize: true,
-                                ),
-                                HealthMetricPill(
-                                  label: 'Normal',
-                                  value: '${_summary.normal}',
-                                  accent: PunjabColors.success,
-                                ),
-                                HealthMetricPill(
-                                  label: 'Elevated',
-                                  value: '${_summary.elevated}',
-                                  accent: PunjabColors.warning,
-                                ),
-                                HealthMetricPill(
-                                  label: 'Critical',
-                                  value: '${_summary.critical}',
-                                  accent: PunjabColors.danger,
-                                ),
-                              ],
-                            ),
-                            const Gap(14),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: ['All', 'Normal', 'Abnormal', 'Critical', 'Pending'].map((filter) {
+                        ),
+                        const Gap(14),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children:
+                                [
+                                  'All',
+                                  'Normal',
+                                  'Abnormal',
+                                  'Critical',
+                                  'Pending',
+                                ].map((filter) {
                                   final selected = _statusFilter == filter;
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
@@ -166,35 +178,39 @@ class _LabReportsScreenState extends State<LabReportsScreen> {
                                     ),
                                   );
                                 }).toList(),
+                          ),
+                        ),
+                        const Gap(12),
+                        ..._filtered.map((report) {
+                          final statusColor = labStatusColor(report);
+                          return HealthReportListCard(
+                            theme: theme,
+                            icon: Icons.science_rounded,
+                            title: report.test,
+                            subtitle: report.result != null
+                                ? 'Result: ${report.result}'
+                                : null,
+                            preview: report.normalRange != null
+                                ? 'Reference: ${report.normalRange}'
+                                : null,
+                            meta: formatReportDate(report.date),
+                            statusLabel: labStatusLabel(report),
+                            statusColor: statusColor,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => LabReportDetailScreen(
+                                  report: report,
+                                  patientName: widget.patientName,
+                                  patientMrn: widget.patientMrn,
+                                ),
                               ),
                             ),
-                            const Gap(12),
-                            ..._filtered.map((report) {
-                              final statusColor = labStatusColor(report);
-                              return HealthReportListCard(
-                                theme: theme,
-                                icon: Icons.science_rounded,
-                                title: report.test,
-                                subtitle: report.result != null ? 'Result: ${report.result}' : null,
-                                preview: report.normalRange != null ? 'Reference: ${report.normalRange}' : null,
-                                meta: formatReportDate(report.date),
-                                statusLabel: labStatusLabel(report),
-                                statusColor: statusColor,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LabReportDetailScreen(
-                                      report: report,
-                                      patientName: widget.patientName,
-                                      patientMrn: widget.patientMrn,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                ),
+                          );
+                        }),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+            ),
     );
   }
 }
