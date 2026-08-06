@@ -18,6 +18,13 @@ class EncounterService {
   }) =>
       _api.getAllPatientEncounters(patientId, fromDate: fromDate, toDate: toDate);
 
+  Future<Map<String, dynamic>> getPatientClinicalHistory(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) =>
+      _api.getPatientClinicalHistory(patientId, fromDate: fromDate, toDate: toDate);
+
   Future<Map<String, dynamic>> getEncounterDetails(int encounterId) =>
       _api.getEncounterDetails(encounterId);
 

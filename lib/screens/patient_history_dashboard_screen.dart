@@ -46,7 +46,14 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
   bool _showOverlay = false;
   String? _selectedSection;
   bool _isMedicalCardsExpanded = false;
-  
+  DateTime _fromDate = DateTime.now().subtract(const Duration(days: 15));
+  DateTime _toDate = DateTime.now();
+  bool _activeMedsLoaded = false;
+  bool _surgeryLoaded = false;
+  bool _pregnancyLoaded = false;
+  List<dynamic> _labResultsFromApi = [];
+  List<dynamic> _radiologyFromApi = [];
+
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
   final TextEditingController _medicationsSearchController = TextEditingController();
@@ -86,9 +93,20 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     }).toList();
   }
 
-  /// Flattened lab orders from all encounters (package/test expansion like ipd_file_screen)
+  String _labDedupeKey(Map<String, dynamic> m) {
+    final resultId = m['resultId'] ?? m['resultID'] ?? m['ResultID'];
+    if (resultId != null && resultId.toString().isNotEmpty) return 'rid:${resultId}';
+    final test = (m['testName'] ?? m['test'] ?? m['Test'] ?? '').toString().trim().toLowerCase();
+    final date = (m['encounterDate'] ?? m['date'] ?? m['Date'] ?? m['sampleDate'] ?? '').toString().trim().toLowerCase();
+    final result = (m['resultValue'] ?? m['result'] ?? m['Result'] ?? m['resultNumeric'] ?? '').toString().trim().toLowerCase();
+    return 't:$test|d:$date|r:$result';
+  }
+
+  /// Flattened labs: encounter orders + top-level clinical-history labs (Gap 4A merge).
   List<Map<String, dynamic>> get _aggregatedLabOrders {
     final List<Map<String, dynamic>> out = [];
+    final seen = <String>{};
+
     for (final data in _encounterDataList) {
       final encounter = data['encounter'] as Map<String, dynamic>? ?? {};
       final encounterDate = encounter['encounterDate'] ?? encounter['EncounterDate'] ?? encounter['checkInTime'] ?? '';
@@ -97,13 +115,12 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
       final packageMap = <String, Map<String, dynamic>>{};
       final testItems = <Map<String, dynamic>>[];
       for (final order in labOrdersRaw) {
+        if (order is! Map) continue;
         final packageId = order['packageId'];
         final isPackage = packageId != null;
         if (isPackage) {
           final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
           if (!packageMap.containsKey(packageKey)) {
-            final rateValue = order['rate'];
-            final rate = rateValue is num ? rateValue.toDouble() : double.tryParse(rateValue?.toString() ?? '') ?? 0;
             packageMap[packageKey] = {
               'type': 'package',
               'packageId': packageId,
@@ -147,14 +164,41 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
           m['packageName'] = pkg['packageName'];
           m['testName'] = m['testName'] ?? 'N/A';
           m['encounterDate'] = dateStr;
-          out.add(m);
+          final key = _labDedupeKey(m);
+          if (seen.add(key)) out.add(m);
         }
       }
       for (final t in testItems) {
         final m = Map<String, dynamic>.from(t);
         m['encounterDate'] = dateStr;
-        out.add(m);
+        final key = _labDedupeKey(m);
+        if (seen.add(key)) out.add(m);
       }
+    }
+
+    // Merge top-level labs from clinical-history (may include results without encounter link)
+    for (final raw in _labResultsFromApi) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final dateRaw = m['sampleDate'] ?? m['date'] ?? m['Date'] ?? m['SampleDate'];
+      final mapped = <String, dynamic>{
+        'type': 'api_lab',
+        'packageName': m['packageName'] ?? 'Lab Results',
+        'testName': m['test'] ?? m['Test'] ?? m['testName'] ?? 'N/A',
+        'resultId': m['resultId'] ?? m['ResultID'],
+        'resultValue': m['result'] ?? m['Result'] ?? m['resultValue'],
+        'resultNumeric': m['resultNumeric'],
+        'units': m['units'],
+        'referenceRange': m['normalRange'] ?? m['Normal Range'] ?? m['referenceRange'],
+        'abnormalFlags': m['abnormalFlags'],
+        'resultStatus': m['status'] ?? m['Status'],
+        'isCritical': m['isCritical'],
+        'encounterDate': dateRaw != null ? _formatDateDDMMYYYY(dateRaw) : (m['date'] ?? m['Date'] ?? '').toString(),
+        'orderedBy': m['orderedBy'] ?? m['Ordered By'],
+        'reportedBy': m['reportedBy'] ?? m['Reported By'],
+      };
+      final key = _labDedupeKey(mapped);
+      if (seen.add(key)) out.add(mapped);
     }
     return out;
   }
@@ -180,11 +224,40 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     return count;
   }
 
-  /// Flattened radiology orders from all encounters
+  String _radDedupeKey(Map<String, dynamic> m) {
+    final detailId = m['orderDetailId'] ?? m['OrderDetailID'];
+    if (detailId != null && detailId.toString().isNotEmpty) return 'od:$detailId';
+    final reportId = m['reportId'] ?? m['ReportID'];
+    if (reportId != null && reportId.toString().isNotEmpty) return 'rp:$reportId';
+    final name = (m['testName'] ?? m['procedure'] ?? '').toString().trim().toLowerCase();
+    final date = (m['orderDate'] ?? m['date'] ?? '').toString().trim().toLowerCase();
+    return 'n:$name|d:$date';
+  }
+
+  /// Flattened radiology: encounter orders + top-level clinical-history radiology (Gap 4A merge).
   List<dynamic> get _aggregatedRadiologyOrders {
     final List<dynamic> out = [];
+    final seen = <String>{};
+
     for (final data in _encounterDataList) {
-      out.addAll(data['radiologyOrders'] as List<dynamic>? ?? []);
+      for (final raw in (data['radiologyOrders'] as List<dynamic>? ?? const [])) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        final key = _radDedupeKey(m);
+        if (seen.add(key)) out.add(m);
+      }
+    }
+
+    for (final raw in _radiologyFromApi) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      // Normalize display fields used by Labs/Rad tables
+      m.putIfAbsent('testName', () => m['procedure'] ?? m['TestName']);
+      m.putIfAbsent('finalFindings', () => m['findings'] ?? m['FinalFindings']);
+      m.putIfAbsent('radiologist_Name', () => m['radiologist'] ?? m['Radiologist_Name']);
+      m.putIfAbsent('orderDate', () => m['date'] ?? m['OrderDate']);
+      final key = _radDedupeKey(m);
+      if (seen.add(key)) out.add(m);
     }
     return out;
   }
@@ -192,9 +265,20 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
   @override
   void initState() {
     super.initState();
+    _fromDate = DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
+    _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day);
     // Use 7 tabs if no pregnancy (male or female < 15), 8 tabs if female 15+
     _tabController = TabController(length: _showPregnancy ? 8 : 7, vsync: this);
+    _tabController.addListener(_onHistoryTabChanged);
     _loadPatientHistory();
+  }
+
+  void _onHistoryTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final i = _tabController.index;
+    if (i == 1) _ensureActiveMedicinesLoaded();
+    if (i == 6) _ensureSurgeryLoaded();
+    if (i == 7) _ensurePregnancyLoaded();
   }
 
   Widget _pill({required IconData icon, required String label, required String value, required Color color}) {
@@ -230,6 +314,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
 
   @override
   void dispose() {
+    _tabController.removeListener(_onHistoryTabChanged);
     _tabController.dispose();
     _vitalsSearchController.dispose();
     _medicationsSearchController.dispose();
@@ -242,10 +327,70 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     super.dispose();
   }
 
+  int? _parseId(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
+  }
+
+  Map<int, List<dynamic>> _groupByEncounterId(List<dynamic>? rows) {
+    final map = <int, List<dynamic>>{};
+    if (rows == null) return map;
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = _parseId(row['encounterId'] ?? row['EncounterId'] ?? row['EncounterID']);
+      if (id == null) continue;
+      map.putIfAbsent(id, () => []).add(Map<String, dynamic>.from(row));
+    }
+    return map;
+  }
+
+  List<Map<String, dynamic>> _buildEncounterDataListFromHistory(Map<String, dynamic> history) {
+    final encounters = List<Map<String, dynamic>>.from(
+      (history['encounters'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? const [],
+    );
+    final modules = (history['encounterModules'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+    final vitalsBy = _groupByEncounterId(history['vitals'] as List?);
+    final complaintsBy = _groupByEncounterId(modules['complaints'] as List?);
+    final symptomsBy = _groupByEncounterId(modules['symptoms'] as List?);
+    final diagnosesBy = _groupByEncounterId(modules['diagnoses'] as List?);
+    final labBy = _groupByEncounterId(modules['labOrders'] as List?);
+    final radBy = _groupByEncounterId(modules['radiologyOrders'] as List?);
+    final medsBy = _groupByEncounterId(modules['medicines'] as List?);
+    final notesBy = _groupByEncounterId(modules['notes'] as List?);
+
+    final out = <Map<String, dynamic>>[];
+    for (final encounter in encounters) {
+      final id = _parseId(encounter['encounterId'] ?? encounter['EncounterID']);
+      if (id == null) continue;
+      final notes = notesBy[id] ?? const [];
+      out.add({
+        'encounter': encounter,
+        'vitals': vitalsBy[id] ?? const [],
+        'complaints': complaintsBy[id] ?? const [],
+        'symptoms': symptomsBy[id] ?? const [],
+        'diagnoses': diagnosesBy[id] ?? const [],
+        'labOrders': labBy[id] ?? const [],
+        'radiologyOrders': radBy[id] ?? const [],
+        'medicines': medsBy[id] ?? const [],
+        'notes': notes,
+        'clinicalNotes': notes,
+      });
+    }
+    return out;
+  }
+
   Future<void> _loadPatientHistory() async {
     setState(() {
       _loading = true;
       _error = null;
+      _activeMedsLoaded = false;
+      _surgeryLoaded = false;
+      _pregnancyLoaded = false;
+      _activeMedicines = [];
+      _surgery = null;
+      _pregnancyRecords = null;
+      _activePregnancy = null;
     });
 
     try {
@@ -256,31 +401,23 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
       }
       final parsedPatientId = patientId is int ? patientId : int.parse(patientId.toString());
 
-      // Phase 1: parallel load (same as ipd_file_screen + pharmacy active meds)
+      final days = _toDate.difference(_fromDate).inDays;
+      if (days > 90 && mounted) {
+        AppSnackBar.showInfo(
+          context,
+          'Large range ($days days). Results capped (50 encounters / 100 labs / 50 radiology).',
+        );
+      }
+
       final results = await Future.wait([
+        _encounterService.getPatientClinicalHistory(
+          parsedPatientId,
+          fromDate: _fromDate,
+          toDate: _toDate,
+        ),
         _patientService.getPatientDetails(patientId).catchError((e) {
           print('Error loading patient details: $e');
           return null;
-        }),
-        _encounterService.getAllPatientEncounters(parsedPatientId).catchError((e) {
-          print('Error loading encounters: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _encounterService.getPatientVitals(parsedPatientId).catchError((e) {
-          print('Error loading vitals: $e');
-          return <dynamic>[];
-        }),
-        PharmacyService.getActivePatientMedicines(patientId: parsedPatientId).catchError((e) {
-          print('Error loading active medicines: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _pregnancyService.getPatientSurgeries(parsedPatientId).catchError((e) {
-          print('Error loading surgeries: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _pregnancyService.getPregnancyHistory(parsedPatientId).catchError((e) {
-          print('Error loading pregnancy history: $e');
-          return <Map<String, dynamic>>[];
         }),
         _encounterService.getPatientChronicConditions(patientId).catchError((e) {
           print('Error loading chronic conditions: $e');
@@ -294,74 +431,24 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
           print('Error loading allergies: $e');
           return <Map<String, dynamic>>[];
         }),
-        _pregnancyService.getActivePregnancy(parsedPatientId).catchError((e) {
-          print('Error loading active pregnancy: $e');
-          return null;
-        }),
       ]);
 
-      _patientDetails = results[0] as Map<String, dynamic>?;
-      final encounters = results[1] as List<Map<String, dynamic>>;
-      _allVitals = results[2] as List<dynamic>;
-      _activeMedicines = (results[3] as List<Map<String, dynamic>>?) ?? [];
-      _surgery = results[4] as List<dynamic>?;
-      _pregnancyRecords = results[5] as List<dynamic>?;
-      _chronicConditions = results[6] as List<dynamic>?;
-      _riskFactors = results[7] as List<dynamic>?;
-      _allergies = results[8] as List<dynamic>?;
-      _activePregnancy = results[9] as Map<String, dynamic>?;
-
-      // Phase 2: build _encounterDataList (getEncounterConsultationData per encounter, like ipd_file_screen)
-      final Map<int, List<dynamic>> vitalsByEncounterId = {};
-      for (final vital in _allVitals) {
-        final encounterId = vital['encounterId'] ?? vital['EncounterID'] ?? vital['encounterID'];
-        if (encounterId != null) {
-          final id = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
-          if (id != null) {
-            vitalsByEncounterId.putIfAbsent(id, () => []).add(vital);
-          }
-        }
+      final history = results[0] as Map<String, dynamic>;
+      _patientDetails = results[1] as Map<String, dynamic>?;
+      final header = history['header'];
+      if (header is Map) {
+        _patientDetails = {
+          ...?_patientDetails,
+          ...Map<String, dynamic>.from(header),
+        };
       }
-
-      final List<Map<String, dynamic>> encounterDataList = [];
-      for (final encounter in encounters) {
-        final encounterId = encounter['encounterId'] ?? encounter['EncounterID'] ?? encounter['encounterID'];
-        if (encounterId == null) continue;
-        final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
-        if (parsedEncounterId == null) continue;
-        try {
-          final consultationData = await _encounterService.getEncounterConsultationData(
-            parsedEncounterId,
-            patientId: parsedPatientId,
-          );
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitalsByEncounterId[parsedEncounterId] ?? [],
-            'complaints': consultationData['complaints'] ?? [],
-            'symptoms': consultationData['symptoms'] ?? [],
-            'diagnoses': consultationData['diagnoses'] ?? [],
-            'labOrders': consultationData['labOrders'] ?? [],
-            'radiologyOrders': consultationData['radiologyOrders'] ?? [],
-            'medicines': consultationData['medicines'] ?? [],
-            'notes': consultationData['notes'] ?? consultationData['patientNotes'] ?? [],
-            'clinicalNotes': consultationData['clinicalNotes'] ?? consultationData['clinicalNote'] ?? '',
-          });
-        } catch (e) {
-          print('Error loading encounter data for $parsedEncounterId: $e');
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitalsByEncounterId[parsedEncounterId] ?? [],
-            'complaints': [],
-            'symptoms': [],
-            'diagnoses': [],
-            'labOrders': [],
-            'radiologyOrders': [],
-            'medicines': [],
-            'notes': [],
-            'clinicalNotes': '',
-          });
-        }
-      }
+      _chronicConditions = results[2] as List<dynamic>?;
+      _riskFactors = results[3] as List<dynamic>?;
+      _allergies = results[4] as List<dynamic>?;
+      _allVitals = List<dynamic>.from(history['vitals'] as List? ?? const []);
+      _labResultsFromApi = List<dynamic>.from(history['labs'] as List? ?? const []);
+      _radiologyFromApi = List<dynamic>.from(history['radiology'] as List? ?? const []);
+      final encounterDataList = _buildEncounterDataListFromHistory(history);
 
       if (mounted) {
         setState(() {
@@ -378,6 +465,62 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _ensureActiveMedicinesLoaded() async {
+    if (_activeMedsLoaded || _loading) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _activeMedsLoaded = true;
+    try {
+      final meds = await PharmacyService.getActivePatientMedicines(patientId: parsed);
+      if (mounted) setState(() => _activeMedicines = meds);
+    } catch (e) {
+      print('Error lazy-loading active medicines: $e');
+      _activeMedsLoaded = false;
+    }
+  }
+
+  Future<void> _ensureSurgeryLoaded() async {
+    if (_surgeryLoaded || _loading) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _surgeryLoaded = true;
+    try {
+      final s = await _pregnancyService.getPatientSurgeries(parsed);
+      if (mounted) setState(() => _surgery = s);
+    } catch (e) {
+      print('Error lazy-loading surgery: $e');
+      _surgeryLoaded = false;
+    }
+  }
+
+  Future<void> _ensurePregnancyLoaded() async {
+    if (_pregnancyLoaded || _loading || !_showPregnancy) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _pregnancyLoaded = true;
+    try {
+      final results = await Future.wait([
+        _pregnancyService.getPregnancyHistory(parsed).catchError((_) => <Map<String, dynamic>>[]),
+        _pregnancyService.getActivePregnancy(parsed).catchError((_) => null),
+      ]);
+      if (mounted) {
+        setState(() {
+          _pregnancyRecords = results[0] as List<dynamic>?;
+          _activePregnancy = results[1] as Map<String, dynamic>?;
+        });
+      }
+    } catch (e) {
+      print('Error lazy-loading pregnancy: $e');
+      _pregnancyLoaded = false;
     }
   }
 

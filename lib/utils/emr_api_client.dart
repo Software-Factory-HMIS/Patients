@@ -621,6 +621,24 @@ class EmrApiClient {
     return List<Map<String, dynamic>>.from(data['encounters'] ?? []);
   }
 
+  /// GET /api/encounters/patient/{patientId}/clinical-history
+  Future<Map<String, dynamic>> getPatientClinicalHistory(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/clinical-history')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) throw Exception('Failed to load clinical history (${res.statusCode})');
+    if (res.body.trim().isEmpty) return {};
+    final data = json.decode(res.body);
+    return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
+  }
+
   /// GET /api/encounters/{encounterId}
   Future<Map<String, dynamic>> getEncounterDetails(int encounterId) async {
     final res = await _authenticatedGet(Uri.parse('$baseUrl/api/encounters/$encounterId'));

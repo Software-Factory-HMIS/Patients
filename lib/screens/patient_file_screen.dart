@@ -76,216 +76,140 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Future<void> _loadAllVitals(int patientId, {DateTime? fromDate, DateTime? toDate}) async {
-    if (_api == null) return;
-    try {
-      final allVitals = await _api!.getPatientVitals(
-        patientId,
-        fromDate: fromDate,
-        toDate: toDate,
-      );
-      setState(() {
-        _allVitals = allVitals;
-        if (_encounterDataList.isNotEmpty || _surgeries.isNotEmpty) {
-          _buildCombinedTimeline();
-        }
+  int? _parseId(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    return int.tryParse(v.toString());
+  }
+
+  Map<int, List<dynamic>> _groupByEncounterId(List<dynamic>? rows) {
+    final map = <int, List<dynamic>>{};
+    if (rows == null) return map;
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = _parseId(row['encounterId'] ?? row['EncounterId'] ?? row['EncounterID']);
+      if (id == null) continue;
+      map.putIfAbsent(id, () => []).add(Map<String, dynamic>.from(row));
+    }
+    return map;
+  }
+
+  List<Map<String, dynamic>> _buildEncounterDataListFromHistory(Map<String, dynamic> history) {
+    final encounters = List<Map<String, dynamic>>.from(
+      (history['encounters'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? const [],
+    );
+    final modules = (history['encounterModules'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+    final vitalsBy = _groupByEncounterId(history['vitals'] as List?);
+    final complaintsBy = _groupByEncounterId(modules['complaints'] as List?);
+    final symptomsBy = _groupByEncounterId(modules['symptoms'] as List?);
+    final diagnosesBy = _groupByEncounterId(modules['diagnoses'] as List?);
+    final labBy = _groupByEncounterId(modules['labOrders'] as List?);
+    final radBy = _groupByEncounterId(modules['radiologyOrders'] as List?);
+    final medsBy = _groupByEncounterId(modules['medicines'] as List?);
+    final notesBy = _groupByEncounterId(modules['notes'] as List?);
+
+    final out = <Map<String, dynamic>>[];
+    for (final encounter in encounters) {
+      final id = _parseId(encounter['encounterId'] ?? encounter['EncounterID']);
+      if (id == null) continue;
+      final notes = notesBy[id] ?? const [];
+      out.add({
+        'encounter': encounter,
+        'vitals': vitalsBy[id] ?? const [],
+        'complaints': complaintsBy[id] ?? const [],
+        'symptoms': symptomsBy[id] ?? const [],
+        'diagnoses': diagnosesBy[id] ?? const [],
+        'labOrders': labBy[id] ?? const [],
+        'radiologyOrders': radBy[id] ?? const [],
+        'medicines': medsBy[id] ?? const [],
+        'notes': notes,
+        'clinicalNotes': notes,
       });
+    }
+    return out;
+  }
+
+  bool _isDateInRange(DateTime? d, DateTime from, DateTime to) {
+    if (d == null) return false;
+    final day = DateTime(d.year, d.month, d.day);
+    final f = DateTime(from.year, from.month, from.day);
+    final t = DateTime(to.year, to.month, to.day);
+    return !day.isBefore(f) && !day.isAfter(t);
+  }
+
+  Future<List<Map<String, dynamic>>> _loadSurgeriesInRange(int patientId, DateTime from, DateTime to) async {
+    if (_api == null) return [];
+    try {
+      final surgeries = await _api!.getPatientSurgeries(patientId);
+      return surgeries.where((s) {
+        final raw = s['surgeryDate'] ?? s['SurgeryDate'];
+        if (raw == null) return false;
+        final d = raw is DateTime ? raw : DateTime.tryParse(raw.toString());
+        return _isDateInRange(d, from, to);
+      }).toList();
     } catch (e) {
-      print('Error loading all vitals: $e');
-      // Non-blocking: don't fail if vitals can't be loaded
+      return [];
     }
   }
 
-  Future<void> _loadAllEncounterDetails() async {
-    setState(() {
-      _loadingDetails = true;
-    });
+  List<Map<String, dynamic>> _computeCombinedTimeline() {
+    final timeline = <Map<String, dynamic>>[];
 
-    try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
-      if (patientId == null) return;
-
-      List<Map<String, dynamic>> encounterDataList = [];
-      
-      // Create a map of vitals by encounterId for quick lookup
-      final Map<int, List<dynamic>> vitalsByEncounterId = {};
-      for (final vital in _allVitals) {
-        final encounterId = vital['encounterId'] ?? 
-                           vital['EncounterID'] ?? 
-                           vital['encounterID'];
-        if (encounterId != null) {
-          final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
-          if (parsedEncounterId != null) {
-            vitalsByEncounterId.putIfAbsent(parsedEncounterId, () => []).add(vital);
-          }
-        }
-      }
-      
-      for (final encounter in _encounters) {
-        final encounterId = encounter['encounterId'] ?? 
-                           encounter['EncounterID'] ?? 
-                           encounter['encounterID'];
-        if (encounterId == null) continue;
-
-        final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
-        if (parsedEncounterId == null) continue;
-
-        try {
-          // Get consultation data
-          final consultationData = await _api!.getEncounterConsultationData(
-            parsedEncounterId,
-            patientId: patientId is int ? patientId : int.parse(patientId.toString()),
-          );
-
-          // Get vitals for this encounter from the pre-loaded list
-          final vitals = vitalsByEncounterId[parsedEncounterId] ?? [];
-
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitals,
-            'complaints': consultationData['complaints'] ?? [],
-            'symptoms': consultationData['symptoms'] ?? [],
-            'diagnoses': consultationData['diagnoses'] ?? [],
-            'labOrders': consultationData['labOrders'] ?? [],
-            'radiologyOrders': consultationData['radiologyOrders'] ?? [],
-            'medicines': consultationData['medicines'] ?? [],
-            'notes': consultationData['notes'] ?? consultationData['patientNotes'] ?? [],
-            'clinicalNotes': consultationData['clinicalNotes'] ?? consultationData['clinicalNote'] ?? '',
-          });
-        } catch (e) {
-          print('Error loading encounter data: $e');
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitalsByEncounterId[parsedEncounterId] ?? [],
-            'complaints': [],
-            'symptoms': [],
-            'diagnoses': [],
-            'labOrders': [],
-            'radiologyOrders': [],
-            'medicines': [],
-            'notes': [],
-            'clinicalNotes': '',
-          });
-        }
-      }
-
-      setState(() {
-        _encounterDataList = encounterDataList;
-        _loadingDetails = false;
-        _buildCombinedTimeline();
-      });
-    } catch (e) {
-      setState(() {
-        _loadingDetails = false;
-      });
-      print('Error loading encounter details: $e');
-    }
-  }
-
-  Future<void> _loadSurgeries() async {
-    try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
-      if (patientId == null) return;
-
-      final surgeries = await _api!.getPatientSurgeries(
-        patientId is int ? patientId : int.parse(patientId.toString()),
-      );
-
-      setState(() {
-        _surgeries = surgeries;
-        _buildCombinedTimeline();
-      });
-    } catch (e) {
-      print('Error loading surgeries: $e');
-      // Non-blocking: don't fail if surgeries can't be loaded
-    }
-  }
-
-  void _buildCombinedTimeline() {
-    List<Map<String, dynamic>> timeline = [];
-
-    // Add vitals with type marker (only vitals not associated with encounters)
     for (final vital in _allVitals) {
-      final encounterId = vital['encounterId'] ?? 
-                         vital['EncounterID'] ?? 
-                         vital['encounterID'];
-      
-      // Only add vitals that are not part of an encounter
-      if (encounterId == null) {
-        final recordedDate = vital['recordedDate'] ?? 
-                            vital['RecordedDate'] ?? 
-                            vital['recordedAt'] ??
-                            vital['createdAt'];
-        
-        DateTime? parsedDate;
-        if (recordedDate != null) {
-          parsedDate = recordedDate is DateTime 
-              ? recordedDate 
-              : DateTime.tryParse(recordedDate.toString());
-        }
-
-        timeline.add({
-          'type': 'vitals',
-          'date': parsedDate,
-          'data': vital,
-        });
+      if (vital is! Map) continue;
+      final encounterId = vital['encounterId'] ?? vital['EncounterID'] ?? vital['encounterID'];
+      if (encounterId != null) continue;
+      final recordedDate = vital['recordedDate'] ?? vital['RecordedDate'] ?? vital['recordedAt'] ?? vital['createdAt'];
+      DateTime? parsedDate;
+      if (recordedDate != null) {
+        parsedDate = recordedDate is DateTime ? recordedDate : DateTime.tryParse(recordedDate.toString());
       }
+      timeline.add({'type': 'vitals', 'date': parsedDate, 'data': Map<String, dynamic>.from(vital)});
     }
 
-    // Add encounters with type marker
     for (final encounterData in _encounterDataList) {
       final encounter = encounterData['encounter'] as Map<String, dynamic>;
-      final encounterDate = encounter['encounterDate'] ?? 
-                           encounter['EncounterDate'] ?? 
-                           encounter['checkInTime'] ?? 
-                           encounter['CheckInTime'];
-      
+      final encounterDate = encounter['encounterDate'] ??
+          encounter['EncounterDate'] ??
+          encounter['checkInTime'] ??
+          encounter['CheckInTime'];
       DateTime? parsedDate;
       if (encounterDate != null) {
-        parsedDate = encounterDate is DateTime 
-            ? encounterDate 
-            : DateTime.tryParse(encounterDate.toString());
+        parsedDate = encounterDate is DateTime ? encounterDate : DateTime.tryParse(encounterDate.toString());
       }
-
-      timeline.add({
-        'type': 'encounter',
-        'date': parsedDate,
-        'data': encounterData,
-      });
+      timeline.add({'type': 'encounter', 'date': parsedDate, 'data': encounterData});
     }
 
-    // Add surgeries with type marker
     for (final surgery in _surgeries) {
       final surgeryDate = surgery['surgeryDate'] ?? surgery['SurgeryDate'];
-      
       DateTime? parsedDate;
       if (surgeryDate != null) {
-        parsedDate = surgeryDate is DateTime 
-            ? surgeryDate 
-            : DateTime.tryParse(surgeryDate.toString());
+        parsedDate = surgeryDate is DateTime ? surgeryDate : DateTime.tryParse(surgeryDate.toString());
       }
-
-      timeline.add({
-        'type': 'surgery',
-        'date': parsedDate,
-        'data': surgery,
-      });
+      timeline.add({'type': 'surgery', 'date': parsedDate, 'data': surgery});
     }
 
-    // Sort by date (newest first - reverse chronological)
     timeline.sort((a, b) {
       final dateA = a['date'] as DateTime?;
       final dateB = b['date'] as DateTime?;
-      
       if (dateA == null && dateB == null) return 0;
       if (dateA == null) return 1;
       if (dateB == null) return -1;
       return dateB.compareTo(dateA);
     });
 
-    setState(() {
-      _combinedTimeline = timeline;
-    });
+    var encNum = 0;
+    for (final item in timeline) {
+      if (item['type'] == 'encounter') {
+        encNum++;
+        item['encounterNumber'] = encNum;
+      }
+    }
+    return timeline;
+  }
+
+  void _buildCombinedTimeline() {
+    _combinedTimeline = _computeCombinedTimeline();
   }
 
   Future<void> _loadHeaderSummary() async {
@@ -357,121 +281,35 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     }
   }
 
-  Future<void> _loadEncounters({DateTime? fromDate, DateTime? toDate}) async {
+  Future<void> _loadDataWithFilters() async {
     if (_api == null) {
       await _initializeApi();
-      if (_api == null) {
-        setState(() {
-          _loading = false;
-          _error = 'Failed to initialize API';
-        });
-        return;
-      }
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
-      if (patientId == null) {
-        throw Exception('Patient ID is required');
-      }
-
-      int? admissionId = widget.admissionId;
-      
-      // Try to get admissionId from patient data if not provided
-      if (admissionId == null) {
-        admissionId = widget.patient['admissionId'] ?? 
-                     widget.patient['AdmissionId'] ?? 
-                     widget.patient['admission_id'];
-        if (admissionId != null && admissionId is! int) {
-          admissionId = int.tryParse(admissionId.toString());
-        }
-      }
-
-      // If still no admissionId, try to get from current encounter
-      if (admissionId == null) {
-        final encounterId = widget.patient['encounterId'] ?? 
-                           widget.patient['EncounterID'] ?? 
-                           widget.patient['encounterID'];
-        if (encounterId != null) {
-          final parsedEncounterId = encounterId is int ? encounterId : int.tryParse(encounterId.toString());
-          if (parsedEncounterId != null) {
-            try {
-              final encounterDetails = await _api!.getEncounterDetails(parsedEncounterId);
-              admissionId = encounterDetails['admissionId'] ?? 
-                           encounterDetails['AdmissionId'] ?? 
-                           encounterDetails['admission_id'];
-              if (admissionId != null && admissionId is! int) {
-                admissionId = int.tryParse(admissionId.toString());
-              }
-            } catch (e) {
-              print('Error getting encounter details: $e');
-            }
-          }
-        }
-      }
-
-      List<Map<String, dynamic>> encounters = [];
-
-      // If we have admissionId, try to get encounters by admission ID
-    if (admissionId != null) {
-      try {
-        encounters = await _api!.getEncountersByAdmissionId(admissionId);
-        } catch (e) {
-          print('Error getting encounters by admission ID: $e');
-          // Fall through to get all IPD encounters
-        }
-      }
-
-      // If no encounters found by admission ID, get all encounters for the patient
-      if (encounters.isEmpty) {
-        try {
-          // Get all encounters (both OPD and IPD) without doctorId/hospitalId filters
-          final allEncounters = await _api!.getAllPatientEncounters(
-            patientId is int ? patientId : int.parse(patientId.toString()),
-            fromDate: fromDate,
-            toDate: toDate,
-          );
-          
-          // Show all encounters (OPD and IPD), not just IPD
-          encounters = allEncounters.toList();
-          
-          // If we have an admissionId, filter by it
-          if (admissionId != null) {
-            encounters = encounters.where((enc) {
-              final encAdmissionId = enc['admissionId'] ?? 
-                                   enc['AdmissionId'] ?? 
-                                   enc['admission_id'];
-              if (encAdmissionId == null) return false;
-              final parsed = encAdmissionId is int ? encAdmissionId : int.tryParse(encAdmissionId.toString());
-              return parsed == admissionId;
-            }).toList();
-          }
-        } catch (e) {
-          print('Error getting all patient encounters: $e');
-          throw Exception('Failed to load encounters: $e');
-        }
-      }
-      
+    if (_api == null) {
       setState(() {
-        _encounters = encounters;
+        _error = 'API not ready. Please retry.';
         _loading = false;
       });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      return;
     }
-  }
+    if (_startDate.isAfter(_endDate)) {
+      AppSnackBar.showInfo(context, 'From date must be less than or equal to To date');
+      return;
+    }
+    final days = _endDate.difference(_startDate).inDays;
+    if (days > 90) {
+      AppSnackBar.showInfo(
+        context,
+        'Large range ($days days). Results capped (50 encounters).',
+      );
+    }
 
-  Future<void> _loadDataWithFilters() async {
     setState(() {
       _loading = true;
+      _loadingDetails = false;
+      _loadingFile = true;
       _dataLoaded = false;
+      _error = null;
       _encounters = [];
       _encounterDataList = [];
       _allVitals = [];
@@ -481,38 +319,70 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
     final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
     if (patientId == null) {
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _loadingFile = false;
+      });
       return;
     }
 
     final parsedPatientId = patientId is int ? patientId : int.tryParse(patientId.toString());
     if (parsedPatientId == null) {
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _loadingFile = false;
+      });
       return;
     }
 
     try {
-      // Set end date to end of day
       final endDate = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59);
-      // Set start date to start of day
       final startDate = DateTime(_startDate.year, _startDate.month, _startDate.day, 0, 0, 0);
 
-      await Future.wait([
-        _loadAllVitals(parsedPatientId, fromDate: startDate, toDate: endDate),
-        _loadEncounters(fromDate: startDate, toDate: endDate),
-        _loadSurgeries(),
+      final results = await Future.wait([
+        _api!.getPatientClinicalHistory(
+          parsedPatientId,
+          fromDate: startDate,
+          toDate: endDate,
+        ),
+        _loadSurgeriesInRange(parsedPatientId, startDate, endDate),
       ]);
 
-      if (_encounters.isNotEmpty) {
-        await _loadAllEncounterDetails();
-      }
+      final history = results[0] as Map<String, dynamic>;
+      final surgeries = results[1] as List<Map<String, dynamic>>;
+      final encounterDataList = _buildEncounterDataListFromHistory(history);
+      final encounters = encounterDataList
+          .map((e) => Map<String, dynamic>.from(e['encounter'] as Map))
+          .toList();
+      final vitals = List<dynamic>.from(history['vitals'] as List? ?? const []);
 
+      if (!mounted) return;
       setState(() {
+        _encounters = encounters;
+        _encounterDataList = encounterDataList;
+        _allVitals = vitals;
+        _surgeries = surgeries;
+        _combinedTimeline = _computeCombinedTimeline();
         _dataLoaded = true;
+        _loading = false;
+        _loadingFile = false;
+        _error = null;
       });
-    } finally {
+
+      final caps = history['caps'];
+      final returned = caps is Map ? (caps['encounterCountReturned'] ?? encounters.length) : encounters.length;
+      final maxEnc = caps is Map ? (caps['encounters'] ?? 50) : 50;
+      if (returned is num && maxEnc is num && returned >= maxEnc && mounted) {
+        AppSnackBar.showInfo(context, 'Showing latest $maxEnc encounters (cap). Narrow dates for older visits.');
+      }
+    } catch (e) {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _error = 'Failed to load patient file. Please retry.';
+          _loading = false;
+          _loadingFile = false;
+          _dataLoaded = true;
+        });
       }
     }
   }
@@ -1042,7 +912,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                               ],
                             ),
                           )
-                        : _encounterDataList.isEmpty
+                        : _combinedTimeline.isEmpty
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1056,38 +926,30 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                   ],
                                 ),
                               )
-                            : SingleChildScrollView(
+                            : ListView.builder(
                                 padding: EdgeInsets.fromLTRB(
                                   12,
                                   12,
                                   12,
                                   widget.embedded ? PunjabBottomNav.navBarHeight : 12,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: _combinedTimeline.asMap().entries.map((entry) {
-                                    final index = entry.key;
-                                    final item = entry.value;
-                                    final type = item['type'] as String;
-                                    
-                                    if (type == 'vitals') {
-                                      final vital = item['data'] as Map<String, dynamic>;
-                                      return _buildVitalsCard(vital);
-                                    } else if (type == 'encounter') {
-                                      final data = item['data'] as Map<String, dynamic>;
-                                      // Count only encounters for numbering
-                                      final encounterNumber = _combinedTimeline
-                                          .where((i) => i['type'] == 'encounter')
-                                          .toList()
-                                          .indexOf(item) + 1;
-                                      return _buildDetailedEncounterCard(data, encounterNumber);
-                                    } else if (type == 'surgery') {
-                                      final surgery = item['data'] as Map<String, dynamic>;
-                                      return _buildSurgeryCard(surgery);
-                                    }
-                                    return const SizedBox.shrink();
-                                  }).toList(),
-                                ),
+                                itemCount: _combinedTimeline.length,
+                                itemBuilder: (context, index) {
+                                  final item = _combinedTimeline[index];
+                                  final type = item['type'] as String;
+                                  if (type == 'vitals') {
+                                    return _buildVitalsCard(item['data'] as Map<String, dynamic>);
+                                  }
+                                  if (type == 'encounter') {
+                                    final data = item['data'] as Map<String, dynamic>;
+                                    final encounterNumber = (item['encounterNumber'] as int?) ?? (index + 1);
+                                    return _buildDetailedEncounterCard(data, encounterNumber);
+                                  }
+                                  if (type == 'surgery') {
+                                    return _buildSurgeryCard(item['data'] as Map<String, dynamic>);
+                                  }
+                                  return const SizedBox.shrink();
+                                },
                               ),
           ),
         ],
