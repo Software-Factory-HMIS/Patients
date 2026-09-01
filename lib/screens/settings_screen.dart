@@ -204,7 +204,7 @@ class _OptionCard extends StatelessWidget {
               color: isSelected
                   ? colorScheme.primary
                   : colorScheme.outline.withValues(alpha: 0.35),
-              width: isSelected ? 2 : 1,
+              width: 2,
             ),
           ),
           child: Column(
@@ -247,14 +247,18 @@ class _OptionCard extends StatelessWidget {
                       : colorScheme.onSurface,
                 ),
               ),
-              if (isSelected) ...[
-                const Gap(8),
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: colorScheme.primary,
-                  size: 20,
-                ),
-              ],
+              const Gap(8),
+              // Reserve checkmark space so selected/unselected stay equal height.
+              SizedBox(
+                height: 20,
+                child: isSelected
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        color: colorScheme.primary,
+                        size: 20,
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

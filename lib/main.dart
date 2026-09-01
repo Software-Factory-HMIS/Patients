@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
 import 'services/locale_service.dart';
 import 'services/theme_service.dart';
+import 'utils/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  logResolvedApiEndpoints();
   await AuthService.instance.init();
   await ThemeService.instance.init();
   await LocaleService.instance.init();
@@ -73,7 +75,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             builder: (context, mode, __) {
               return MaterialApp(
                 navigatorKey: _navigatorKey,
-                title: 'SehatLink',
+                title: 'My Health Record',
                 locale: locale,
                 supportedLocales: LocaleService.supportedLocales,
                 localizationsDelegates: const [

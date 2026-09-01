@@ -38,17 +38,14 @@ class PatientPortalService {
     final results = await Future.wait([
       _api.getAllPatientEncounters(patientId, fromDate: twelveMonthsAgo),
       _api.getActivePatientMedicines(patientId: patientId),
-      _api.getPatientLabSummary(patientId),
-      _api.getPatientRadiologySummary(patientId),
+      loadLabSummary(patientId),
+      loadRadiologySummary(patientId),
     ]);
 
     final encounters = results[0] as List<Map<String, dynamic>>;
     final activeMeds = results[1] as List<Map<String, dynamic>>;
-    final labSummary = results[2] as Map<String, dynamic>;
-    final radSummary = results[3] as Map<String, dynamic>;
-
-    final lab = LabResultsSummary.fromJson(labSummary);
-    final rad = RadiologySummary.fromJson(radSummary);
+    final lab = results[2] as LabResultsSummary;
+    final rad = results[3] as RadiologySummary;
 
     return HomeStats(
       visitCount: encounters.length,
@@ -62,12 +59,22 @@ class PatientPortalService {
 
   Future<LabResultsSummary> loadLabSummary(int patientId) async {
     final data = await _api.getPatientLabSummary(patientId);
-    return LabResultsSummary.fromJson(data);
+    final summary = LabResultsSummary.fromJson(data);
+    if (summary.total > 0) return summary;
+    // Fallback when summary SP is missing/empty but results exist.
+    final reports = await loadLabReports(patientId);
+    if (reports.isEmpty) return summary;
+    return LabResultsSummary.fromReports(reports);
   }
 
   Future<RadiologySummary> loadRadiologySummary(int patientId) async {
     final data = await _api.getPatientRadiologySummary(patientId);
-    return RadiologySummary.fromJson(data);
+    final summary = RadiologySummary.fromJson(data);
+    if (summary.total > 0) return summary;
+    // Fallback when summary SP is missing/empty but reports exist.
+    final reports = await loadRadiologyReports(patientId);
+    if (reports.isEmpty) return summary;
+    return RadiologySummary.fromReports(reports);
   }
 
   Future<List<LabReport>> loadLabReports(int patientId) async {

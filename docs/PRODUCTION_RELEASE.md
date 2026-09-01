@@ -10,9 +10,14 @@ there and set its working directory (and artifact/signing paths) to `Patients/`.
 ## One-time production setup
 
 1. Create a protected GitHub environment named `production`, requiring release
-   approval. Add environment variables `EMR_BASE_URL` and
-   `AUTH_SERVER_BASE_URL`; both must be public HTTPS origins without a trailing
-   path. `--dart-define` values are recoverable from the app, so never put
+   approval. Add environment variables (HTTPS, no trailing slash):
+
+   | Variable | Production value |
+   |----------|------------------|
+   | `EMR_BASE_URL` | `https://hmis-api.pshealthpunjab.gov.pk` |
+   | `AUTH_SERVER_BASE_URL` | `https://hmis-authapi.pshealthpunjab.gov.pk` |
+
+   `--dart-define` values are recoverable from the app, so never put
    credentials in them.
 2. Generate and escrow the Android upload key outside source control. Add these
    environment secrets:

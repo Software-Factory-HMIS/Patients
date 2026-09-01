@@ -133,10 +133,18 @@ class QueueResponse {
 
   factory QueueResponse.fromJson(Map<String, dynamic> json) {
     return QueueResponse(
-      queueId: json['queueId'] as int? ?? json['QueueID'] as int,
+      queueId: readInt(json['queueId'] ?? json['QueueID']) ?? 0,
       tokenNumber:
-          json['tokenNumber'] as String? ?? json['TokenNumber'] as String,
+          json['tokenNumber']?.toString() ??
+          json['TokenNumber']?.toString() ??
+          '',
     );
+  }
+
+  static int? readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 }
 
@@ -199,4 +207,49 @@ class AppointmentDetails {
     this.estimatedWaitTime,
     this.receiptData,
   });
+
+  /// Rebuilds a booking from a live queue visit row (home / recent visits).
+  static AppointmentDetails? tryFromVisit(
+    Map<String, dynamic> visit, {
+    required String patientName,
+    required String patientMRN,
+  }) {
+    final queueId = QueueResponse.readInt(
+      visit['queueId'] ?? visit['queueID'] ?? visit['QueueID'],
+    );
+    if (queueId == null || queueId <= 0) return null;
+
+    final token = visit['tokenNumber']?.toString().trim();
+    final hospitalId = QueueResponse.readInt(visit['hospitalId']) ?? 0;
+    final departmentId =
+        QueueResponse.readInt(visit['hospitalDepartmentId']) ??
+        QueueResponse.readInt(visit['departmentId']) ??
+        0;
+    final date = DateTime.tryParse(
+      visit['appointmentDate']?.toString() ??
+          visit['queueDate']?.toString() ??
+          '',
+    );
+
+    return AppointmentDetails(
+      queueResponse: QueueResponse(
+        queueId: queueId,
+        tokenNumber: (token == null || token.isEmpty) ? 'N/A' : token,
+      ),
+      hospital: Hospital(
+        hospitalID: hospitalId,
+        name: visit['hospitalName']?.toString() ?? 'Hospital',
+        isActive: true,
+      ),
+      department: Department(
+        departmentID: departmentId,
+        name: visit['departmentName']?.toString() ?? 'Department',
+        isActive: true,
+        hospitalCount: 0,
+      ),
+      patientName: patientName,
+      patientMRN: patientMRN,
+      appointmentDate: date ?? DateTime.now(),
+    );
+  }
 }

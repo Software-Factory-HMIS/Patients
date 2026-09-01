@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import '../../models/appointment_models.dart';
 import '../../models/portal_models.dart';
+import '../../screens/appointment_success_screen.dart';
 import '../../services/patient_portal_service.dart';
 import '../../utils/app_date_format.dart';
+import '../../utils/app_snackbar.dart';
 import '../../utils/patient_fields.dart';
 import '../../widgets/patient_avatar.dart';
 import '../../l10n/app_localizations.dart';
@@ -60,6 +63,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onVisitsChanged() => _load();
+
+  String _patientMrn() {
+    final mrn = _mrn();
+    if (mrn != null && mrn.isNotEmpty) return mrn;
+    final cnic = _formatCnic(_cnic()).replaceAll('-', '');
+    if (cnic.isNotEmpty) return cnic;
+    return widget.patientIdentifier;
+  }
+
+  Future<void> _openUpcomingBooking() async {
+    final visit = _upcoming;
+    if (visit == null) {
+      widget.onBookVisit();
+      return;
+    }
+    final details = AppointmentDetails.tryFromVisit(
+      visit,
+      patientName: _patientName(),
+      patientMRN: _patientMrn(),
+    );
+    if (details == null) {
+      if (!mounted) return;
+      AppSnackBar.showError(context, context.l10n.couldNotBookVisit);
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AppointmentSuccessScreen(appointment: details),
+      ),
+    );
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -330,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _UpcomingVisitCard(
                           appointment: _upcoming,
                           onBook: widget.onBookVisit,
-                          onJoinQueue: widget.onOpenVisits,
+                          onJoinQueue: _openUpcomingBooking,
                           dark: dark,
                           compact: metrics.isCompact,
                           veryCompact: metrics.isVeryCompact,
@@ -834,266 +868,273 @@ class _UpcomingVisitCard extends StatelessWidget {
         ? 12.0
         : 14.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardFill,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onJoinQueue,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.45)),
-        boxShadow: dark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardFill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: scheme.outline.withValues(alpha: 0.45)),
+            boxShadow: dark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  sectionPadding,
+                  sectionPadding,
+                  sectionPadding,
+                  compact ? 10 : 12,
                 ),
-              ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              sectionPadding,
-              sectionPadding,
-              sectionPadding,
-              compact ? 10 : 12,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: iconBox,
-                  height: iconBox,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: iconBoxColor,
-                    borderRadius: BorderRadius.circular(compact ? 10 : 12),
-                  ),
-                  child: Icon(
-                    Icons.local_hospital_rounded,
-                    color: PunjabColors.primary,
-                    size: hospitalIcon,
-                  ),
-                ),
-                Gap(compact ? 10 : 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        hospitalLabel,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: veryCompact
-                              ? 14
-                              : compact
-                              ? 15
-                              : 16,
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onSurface,
-                          height: 1.25,
-                        ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: iconBox,
+                      height: iconBox,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: iconBoxColor,
+                        borderRadius: BorderRadius.circular(compact ? 10 : 12),
                       ),
-                      const Gap(4),
-                      Text(
-                        deptLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: veryCompact
-                              ? 12
-                              : compact
-                              ? 13
-                              : 14,
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      child: Icon(
+                        Icons.local_hospital_rounded,
+                        color: PunjabColors.primary,
+                        size: hospitalIcon,
                       ),
-                      const Gap(6),
-                      Row(
+                    ),
+                    Gap(compact ? 10 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.event_rounded,
-                            size: compact ? 13 : 14,
-                            color: scheme.onSurfaceVariant.withValues(
-                              alpha: 0.85,
+                          Text(
+                            hospitalLabel,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: veryCompact
+                                  ? 14
+                                  : compact
+                                  ? 15
+                                  : 16,
+                              fontWeight: FontWeight.w800,
+                              color: scheme.onSurface,
+                              height: 1.25,
                             ),
                           ),
-                          const Gap(5),
-                          Expanded(
-                            child: Text(
-                              '$tokenDateLabel · $tokenTimeLabel',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          const Gap(4),
+                          Text(
+                            deptLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: veryCompact
+                                  ? 12
+                                  : compact
+                                  ? 13
+                                  : 14,
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Gap(6),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.event_rounded,
+                                size: compact ? 13 : 14,
+                                color: scheme.onSurfaceVariant.withValues(
+                                  alpha: 0.85,
+                                ),
+                              ),
+                              const Gap(5),
+                              Expanded(
+                                child: Text(
+                                  '$tokenDateLabel · $tokenTimeLabel',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: compact ? 11 : 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!veryCompact)
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 6 : 8,
+                          vertical: compact ? 4 : 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: PunjabColors.danger.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: PunjabColors.danger.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: PunjabColors.danger,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const Gap(5),
+                            Text(
+                              l.liveQueue,
                               style: TextStyle(
-                                fontSize: compact ? 11 : 12,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: PunjabColors.danger,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: sectionPadding),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 10 : 12,
+                    vertical: compact ? 10 : 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tokenBoxColor,
+                    borderRadius: BorderRadius.circular(compact ? 10 : 12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.confirmation_number_outlined,
+                        color: PunjabColors.primary,
+                        size: veryCompact
+                            ? 24
+                            : compact
+                            ? 26
+                            : 28,
+                      ),
+                      Gap(compact ? 8 : 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l.tokenNumber,
+                              style: TextStyle(
+                                fontSize: compact ? 10 : 11,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
+                            Text(
+                              token,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: veryCompact
+                                    ? 15
+                                    : compact
+                                    ? 16
+                                    : 17,
+                                fontWeight: FontWeight.w900,
+                                color: PunjabColors.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      FilledButton(
+                        onPressed: onJoinQueue,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: PunjabColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 12 : 16,
+                            vertical: compact ? 8 : 10,
                           ),
-                        ],
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          textStyle: TextStyle(
+                            fontSize: compact ? 12 : 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(l.joinQueue),
                       ),
                     ],
                   ),
                 ),
-                if (!veryCompact)
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 6 : 8,
-                      vertical: compact ? 4 : 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: PunjabColors.danger.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: PunjabColors.danger.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: PunjabColors.danger,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const Gap(5),
-                        Text(
-                          l.liveQueue,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: PunjabColors.danger,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sectionPadding),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 10 : 12,
-                vertical: compact ? 10 : 12,
               ),
-              decoration: BoxDecoration(
-                color: tokenBoxColor,
-                borderRadius: BorderRadius.circular(compact ? 10 : 12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.confirmation_number_outlined,
-                    color: PunjabColors.primary,
-                    size: veryCompact
-                        ? 24
-                        : compact
-                        ? 26
-                        : 28,
-                  ),
-                  Gap(compact ? 8 : 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.tokenNumber,
-                          style: TextStyle(
-                            fontSize: compact ? 10 : 11,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          token,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: veryCompact
-                                ? 15
-                                : compact
-                                ? 16
-                                : 17,
-                            fontWeight: FontWeight.w900,
-                            color: PunjabColors.primary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  FilledButton(
-                    onPressed: onJoinQueue,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: PunjabColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 12 : 16,
-                        vertical: compact ? 8 : 10,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      textStyle: TextStyle(
-                        fontSize: compact ? 12 : 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    child: Text(l.joinQueue),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Gap(compact ? 10 : 12),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(
-              horizontal: sectionPadding,
-              vertical: compact ? 8 : 10,
-            ),
-            decoration: BoxDecoration(
-              color: footerColor,
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(13),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: compact ? 14 : 16,
-                  color: PunjabColors.primary,
+              Gap(compact ? 10 : 12),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: sectionPadding,
+                  vertical: compact ? 8 : 10,
                 ),
-                Gap(compact ? 6 : 8),
-                Expanded(
-                  child: Text(
-                    room != null && room.isNotEmpty
-                        ? l.reportToRoom(room)
-                        : l.reportToReception,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compact ? 11 : 12,
-                      fontWeight: FontWeight.w600,
+                decoration: BoxDecoration(
+                  color: footerColor,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(13),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: compact ? 14 : 16,
                       color: PunjabColors.primary,
                     ),
-                  ),
+                    Gap(compact ? 6 : 8),
+                    Expanded(
+                      child: Text(
+                        room != null && room.isNotEmpty
+                            ? l.reportToRoom(room)
+                            : l.reportToReception,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: PunjabColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

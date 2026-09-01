@@ -51,7 +51,11 @@ class _LabReportsScreenState extends State<LabReportsScreen> {
       if (!mounted) return;
       setState(() {
         _reports = results[0] as List<LabReport>;
-        _summary = results[1] as LabResultsSummary;
+        final apiSummary = results[1] as LabResultsSummary;
+        // Prefer list-derived counts so the panel matches visible rows.
+        _summary = _reports.isNotEmpty
+            ? LabResultsSummary.fromReports(_reports)
+            : apiSummary;
         _applyFilter();
         _loading = false;
       });
@@ -165,16 +169,54 @@ class _LabReportsScreenState extends State<LabReportsScreen> {
                                   final selected = _statusFilter == filter;
                                   return Padding(
                                     padding: const EdgeInsets.only(right: 8),
-                                    child: FilterChip(
-                                      label: Text(filter),
-                                      selected: selected,
-                                      showCheckmark: false,
-                                      onSelected: (_) {
-                                        setState(() {
-                                          _statusFilter = filter;
-                                          _applyFilter();
-                                        });
-                                      },
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            _statusFilter = filter;
+                                            _applyFilter();
+                                          });
+                                        },
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 160,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 9,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: selected
+                                                ? PunjabColors.primary
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            border: Border.all(
+                                              width: 1.5,
+                                              color: selected
+                                                  ? PunjabColors.primary
+                                                  : PunjabColors.border,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            filter,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: selected
+                                                  ? Colors.white
+                                                  : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   );
                                 }).toList(),

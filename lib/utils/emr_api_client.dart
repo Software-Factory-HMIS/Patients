@@ -707,7 +707,9 @@ class EmrApiClient {
       '$baseUrl/api/hospital-setup/hospital-departments?hospitalId=$hospitalId',
     );
     try {
-      final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final res = await _authenticatedGet(uri).timeout(
+        const Duration(seconds: 10),
+      );
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final response = json.decode(res.body);
@@ -825,8 +827,18 @@ class EmrApiClient {
     int? assignedToOpdId,
     int? referralId,
     String? notes,
+    String? patientComplaint,
+    String? patientHistory,
   }) async {
     final uri = Uri.parse('$baseUrl/api/patient-queue');
+
+    String? trimOrNull(String? v) {
+      final t = v?.trim();
+      return (t == null || t.isEmpty) ? null : t;
+    }
+
+    final complaint = trimOrNull(patientComplaint);
+    final history = trimOrNull(patientHistory);
 
     final body = {
       'patientId': patientId,
@@ -841,6 +853,8 @@ class EmrApiClient {
       if (assignedToOpdId != null) 'assignedToOpdId': assignedToOpdId,
       if (referralId != null) 'referralId': referralId,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (complaint != null) 'patientComplaint': complaint,
+      if (history != null) 'patientHistory': history,
     };
 
     // Retry logic for token generation failures (transient errors)
@@ -854,25 +868,26 @@ class EmrApiClient {
           await Future.delayed(Duration(milliseconds: 300 * attempt));
         }
 
-        final res = await _client
-            .post(
-              uri,
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode(body),
-            )
-            .timeout(const Duration(seconds: 15));
+        final res = await _authenticatedPost(
+          uri,
+          body: body,
+        ).timeout(const Duration(seconds: 15));
 
         if (res.statusCode == 409) {
           // Patient already in queue or other conflict - return existing queue info if available
           final response = json.decode(res.body) as Map<String, dynamic>;
+          final nested = response['data'];
+          final payload = nested is Map
+              ? {...response, ...Map<String, dynamic>.from(nested)}
+              : response;
           final message =
-              response['message'] as String? ?? 'Patient already in queue';
-          final queueId = response['queueId'];
-          final tokenNumber = response['tokenNumber'];
+              payload['message'] as String? ?? 'Patient already in queue';
+          final queueId = payload['queueId'] ?? payload['QueueID'];
+          final tokenNumber = payload['tokenNumber'] ?? payload['TokenNumber'];
 
-          if (queueId != null && tokenNumber != null) {
+          if (queueId != null) {
             // Patient is already in queue - return the existing queue info
-            return {'queueId': queueId, 'tokenNumber': tokenNumber};
+            return {'queueId': queueId, 'tokenNumber': tokenNumber ?? 'N/A'};
           } else if (message.contains('Failed to generate token number') &&
               attempt < maxRetries) {
             // Token generation failed - retry
@@ -924,9 +939,9 @@ class EmrApiClient {
   Future<Map<String, dynamic>> printQueueReceipt({required int queueId}) async {
     final uri = Uri.parse('$baseUrl/api/queue/$queueId/print');
     try {
-      final res = await _client
-          .post(uri, headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 15));
+      final res = await _authenticatedPost(uri).timeout(
+        const Duration(seconds: 15),
+      );
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Parse and return the receipt data

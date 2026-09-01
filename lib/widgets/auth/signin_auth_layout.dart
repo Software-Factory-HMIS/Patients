@@ -99,10 +99,10 @@ class SignInMetrics {
           ? 100
           : 112,
       headerTitleFontSize: isVeryShortHeight
-          ? 34
+          ? 26
           : isShortHeight
-          ? 38
-          : 42,
+          ? 30
+          : 34,
     );
   }
 }
@@ -202,7 +202,7 @@ class SignInAuthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = metrics;
     final logoSize = m?.logoSize ?? 112;
-    final titleSize = m?.headerTitleFontSize ?? 42;
+    final titleSize = m?.headerTitleFontSize ?? 34;
     final titleStyle = TextStyle(
       fontFamily: 'serif',
       fontSize: titleSize,
@@ -234,11 +234,11 @@ class SignInAuthHeader extends StatelessWidget {
             style: titleStyle,
             children: const [
               TextSpan(
-                text: 'Sehat',
+                text: 'My Health ',
                 style: TextStyle(color: SignInAuthTheme.titleGreen),
               ),
               TextSpan(
-                text: 'Link',
+                text: 'Record',
                 style: TextStyle(color: SignInAuthTheme.brandLink),
               ),
             ],

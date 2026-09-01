@@ -49,7 +49,11 @@ class _RadiologyReportsScreenState extends State<RadiologyReportsScreen> {
       if (!mounted) return;
       setState(() {
         _reports = results[0] as List<RadiologyReport>;
-        _summary = results[1] as RadiologySummary;
+        final apiSummary = results[1] as RadiologySummary;
+        // Prefer list-derived counts so the panel matches visible rows.
+        _summary = _reports.isNotEmpty
+            ? RadiologySummary.fromReports(_reports)
+            : apiSummary;
         _loading = false;
       });
     } catch (e) {

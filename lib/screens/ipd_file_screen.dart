@@ -1580,16 +1580,20 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
                                 med['Frequency'] ??
                                 med['instructions'] ??
                                 '';
-                            final duration =
-                                med['duration'] ??
-                                med['durationValue'] ??
-                                med['DurationValue'] ??
-                                '';
+                            // Prefer numeric durationValue; API `duration` is already "N days".
+                            final durationValue =
+                                med['durationValue'] ?? med['DurationValue'];
                             final durationUnit =
-                                med['durationUnit'] ??
-                                med['DurationUnit'] ??
-                                med['DurationUnitValue'] ??
-                                '';
+                                (med['durationUnit'] ??
+                                        med['DurationUnit'] ??
+                                        med['DurationUnitValue'] ??
+                                        '')
+                                    .toString()
+                                    .trim();
+                            final durationPreformatted =
+                                (med['duration'] ?? med['Duration'] ?? '')
+                                    .toString()
+                                    .trim();
                             final endDate = med['endDate'];
                             final discontinuedDate =
                                 med['discontinuedDate'] ??
@@ -1605,10 +1609,13 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
                                 frequency.toString().isNotEmpty) {
                               medText += ' - $frequency';
                             }
-                            if (duration != null &&
-                                durationUnit != null &&
-                                duration.toString().isNotEmpty) {
-                              medText += ' - $duration $durationUnit';
+                            if (durationValue != null &&
+                                durationValue.toString().trim().isNotEmpty) {
+                              medText += durationUnit.isEmpty
+                                  ? ' - $durationValue'
+                                  : ' - $durationValue $durationUnit';
+                            } else if (durationPreformatted.isNotEmpty) {
+                              medText += ' - $durationPreformatted';
                             }
                             if (endDate != null) {
                               try {

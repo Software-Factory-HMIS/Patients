@@ -975,14 +975,23 @@ class PatientFilePrintHelper {
                             m['instructions'] ??
                             '')
                         .toString();
-                final dur =
-                    (m['duration'] ??
-                            m['durationValue'] ??
-                            m['DurationValue'] ??
-                            '')
-                        .toString();
-                final durUnit = (m['durationUnit'] ?? m['DurationUnit'] ?? '')
-                    .toString();
+                // Prefer numeric durationValue; API `duration` is already "N days".
+                final durValue =
+                    m['durationValue'] ?? m['DurationValue'];
+                final durUnit = (m['durationUnit'] ??
+                        m['DurationUnit'] ??
+                        m['DurationUnitValue'] ??
+                        '')
+                    .toString()
+                    .trim();
+                final durPreformatted =
+                    (m['duration'] ?? m['Duration'] ?? '').toString().trim();
+                final durText = (durValue != null &&
+                        durValue.toString().trim().isNotEmpty)
+                    ? (durUnit.isEmpty
+                          ? durValue.toString()
+                          : '$durValue $durUnit')
+                    : durPreformatted;
                 final discontinued =
                     m['discontinuedDate'] ?? m['DiscontinuedDate'];
                 return pw.TableRow(
@@ -1018,7 +1027,7 @@ class PatientFilePrintHelper {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(5),
                       child: pw.Text(
-                        dur.isNotEmpty ? '$dur $durUnit' : '-',
+                        durText.isNotEmpty ? durText : '-',
                         style: const pw.TextStyle(fontSize: 8),
                         textAlign: pw.TextAlign.center,
                       ),

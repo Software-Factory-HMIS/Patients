@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
                     BrandAssets.banner,
                     width: bannerWidth,
                     fit: BoxFit.contain,
-                    semanticLabel: 'SehatLink',
+                    semanticLabel: 'My Health Record',
                     errorBuilder: (_, __, ___) => Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'SehatLink',
+                          'My Health Record',
                           style: TextStyle(
                             color: Color(0xFF0A3F2C),
                             fontSize: 28,

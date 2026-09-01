@@ -72,7 +72,7 @@ Future<Uint8List> _buildLabPdf(
           _row('Result ID', report.resultId.toString()),
         pw.SizedBox(height: 24),
         pw.Text(
-          'Generated from SehatLink',
+          'Generated from My Health Record',
           style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
         ),
       ],
@@ -137,7 +137,7 @@ Future<Uint8List> _buildRadiologyPdf(
         ],
         pw.SizedBox(height: 24),
         pw.Text(
-          'Generated from SehatLink',
+          'Generated from My Health Record',
           style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
         ),
       ],

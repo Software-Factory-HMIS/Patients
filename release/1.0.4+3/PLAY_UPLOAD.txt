@@ -1,0 +1,28 @@
+My Health Record — Google Play upload bundle
+============================================
+
+Package:     pk.gov.pshealthpunjab.hmis.patients
+Version:     1.0.4 (versionCode 3)
+Built:       2026-08-19
+APIs:        https://hmis-api.pshealthpunjab.gov.pk
+             https://hmis-authapi.pshealthpunjab.gov.pk
+Signed with: existing upload keystore (SHA-256 matches)
+
+Upload this file in Play Console:
+  pk.gov.pshealthpunjab.hmis.patients-1.0.4+3.aab
+
+Checksum (SHA-256):
+  0c347fb9a0510e942fbb7ff2b63564cfd878704721721fe74a222f2bda523a60
+
+Play Console
+------------
+1. Open the app listing → Production (or Internal testing first).
+2. Create a new release → Upload the .aab above.
+3. Confirm version name 1.0.4 and version code 3.
+4. Keep debug-info-1.0.4+3.zip in release storage for crash symbolication.
+   Do not upload the symbols zip to Play unless you use Play’s native debug symbols.
+
+Release notes (suggested)
+-------------------------
+- Open existing queue bookings from Home (Join Queue) and Book Visit.
+- Reopen an already-queued visit instead of failing when joining again.

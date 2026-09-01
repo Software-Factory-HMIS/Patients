@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Visual tokens for SehatLink sign-in flow.
+/// Visual tokens for My Health Record sign-in flow.
 class SignInAuthTheme {
   SignInAuthTheme._();
 

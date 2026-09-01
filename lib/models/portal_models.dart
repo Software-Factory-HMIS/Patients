@@ -49,6 +49,48 @@ class LabResultsSummary {
     );
   }
 
+  /// Client-side summary when the API summary is empty/missing.
+  factory LabResultsSummary.fromReports(List<LabReport> reports) {
+    var normal = 0, elevated = 0, critical = 0, pending = 0;
+    String? lastDate;
+    String? firstDate;
+    for (final r in reports) {
+      if (!r.hasResult) {
+        pending++;
+      } else if (r.isCritical) {
+        critical++;
+      } else {
+        final status = (r.status ?? '').toLowerCase();
+        final flags = (r.abnormalFlags ?? '').toLowerCase();
+        if (status.contains('abnormal') ||
+            status.contains('high') ||
+            status.contains('low') ||
+            status.contains('elevated') ||
+            flags == 'h' ||
+            flags == 'l' ||
+            flags == 'a') {
+          elevated++;
+        } else {
+          normal++;
+        }
+      }
+      final d = r.date;
+      if (d != null && d.isNotEmpty) {
+        lastDate ??= d;
+        firstDate = d;
+      }
+    }
+    return LabResultsSummary(
+      total: reports.length,
+      normal: normal,
+      elevated: elevated,
+      critical: critical,
+      pending: pending,
+      lastDate: lastDate,
+      firstDate: firstDate,
+    );
+  }
+
   bool get hasAbnormal => elevated > 0 || critical > 0;
 }
 
@@ -74,6 +116,28 @@ class RadiologySummary {
       pending: _asInt(json['pendingReports']),
       lastDate: AppDateFormat.formatDateOrNull(json['lastReportDate']),
       firstDate: AppDateFormat.formatDateOrNull(json['firstReportDate']),
+    );
+  }
+
+  /// Client-side summary when the API summary is empty/missing.
+  factory RadiologySummary.fromReports(List<RadiologyReport> reports) {
+    var finals = 0;
+    String? lastDate;
+    String? firstDate;
+    for (final r in reports) {
+      if (r.hasReportText) finals++;
+      final d = r.displayDate;
+      if (d != null && d.isNotEmpty) {
+        lastDate ??= d;
+        firstDate = d;
+      }
+    }
+    return RadiologySummary(
+      total: reports.length,
+      finalReports: finals,
+      pending: reports.length - finals,
+      lastDate: lastDate,
+      firstDate: firstDate,
     );
   }
 }
@@ -305,14 +369,32 @@ class PrescriptionItem {
 }
 
 String? _formatDosage(dynamic amount, dynamic unit) {
-  final amountText = amount?.toString().trim();
-  if (amountText == null || amountText.isEmpty) return null;
+  var amountText = amount?.toString().trim() ?? '';
+  if (amountText.isEmpty) return null;
 
-  final unitText = unit?.toString().trim();
-  if (unitText == null || unitText.isEmpty) return amountText;
+  // Collapse "400mg mg" / "400 mg mg" style duplicates in preformatted values.
+  amountText = amountText.replaceFirstMapped(
+    RegExp(r'([a-zA-Z%µμ/]+)\s+\1$', caseSensitive: false),
+    (m) => m.group(1)!,
+  );
 
-  if (amountText.toLowerCase().endsWith(unitText.toLowerCase()))
+  final unitText = unit?.toString().trim() ?? '';
+  if (unitText.isEmpty) return amountText;
+
+  final lowerAmount = amountText.toLowerCase();
+  final lowerUnit = unitText.toLowerCase();
+  if (lowerAmount == lowerUnit ||
+      lowerAmount.endsWith(lowerUnit) ||
+      lowerAmount.endsWith(' $lowerUnit') ||
+      lowerAmount.contains(lowerUnit)) {
     return amountText;
+  }
+
+  // Amount already has a unit suffix (e.g. "400mg", "5 ml").
+  if (RegExp(r'\d\s*[a-zA-Z%µμ/]+$').hasMatch(amountText)) {
+    return amountText;
+  }
+
   return '$amountText $unitText';
 }
 
