@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Government of Punjab Patient\'s App'**
+  /// **'My Health Record'**
   String get appTitle;
 
   /// No description provided for @appNameShort.
   ///
   /// In en, this message translates to:
-  /// **'Government of Punjab Patient\'s App'**
+  /// **'My Health Record'**
   String get appNameShort;
 
   /// No description provided for @governmentOfPunjab.
@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @patientApp.
   ///
   /// In en, this message translates to:
-  /// **'Patient App'**
+  /// **'My Health Record'**
   String get patientApp;
 
   /// No description provided for @healthDepartment.
@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Manage your account and personal details.'**
+  /// **'Manage your profile and personal details.'**
   String get profileSubtitle;
 
   /// No description provided for @healthRecords.
@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpDialogMessage.
   ///
   /// In en, this message translates to:
-  /// **'For account or medical record issues, contact your hospital reception or Punjab Health support.'**
+  /// **'For patient record or medical record issues, contact your hospital reception or Punjab Health support.'**
   String get helpDialogMessage;
 
   /// No description provided for @trustedByPunjabHealth.
@@ -842,6 +842,30 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get stepConfirm;
 
+  /// No description provided for @patientComplaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient Complaint'**
+  String get patientComplaint;
+
+  /// No description provided for @patientComplaintHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe your main problem or symptoms for the doctor.'**
+  String get patientComplaintHint;
+
+  /// No description provided for @patientHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get patientHistory;
+
+  /// No description provided for @patientHistoryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Any relevant past illness, medicines, or notes for hospital staff.'**
+  String get patientHistoryHint;
+
   /// No description provided for @cnicNumber.
   ///
   /// In en, this message translates to:
@@ -857,7 +881,7 @@ abstract class AppLocalizations {
   /// No description provided for @signInInfoMessage.
   ///
   /// In en, this message translates to:
-  /// **'Enter your CNIC to securely access hospital records. Unregistered patients should contact reception.'**
+  /// **'Enter your CNIC to securely access hospital records. If your record is not found, contact hospital reception.'**
   String get signInInfoMessage;
 
   /// No description provided for @enterCnic.
@@ -893,13 +917,13 @@ abstract class AppLocalizations {
   /// No description provided for @accountNotFound.
   ///
   /// In en, this message translates to:
-  /// **'Account not found'**
+  /// **'Patient not found'**
   String get accountNotFound;
 
   /// No description provided for @accountNotFoundMessage.
   ///
   /// In en, this message translates to:
-  /// **'We could not find a patient with CNIC {cnic}.\n\nPlease visit hospital reception for registration.'**
+  /// **'We could not find a patient with CNIC {cnic}.\n\nPlease visit hospital reception for assistance.'**
   String accountNotFoundMessage(String cnic);
 
   /// No description provided for @phoneMissing.
@@ -911,7 +935,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneMissingMessage.
   ///
   /// In en, this message translates to:
-  /// **'Hello {name},\n\nYour account does not have a phone number. Please visit hospital reception to update your contact details.'**
+  /// **'Hello {name},\n\nYour patient record does not have a phone number. Please visit hospital reception to update your contact details.'**
   String phoneMissingMessage(String name);
 
   /// No description provided for @cnicPhotoCaptured.
@@ -983,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @healthcarePortalFooter.
   ///
   /// In en, this message translates to:
-  /// **'HEALTHCARE PORTAL  |  PUNJAB GOVERNMENT'**
+  /// **'MY HEALTH RECORD  |  PUNJAB GOVERNMENT'**
   String get healthcarePortalFooter;
 
   /// No description provided for @copyrightPitb.
@@ -1145,7 +1169,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneVerifyInfo.
   ///
   /// In en, this message translates to:
-  /// **'We will send a 6-digit code to your registered number. Visit reception if this number is wrong.'**
+  /// **'We will send a 6-digit code to the phone number on your patient record. Visit reception if this number is wrong.'**
   String get phoneVerifyInfo;
 
   /// No description provided for @howToSendCode.
@@ -1223,7 +1247,7 @@ abstract class AppLocalizations {
   /// No description provided for @registeredNumber.
   ///
   /// In en, this message translates to:
-  /// **'your registered number'**
+  /// **'your phone number'**
   String get registeredNumber;
 
   /// No description provided for @otpSentVia.
@@ -1268,12 +1292,6 @@ abstract class AppLocalizations {
   /// **'Invalid OTP code. Please try again.'**
   String get apiInvalidOtp;
 
-  /// No description provided for @apiInvalidCnicPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid CNIC or password.'**
-  String get apiInvalidCnicPassword;
-
   /// No description provided for @apiPatientNotFound.
   ///
   /// In en, this message translates to:
@@ -1307,7 +1325,7 @@ abstract class AppLocalizations {
   /// No description provided for @apiAccountFoundOtp.
   ///
   /// In en, this message translates to:
-  /// **'We found your account. OTP will be sent to {phone}.'**
+  /// **'We found your patient record. OTP will be sent to {phone}.'**
   String apiAccountFoundOtp(String phone);
 
   /// No description provided for @apiNetworkError.
@@ -1321,6 +1339,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get apiUnknownError;
+
+  /// No description provided for @visitFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get visitFrom;
+
+  /// No description provided for @visitTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get visitTo;
+
+  /// No description provided for @refreshRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh records'**
+  String get refreshRecords;
+
+  /// No description provided for @showRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Show records'**
+  String get showRecords;
+
+  /// No description provided for @sectionVitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitals'**
+  String get sectionVitals;
+
+  /// No description provided for @sectionComplaints.
+  ///
+  /// In en, this message translates to:
+  /// **'Complaints'**
+  String get sectionComplaints;
+
+  /// No description provided for @sectionSymptoms.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms'**
+  String get sectionSymptoms;
+
+  /// No description provided for @sectionDiagnosis.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnosis'**
+  String get sectionDiagnosis;
+
+  /// No description provided for @sectionMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines'**
+  String get sectionMedicines;
+
+  /// No description provided for @sectionLabTests.
+  ///
+  /// In en, this message translates to:
+  /// **'Lab tests'**
+  String get sectionLabTests;
+
+  /// No description provided for @sectionClinicalNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Clinical notes'**
+  String get sectionClinicalNotes;
+
+  /// No description provided for @sectionProcedureNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Procedure note'**
+  String get sectionProcedureNote;
+
+  /// No description provided for @sectionComplications.
+  ///
+  /// In en, this message translates to:
+  /// **'Complications'**
+  String get sectionComplications;
+
+  /// No description provided for @checkupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{type} checkup'**
+  String checkupTitle(String type);
+
+  /// No description provided for @checkupGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkup'**
+  String get checkupGeneric;
+
+  /// No description provided for @statusCheckedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked in'**
+  String get statusCheckedIn;
+
+  /// No description provided for @statusCheckedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked out'**
+  String get statusCheckedOut;
+
+  /// No description provided for @statusCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get statusCompleted;
+
+  /// No description provided for @statusStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get statusStopped;
+
+  /// No description provided for @factAnesthesia.
+  ///
+  /// In en, this message translates to:
+  /// **'Anesthesia'**
+  String get factAnesthesia;
+
+  /// No description provided for @factAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get factAssistant;
+
+  /// No description provided for @factOutcome.
+  ///
+  /// In en, this message translates to:
+  /// **'Outcome'**
+  String get factOutcome;
+
+  /// No description provided for @medQty.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty {qty}'**
+  String medQty(String qty);
+
+  /// No description provided for @medDurationDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day} other{{count} days}}'**
+  String medDurationDays(int count);
+
+  /// No description provided for @medDurationWeeks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 week} other{{count} weeks}}'**
+  String medDurationWeeks(int count);
+
+  /// No description provided for @medDurationMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 month} other{{count} months}}'**
+  String medDurationMonths(int count);
+
+  /// No description provided for @medImmediatelyFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediately for {duration}'**
+  String medImmediatelyFor(String duration);
+
+  /// No description provided for @untilDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Until {date}'**
+  String untilDate(String date);
+
+  /// No description provided for @encounterViewOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Encounter #{id} — view only'**
+  String encounterViewOnly(String id);
+
+  /// No description provided for @vitalBp.
+  ///
+  /// In en, this message translates to:
+  /// **'BP'**
+  String get vitalBp;
+
+  /// No description provided for @vitalHr.
+  ///
+  /// In en, this message translates to:
+  /// **'HR'**
+  String get vitalHr;
+
+  /// No description provided for @vitalTemp.
+  ///
+  /// In en, this message translates to:
+  /// **'Temp'**
+  String get vitalTemp;
+
+  /// No description provided for @vitalSpo2.
+  ///
+  /// In en, this message translates to:
+  /// **'SpO₂'**
+  String get vitalSpo2;
+
+  /// No description provided for @vitalRr.
+  ///
+  /// In en, this message translates to:
+  /// **'RR'**
+  String get vitalRr;
+
+  /// No description provided for @vitalWt.
+  ///
+  /// In en, this message translates to:
+  /// **'Wt'**
+  String get vitalWt;
+
+  /// No description provided for @vitalHt.
+  ///
+  /// In en, this message translates to:
+  /// **'Ht'**
+  String get vitalHt;
+
+  /// No description provided for @vitalBmi.
+  ///
+  /// In en, this message translates to:
+  /// **'BMI'**
+  String get vitalBmi;
+
+  /// No description provided for @vitalBsr.
+  ///
+  /// In en, this message translates to:
+  /// **'BSR'**
+  String get vitalBsr;
 }
 
 class _AppLocalizationsDelegate

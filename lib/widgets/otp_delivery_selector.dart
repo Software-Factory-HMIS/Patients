@@ -14,12 +14,18 @@ class OtpDeliverySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!whatsappOtpEnabled) return const SizedBox.shrink();
+
     return SizedBox(
       width: double.infinity,
       child: SegmentedButton<OtpDeliveryChannel>(
         style: ButtonStyle(
-          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
-          textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          ),
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
         ),
         segments: const [
           ButtonSegment<OtpDeliveryChannel>(

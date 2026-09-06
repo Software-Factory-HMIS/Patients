@@ -9,16 +9,16 @@ class AppLocalizationsUr extends AppLocalizations {
   AppLocalizationsUr([String locale = 'ur']) : super(locale);
 
   @override
-  String get appTitle => 'حکومت پنجاب مریض ایپ';
+  String get appTitle => 'My Health Record';
 
   @override
-  String get appNameShort => 'حکومت پنجاب مریض ایپ';
+  String get appNameShort => 'My Health Record';
 
   @override
   String get governmentOfPunjab => 'حکومت پنجاب';
 
   @override
-  String get patientApp => 'مریض ایپ';
+  String get patientApp => 'My Health Record';
 
   @override
   String get healthDepartment => 'محکمہ صحت';
@@ -148,7 +148,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get myVisitsSubtitle => 'اپنی ہسپتال کی وزٹیں اور طبی ریکارڈ دیکھیں۔';
 
   @override
-  String get profileSubtitle => 'اپنا اکاؤنٹ اور ذاتی تفصیلات منظم کریں۔';
+  String get profileSubtitle => 'اپنا پروفائل اور ذاتی تفصیلات منظم کریں۔';
 
   @override
   String get healthRecords => 'صحت کے ریکارڈ';
@@ -324,7 +324,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get helpDialogMessage =>
-      'اکاؤنٹ یا طبی ریکارڈ کے مسائل کے لیے اپنے ہسپتال کی ریسیپشن یا پنجاب ہیلتھ سپورٹ سے رابطہ کریں۔';
+      'مریض ریکارڈ یا طبی ریکارڈ کے مسائل کے لیے اپنے ہسپتال کی ریسیپشن یا پنجاب ہیلتھ سپورٹ سے رابطہ کریں۔';
 
   @override
   String get trustedByPunjabHealth => 'پنجاب ہیلتھ کی طرف سے قابل اعتماد';
@@ -401,6 +401,20 @@ class AppLocalizationsUr extends AppLocalizations {
   String get stepConfirm => 'تصدیق';
 
   @override
+  String get patientComplaint => 'مریض کی شکایت';
+
+  @override
+  String get patientComplaintHint =>
+      'ڈاکٹر کے لیے اپنی بنیادی شکایت یا علامات بیان کریں۔';
+
+  @override
+  String get patientHistory => 'تاریخچہ';
+
+  @override
+  String get patientHistoryHint =>
+      'ہسپتال کے عملے کے لیے کوئی متعلقہ پرانی بیماری، ادویات، یا نوٹس۔';
+
+  @override
   String get cnicNumber => 'قومی شناختی کارڈ نمبر';
 
   @override
@@ -408,7 +422,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get signInInfoMessage =>
-      'ہسپتال کے ریکارڈ تک محفوظ رسائی کے لیے اپنا قومی شناختی کارڈ درج کریں۔ غیر رجسٹرڈ مریض ریسیپشن سے رابطہ کریں۔';
+      'ہسپتال کے ریکارڈ تک محفوظ رسائی کے لیے اپنا قومی شناختی کارڈ درج کریں۔ اگر ریکارڈ نہ ملے تو ہسپتال کی ریسیپشن سے رابطہ کریں۔';
 
   @override
   String get enterCnic => 'براہ کرم اپنا قومی شناختی کارڈ نمبر درج کریں';
@@ -427,11 +441,11 @@ class AppLocalizationsUr extends AppLocalizations {
   String get scanCnic => 'کارڈ اسکین کریں';
 
   @override
-  String get accountNotFound => 'اکاؤنٹ نہیں ملا';
+  String get accountNotFound => 'مریض نہیں ملا';
 
   @override
   String accountNotFoundMessage(String cnic) {
-    return 'ہمیں قومی شناختی کارڈ $cnic کے ساتھ کوئی مریض نہیں ملا۔\n\nبراہ کرم رجسٹریشن کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
+    return 'ہمیں قومی شناختی کارڈ $cnic کے ساتھ کوئی مریض نہیں ملا۔\n\nبراہ کرم مدد کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
   }
 
   @override
@@ -439,7 +453,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String phoneMissingMessage(String name) {
-    return 'سلام $name،\n\nآپ کے اکاؤنٹ میں فون نمبر نہیں ہے۔ براہ کرم رابطے کی تفصیلات اپ ڈیٹ کرنے کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
+    return 'سلام $name،\n\nآپ کے مریض ریکارڈ میں فون نمبر نہیں ہے۔ براہ کرم رابطے کی تفصیلات اپ ڈیٹ کرنے کے لیے ہسپتال کی ریسیپشن پر جائیں۔';
   }
 
   @override
@@ -477,7 +491,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get contactSupport => 'مدد چاہیے؟ سپورٹ سے رابطہ کریں';
 
   @override
-  String get healthcarePortalFooter => 'ہیلتھ کیئر پورٹل  |  حکومت پنجاب';
+  String get healthcarePortalFooter => 'MY HEALTH RECORD  |  حکومت پنجاب';
 
   @override
   String get copyrightPitb => '© 2024 محکمہ صحت و آبادی';
@@ -574,7 +588,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get phoneVerifyInfo =>
-      'ہم آپ کے رجسٹرڈ نمبر پر ۶ ہندسوں کا کوڈ بھیجیں گے۔ اگر نمبر غلط ہے تو ریسیپشن پر جائیں۔';
+      'ہم آپ کے مریض ریکارڈ پر موجود فون نمبر پر ۶ ہندسوں کا کوڈ بھیجیں گے۔ اگر نمبر غلط ہے تو ریسیپشن پر جائیں۔';
 
   @override
   String get howToSendCode => 'کوڈ کس طرح بھیجیں؟';
@@ -616,7 +630,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get signIn => 'سائن ان';
 
   @override
-  String get registeredNumber => 'آپ کا رجسٹرڈ نمبر';
+  String get registeredNumber => 'آپ کا فون نمبر';
 
   @override
   String otpSentVia(String channel, String phone) {
@@ -644,9 +658,6 @@ class AppLocalizationsUr extends AppLocalizations {
   String get apiInvalidOtp => 'غلط کوڈ۔ دوبارہ کوشش کریں۔';
 
   @override
-  String get apiInvalidCnicPassword => 'غلط قومی شناختی کارڈ یا پاس ورڈ۔';
-
-  @override
   String get apiPatientNotFound => 'مریض نہیں ملا';
 
   @override
@@ -667,7 +678,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String apiAccountFoundOtp(String phone) {
-    return 'آپ کا اکاؤنٹ مل گیا۔ کوڈ $phone پر بھیجا جائے گا۔';
+    return 'آپ کا مریض ریکارڈ مل گیا۔ کوڈ $phone پر بھیجا جائے گا۔';
   }
 
   @override
@@ -676,4 +687,152 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get apiUnknownError => 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔';
+
+  @override
+  String get visitFrom => 'سے';
+
+  @override
+  String get visitTo => 'تک';
+
+  @override
+  String get refreshRecords => 'ریکارڈ تازہ کریں';
+
+  @override
+  String get showRecords => 'ریکارڈ دکھائیں';
+
+  @override
+  String get sectionVitals => 'علاماتِ حیات';
+
+  @override
+  String get sectionComplaints => 'شکایات';
+
+  @override
+  String get sectionSymptoms => 'علامات';
+
+  @override
+  String get sectionDiagnosis => 'تشخیص';
+
+  @override
+  String get sectionMedicines => 'ادویات';
+
+  @override
+  String get sectionLabTests => 'لیب ٹیسٹ';
+
+  @override
+  String get sectionClinicalNotes => 'طبی نوٹس';
+
+  @override
+  String get sectionProcedureNote => 'طریقہ کار نوٹ';
+
+  @override
+  String get sectionComplications => 'پیچیدگیاں';
+
+  @override
+  String checkupTitle(String type) {
+    return '$type معائنہ';
+  }
+
+  @override
+  String get checkupGeneric => 'معائنہ';
+
+  @override
+  String get statusCheckedIn => 'چیک اِن';
+
+  @override
+  String get statusCheckedOut => 'چیک آؤٹ';
+
+  @override
+  String get statusCompleted => 'مکمل';
+
+  @override
+  String get statusStopped => 'بند';
+
+  @override
+  String get factAnesthesia => 'اینستھیزیا';
+
+  @override
+  String get factAssistant => 'معاون';
+
+  @override
+  String get factOutcome => 'نتیجہ';
+
+  @override
+  String medQty(String qty) {
+    return 'مقدار $qty';
+  }
+
+  @override
+  String medDurationDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count دن',
+      one: '1 دن',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medDurationWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ہفتے',
+      one: '1 ہفتہ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medDurationMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count مہینے',
+      one: '1 مہینہ',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medImmediatelyFor(String duration) {
+    return 'فوری طور پر $duration کے لیے';
+  }
+
+  @override
+  String untilDate(String date) {
+    return '$date تک';
+  }
+
+  @override
+  String encounterViewOnly(String id) {
+    return 'وزٹ #$id — صرف دیکھیں';
+  }
+
+  @override
+  String get vitalBp => 'بلڈ پریشر';
+
+  @override
+  String get vitalHr => 'نبض';
+
+  @override
+  String get vitalTemp => 'درجہ حرارت';
+
+  @override
+  String get vitalSpo2 => 'آکسیجن';
+
+  @override
+  String get vitalRr => 'سانس';
+
+  @override
+  String get vitalWt => 'وزن';
+
+  @override
+  String get vitalHt => 'قد';
+
+  @override
+  String get vitalBmi => 'BMI';
+
+  @override
+  String get vitalBsr => 'شوگر';
 }

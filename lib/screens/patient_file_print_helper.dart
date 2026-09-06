@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import '../utils/lab_order_presenter.dart';
 
 class PatientFilePrintHelper {
   /// Uses pre-loaded encounter data from the screen (no API calls).
@@ -613,36 +614,8 @@ class PatientFilePrintHelper {
     );
   }
 
-  static List<String> _uniqueLabOrderLabels(List<dynamic> labOrders) {
-    final seen = <String>{};
-    final labels = <String>[];
-    for (final lab in labOrders) {
-      final packageId = lab['packageId'];
-      if (packageId != null) {
-        final pkgName = (lab['packageName'] ?? 'N/A').toString().trim();
-        final key = 'pkg_${packageId}_${lab['orderId'] ?? ''}';
-        if (seen.add(key)) {
-          labels.add('$pkgName (Package)');
-        }
-      } else {
-        final name = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
-        final key = 'test_${lab['testId'] ?? name}_${lab['orderId'] ?? ''}';
-        if (seen.add(key)) {
-          labels.add('$name (Test)');
-        }
-      }
-    }
-    return labels;
-  }
-
-  static bool _labHasResult(dynamic lab) {
-    final resultId = lab['resultId'];
-    final resultValue = lab['resultValue'];
-    return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
-  }
-
   static pw.Widget _pendingLabNames(List<dynamic> pending) {
-    final labels = _uniqueLabOrderLabels(pending);
+    final labels = LabOrderPresenter.pendingLabels(pending);
     if (labels.isEmpty) return pw.SizedBox.shrink();
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -673,8 +646,8 @@ class PatientFilePrintHelper {
 
   static pw.Widget _buildLabSection(List<dynamic> labOrders) {
     if (labOrders.isEmpty) return pw.SizedBox.shrink();
-    final results = labOrders.where(_labHasResult).toList();
-    final pending = labOrders.where((l) => !_labHasResult(l)).toList();
+    final results = labOrders.where(LabOrderPresenter.hasResult).toList();
+    final pending = labOrders.where((l) => !LabOrderPresenter.hasResult(l)).toList();
 
     if (results.isEmpty) {
       return _pendingLabNames(pending);

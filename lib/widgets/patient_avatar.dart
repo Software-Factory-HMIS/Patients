@@ -93,7 +93,10 @@ class _PatientAvatarState extends State<PatientAvatar> {
         padding: EdgeInsets.all(widget.borderWidth),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: widget.borderColor!, width: widget.borderWidth),
+          border: Border.all(
+            color: widget.borderColor!,
+            width: widget.borderWidth,
+          ),
         ),
         child: avatar,
       );

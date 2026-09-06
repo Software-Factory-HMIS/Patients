@@ -8,15 +8,17 @@ class EncounterService {
     int patientId, {
     DateTime? fromDate,
     DateTime? toDate,
-  }) =>
-      _api.getPatientVitals(patientId, fromDate: fromDate, toDate: toDate);
+  }) => _api.getPatientVitals(patientId, fromDate: fromDate, toDate: toDate);
 
   Future<List<Map<String, dynamic>>> getAllPatientEncounters(
     int patientId, {
     DateTime? fromDate,
     DateTime? toDate,
-  }) =>
-      _api.getAllPatientEncounters(patientId, fromDate: fromDate, toDate: toDate);
+  }) => _api.getAllPatientEncounters(
+    patientId,
+    fromDate: fromDate,
+    toDate: toDate,
+  );
 
   Future<Map<String, dynamic>> getPatientClinicalHistory(
     int patientId, {
@@ -31,11 +33,11 @@ class EncounterService {
   Future<Map<String, dynamic>> getEncounterConsultationData(
     int encounterId, {
     int? patientId,
-  }) =>
-      _api.getEncounterConsultationData(encounterId, patientId: patientId);
+  }) => _api.getEncounterConsultationData(encounterId, patientId: patientId);
 
-  Future<List<Map<String, dynamic>>> getEncountersByAdmissionId(int admissionId) =>
-      _api.getEncountersByAdmissionId(admissionId);
+  Future<List<Map<String, dynamic>>> getEncountersByAdmissionId(
+    int admissionId,
+  ) => _api.getEncountersByAdmissionId(admissionId);
 
   Future<List<dynamic>> getPatientChronicConditions(dynamic patientId) async {
     final id = patientId is int ? patientId : int.parse(patientId.toString());

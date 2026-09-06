@@ -71,7 +71,9 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen>
         children: [
           EmptyStateWidget(
             icon: Icons.medication_outlined,
-            title: activeTab ? l.noActivePrescriptionsHistory : l.noDiscontinuedPrescriptions,
+            title: activeTab
+                ? l.noActivePrescriptionsHistory
+                : l.noDiscontinuedPrescriptions,
             message: activeTab
                 ? l.noActivePrescriptionsHistoryMessage
                 : l.noDiscontinuedPrescriptionsMessage,
@@ -84,10 +86,8 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen>
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
-      itemBuilder: (_, i) => _PrescriptionHistoryCard(
-        rx: items[i],
-        showActiveBadge: activeTab,
-      ),
+      itemBuilder: (_, i) =>
+          _PrescriptionHistoryCard(rx: items[i], showActiveBadge: activeTab),
     );
   }
 
@@ -103,7 +103,10 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen>
           unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
           indicatorColor: PunjabColors.primary,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
           tabs: [
             Tab(text: '${l.tabActive} (${_active.length})'),
             Tab(text: '${l.tabDiscontinued} (${_discontinued.length})'),
@@ -111,29 +114,31 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen>
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: PunjabColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: PunjabColors.primary),
+            )
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!),
-                      const Gap(16),
-                      FilledButton(onPressed: _load, child: Text(l.retry)),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  color: PunjabColors.primary,
-                  onRefresh: _load,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildList(_active, activeTab: true),
-                      _buildList(_discontinued, activeTab: false),
-                    ],
-                  ),
-                ),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_error!),
+                  const Gap(16),
+                  FilledButton(onPressed: _load, child: Text(l.retry)),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              color: PunjabColors.primary,
+              onRefresh: _load,
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildList(_active, activeTab: true),
+                  _buildList(_discontinued, activeTab: false),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -150,7 +155,9 @@ class _PrescriptionHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final badgeColor = showActiveBadge ? PunjabColors.success : PunjabColors.textSecondary;
+    final badgeColor = showActiveBadge
+        ? PunjabColors.success
+        : PunjabColors.textSecondary;
     final badgeLabel = showActiveBadge ? 'Active' : 'Discontinued';
 
     return Container(
@@ -171,7 +178,11 @@ class _PrescriptionHistoryCard extends StatelessWidget {
               color: PunjabColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.medication_rounded, color: PunjabColors.primary, size: 22),
+            child: const Icon(
+              Icons.medication_rounded,
+              color: PunjabColors.primary,
+              size: 22,
+            ),
           ),
           const Gap(12),
           Expanded(
@@ -185,12 +196,15 @@ class _PrescriptionHistoryCard extends StatelessWidget {
                       child: Text(
                         rx.medication,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -214,27 +228,32 @@ class _PrescriptionHistoryCard extends StatelessWidget {
                     if (rx.frequency != null && rx.frequency!.isNotEmpty)
                       _Meta(icon: Icons.schedule_rounded, label: rx.frequency!),
                     if (rx.startDate != null && rx.startDate!.isNotEmpty)
-                      _Meta(icon: Icons.event_rounded, label: 'Start: ${rx.startDate}'),
+                      _Meta(
+                        icon: Icons.event_rounded,
+                        label: 'Start: ${rx.startDate}',
+                      ),
                     if (rx.dosage != null && rx.dosage!.isNotEmpty)
                       _Meta(icon: Icons.medication_outlined, label: rx.dosage!),
                   ],
                 ),
-                if (rx.discontinuedDate != null && rx.discontinuedDate!.isNotEmpty) ...[
+                if (rx.discontinuedDate != null &&
+                    rx.discontinuedDate!.isNotEmpty) ...[
                   const Gap(6),
                   Text(
                     'Discontinued: ${rx.discontinuedDate}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
-                if (rx.indication != null && rx.indication!.trim().isNotEmpty) ...[
+                if (rx.indication != null &&
+                    rx.indication!.trim().isNotEmpty) ...[
                   const Gap(6),
                   Text(
                     rx.indication!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ],

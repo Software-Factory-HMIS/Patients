@@ -1,12 +1,12 @@
 {
-    "name": "patients",
-    "short_name": "patients",
+    "name": "My Health Record",
+    "short_name": "My Health Record",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "landscape",
+    "background_color": "#000000",
+    "theme_color": "#0F3D24",
+    "description": "My Health Record — Government of Punjab patient health portal.",
+    "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
         {

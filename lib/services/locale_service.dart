@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/user_storage.dart';
 
-enum AppLanguage {
-  english,
-  urdu,
-}
+enum AppLanguage { english, urdu }
 
 extension AppLanguageExtension on AppLanguage {
   String get storageKey => this == AppLanguage.urdu ? 'ur' : 'en';
@@ -23,12 +20,11 @@ class LocaleService {
   LocaleService._();
   static final LocaleService instance = LocaleService._();
 
-  final ValueNotifier<Locale> localeNotifier = ValueNotifier<Locale>(const Locale('en'));
+  final ValueNotifier<Locale> localeNotifier = ValueNotifier<Locale>(
+    const Locale('en'),
+  );
 
-  static const supportedLocales = [
-    Locale('en'),
-    Locale('ur'),
-  ];
+  static const supportedLocales = [Locale('en'), Locale('ur')];
 
   Future<void> init() async {
     final saved = await UserStorage.getLocale();

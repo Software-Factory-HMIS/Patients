@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 
 import '../l10n/app_localizations.dart';
 import '../utils/app_localizations_ext.dart';
+import '../utils/brand_assets.dart';
 
 /// Government of Punjab Health Department design tokens.
 class PunjabColors {
@@ -35,20 +36,25 @@ class PunjabAppBrandRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = dark ? Theme.of(context).colorScheme.onSurface : PunjabColors.primaryDark;
+    final titleColor = dark
+        ? Theme.of(context).colorScheme.onSurface
+        : PunjabColors.primaryDark;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Image.asset(
-          'assets/images/punjab.png',
-          width: 56,
-          height: 56,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.health_and_safety_rounded,
-            size: 40,
-            color: PunjabColors.primary,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            BrandAssets.logo,
+            width: 56,
+            height: 56,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.health_and_safety_rounded,
+              size: 40,
+              color: PunjabColors.primary,
+            ),
           ),
         ),
         const Gap(12),
@@ -79,31 +85,26 @@ class PunjabLogoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = compact ? 72.0 : 96.0;
     return Column(
       children: [
-        Container(
-          width: compact ? 72 : 96,
-          height: compact ? 72 : 96,
-          decoration: BoxDecoration(
-            color: PunjabColors.primary.withValues(alpha: 0.08),
-            shape: BoxShape.circle,
-            border: Border.all(color: PunjabColors.primary.withValues(alpha: 0.2), width: 2),
-          ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/punjab.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.health_and_safety_rounded,
-                size: 48,
-                color: PunjabColors.primary,
-              ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.22),
+          child: Image.asset(
+            BrandAssets.logo,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.health_and_safety_rounded,
+              size: size * 0.5,
+              color: PunjabColors.primary,
             ),
           ),
         ),
         const Gap(12),
         Text(
-          'Patients App',
+          context.l10n.appNameShort,
           style: TextStyle(
             fontSize: compact ? 18 : 22,
             fontWeight: FontWeight.w800,
@@ -111,7 +112,7 @@ class PunjabLogoHeader extends StatelessWidget {
           ),
         ),
         Text(
-          'Government of Punjab\nHealth Department',
+          context.l10n.healthDepartment,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: compact ? 12 : 13,
@@ -179,7 +180,9 @@ class PunjabCard extends StatelessWidget {
         color: fill,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: borderColor ?? scheme.outline.withValues(alpha: dark ? 0.45 : 0.8),
+          color:
+              borderColor ??
+              scheme.outline.withValues(alpha: dark ? 0.45 : 0.8),
         ),
         boxShadow: dark
             ? null
@@ -204,17 +207,14 @@ class PunjabPageHeader extends StatelessWidget {
   /// Consistent horizontal and top inset below the shell [SafeArea].
   static const EdgeInsets screenInsets = EdgeInsets.fromLTRB(16, 12, 16, 0);
 
-  const PunjabPageHeader({
-    super.key,
-    required this.title,
-    this.subtitle,
-  });
+  const PunjabPageHeader({super.key, required this.title, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor =
-        dark ? Theme.of(context).colorScheme.onSurface : PunjabColors.primaryDark;
+    final titleColor = dark
+        ? Theme.of(context).colorScheme.onSurface
+        : PunjabColors.primaryDark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,13 +266,18 @@ class PunjabSectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         if (action != null)
           TextButton(
             onPressed: onAction,
-            child: Text(action!, style: const TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(
+              action!,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
       ],
     );
@@ -303,19 +308,26 @@ class PunjabPrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: PunjabColors.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor:
-              loading ? PunjabColors.primary : const Color(0xFFE3EAE5),
-          disabledForegroundColor:
-              loading ? Colors.white : const Color(0xFF8A968F),
+          disabledBackgroundColor: loading
+              ? PunjabColors.primary
+              : const Color(0xFFE3EAE5),
+          disabledForegroundColor: loading
+              ? Colors.white
+              : const Color(0xFF8A968F),
           minimumSize: const Size.fromHeight(54),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
         ),
         child: loading
             ? const SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -375,11 +387,17 @@ class PunjabBookingStepper extends StatelessWidget {
                 ),
                 child: Center(
                   child: completed
-                      ? Icon(Icons.check, color: Colors.white, size: compact ? 14 : 16)
+                      ? Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: compact ? 14 : 16,
+                        )
                       : Text(
                           '${step + 1}',
                           style: TextStyle(
-                            color: current ? Colors.white : PunjabColors.textSecondary,
+                            color: current
+                                ? Colors.white
+                                : PunjabColors.textSecondary,
                             fontWeight: FontWeight.w800,
                             fontSize: compact ? 13 : 14,
                           ),
@@ -395,7 +413,9 @@ class PunjabBookingStepper extends StatelessWidget {
                 style: TextStyle(
                   fontSize: compact ? 11 : 12,
                   fontWeight: current ? FontWeight.w800 : FontWeight.w600,
-                  color: active ? PunjabColors.primary : PunjabColors.textSecondary,
+                  color: active
+                      ? PunjabColors.primary
+                      : PunjabColors.textSecondary,
                 ),
               ),
             ],
@@ -467,7 +487,8 @@ class PunjabBottomNav extends StatefulWidget {
   State<PunjabBottomNav> createState() => _PunjabBottomNavState();
 }
 
-class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProviderStateMixin {
+class _PunjabBottomNavState extends State<PunjabBottomNav>
+    with SingleTickerProviderStateMixin {
   static const _bubbleSize = PunjabBottomNav.bubbleSize;
   static const _horizontalInset = PunjabBottomNav.horizontalInset;
   static const _notchRadius = PunjabBottomNav.notchRadius;
@@ -551,7 +572,9 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
   }
 
   void _animateToIndex(int index) {
-    final from = _fluidController.isAnimating ? _centerAnimation.value : _centerX;
+    final from = _fluidController.isAnimating
+        ? _centerAnimation.value
+        : _centerX;
     final to = _centerForIndex(index);
     _configureAnimations(from: from, to: to);
     _fluidController.forward(from: 0).whenComplete(() {
@@ -595,7 +618,12 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(_horizontalInset, 0, _horizontalInset, 8),
+          padding: const EdgeInsets.fromLTRB(
+            _horizontalInset,
+            0,
+            _horizontalInset,
+            8,
+          ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               _ensureLayout(constraints.maxWidth);
@@ -609,7 +637,8 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
 
               final bubbleScale = _bubbleScaleAnimation.value;
               final bubbleLift = _bubbleLiftAnimation.value;
-              final bubbleBottom = _navHeight - _barTopY - _bubbleSize / 2 + bubbleLift;
+              final bubbleBottom =
+                  _navHeight - _barTopY - _bubbleSize / 2 + bubbleLift;
 
               return SizedBox(
                 height: _navHeight + _bubbleRise,
@@ -630,69 +659,82 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
                           notchRadius: _notchRadius,
                           barTopY: _barTopY,
                           cornerRadius: _cornerRadius,
-                          shadowColor: Colors.black.withValues(alpha: dark ? 0.22 : 0.08),
+                          shadowColor: Colors.black.withValues(
+                            alpha: dark ? 0.22 : 0.08,
+                          ),
                         ),
                         child: Stack(
-                            children: [
-                          Positioned(
-                            left: pillLeft,
-                            width: pillWidth,
-                            bottom: 6,
-                            height: 22,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: PunjabColors.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(11),
+                          children: [
+                            Positioned(
+                              left: pillLeft,
+                              width: pillWidth,
+                              bottom: 6,
+                              height: 22,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: PunjabColors.primary.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: List.generate(navItems.length, (i) {
-                                final (icon, label) = navItems[i];
-                                final selected = i == widget.currentIndex;
-                                return Expanded(
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () => widget.onTap(i),
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: SizedBox(
-                                        height: _navHeight - 8,
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            if (!selected) ...[
-                                              const Spacer(),
-                                              Icon(icon, size: 22, color: inactiveColor),
-                                              const Gap(4),
-                                            ] else
-                                              const Spacer(),
-                                            Text(
-                                              label,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                                                color: selected ? PunjabColors.primary : inactiveColor,
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: List.generate(navItems.length, (i) {
+                                  final (icon, label) = navItems[i];
+                                  final selected = i == widget.currentIndex;
+                                  return Expanded(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => widget.onTap(i),
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: SizedBox(
+                                          height: _navHeight - 8,
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            children: [
+                                              if (!selected) ...[
+                                                const Spacer(),
+                                                Icon(
+                                                  icon,
+                                                  size: 22,
+                                                  color: inactiveColor,
+                                                ),
+                                                const Gap(4),
+                                              ] else
+                                                const Spacer(),
+                                              Text(
+                                                label,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: selected
+                                                      ? FontWeight.w800
+                                                      : FontWeight.w600,
+                                                  color: selected
+                                                      ? PunjabColors.primary
+                                                      : inactiveColor,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                }),
+                              ),
                             ),
-                          ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
+                    ),
                     Positioned(
                       left: visualCenterX - _bubbleSize / 2,
                       bottom: bubbleBottom,
@@ -707,7 +749,9 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
                             border: Border.all(color: barColor, width: 3),
                             boxShadow: [
                               BoxShadow(
-                                color: PunjabColors.primary.withValues(alpha: 0.38),
+                                color: PunjabColors.primary.withValues(
+                                  alpha: 0.38,
+                                ),
                                 blurRadius: 14,
                                 offset: const Offset(0, 6),
                               ),
@@ -718,7 +762,11 @@ class _PunjabBottomNavState extends State<PunjabBottomNav> with SingleTickerProv
                               ),
                             ],
                           ),
-                          child: Icon(activeIcon, color: Colors.white, size: 25),
+                          child: Icon(
+                            activeIcon,
+                            color: Colors.white,
+                            size: 25,
+                          ),
                         ),
                       ),
                     ),
@@ -760,31 +808,20 @@ class _FluidNavBarPainter extends CustomPainter {
     final barRect = Rect.fromLTWH(0, topY, w, h - topY);
     final basePath = Path()
       ..addRRect(
-        RRect.fromRectAndRadius(
-          barRect,
-          Radius.circular(cornerRadius),
-        ),
+        RRect.fromRectAndRadius(barRect, Radius.circular(cornerRadius)),
       );
 
     // Clamp only enough to keep the notch circle inside the bar — not cornerRadius + notchRadius.
-    final safeCx = centerX.clamp(
-      notchRadius,
-      math.max(notchRadius, w - notchRadius),
-    ).toDouble();
+    final safeCx = centerX
+        .clamp(notchRadius, math.max(notchRadius, w - notchRadius))
+        .toDouble();
 
     final notchPath = Path()
       ..addOval(
-        Rect.fromCircle(
-          center: Offset(safeCx, topY),
-          radius: notchRadius,
-        ),
+        Rect.fromCircle(center: Offset(safeCx, topY), radius: notchRadius),
       );
 
-    return Path.combine(
-      PathOperation.difference,
-      basePath,
-      notchPath,
-    );
+    return Path.combine(PathOperation.difference, basePath, notchPath);
   }
 
   @override
@@ -868,7 +905,9 @@ class PunjabStatTile extends StatelessWidget {
               const Gap(4),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -913,7 +952,9 @@ class PunjabQuickAction extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -952,11 +993,7 @@ class PunjabOtpBoxes extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String>? onCompleted;
 
-  const PunjabOtpBoxes({
-    super.key,
-    required this.controller,
-    this.onCompleted,
-  });
+  const PunjabOtpBoxes({super.key, required this.controller, this.onCompleted});
 
   @override
   Widget build(BuildContext context) {
@@ -1047,7 +1084,9 @@ class PunjabDeliveryOption extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: selected ? PunjabColors.primary : PunjabColors.textSecondary,
+                  color: selected
+                      ? PunjabColors.primary
+                      : PunjabColors.textSecondary,
                 ),
               ),
             ],

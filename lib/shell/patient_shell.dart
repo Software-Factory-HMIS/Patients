@@ -43,7 +43,9 @@ class _PatientShellState extends State<PatientShell> {
     });
     try {
       final saved = await UserStorage.getUserData();
-      final profile = await _portal.fetchPatientProfile(widget.patientIdentifier);
+      final profile = await _portal.fetchPatientProfile(
+        widget.patientIdentifier,
+      );
       final patientId = _portal.parsePatientId(profile);
       if (!mounted) return;
       setState(() {
@@ -75,9 +77,7 @@ class _PatientShellState extends State<PatientShell> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_error != null || _patient == null || _patientId == null) {
@@ -91,8 +91,14 @@ class _PatientShellState extends State<PatientShell> {
               children: [
                 Text(_error ?? context.l10n.couldNotLoadProfile),
                 const SizedBox(height: 16),
-                PunjabPrimaryButton(label: context.l10n.tryAgain, onPressed: _loadPatient),
-                TextButton(onPressed: _logout, child: Text(context.l10n.signOut)),
+                PunjabPrimaryButton(
+                  label: context.l10n.tryAgain,
+                  onPressed: _loadPatient,
+                ),
+                TextButton(
+                  onPressed: _logout,
+                  child: Text(context.l10n.signOut),
+                ),
               ],
             ),
           ),
@@ -135,6 +141,7 @@ class _PatientShellState extends State<PatientShell> {
     ];
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       extendBody: true,
       body: SafeArea(
         bottom: false,

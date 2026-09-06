@@ -8,11 +8,12 @@ class CheckUpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eid = patient['encounterId'] ?? patient['EncounterID'] ?? patient['encounterID'];
+    final eid =
+        patient['encounterId'] ??
+        patient['EncounterID'] ??
+        patient['encounterID'];
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Encounter ${eid ?? ""}'),
-      ),
+      appBar: AppBar(title: Text('Encounter ${eid ?? ""}')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),

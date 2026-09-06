@@ -22,7 +22,8 @@ class AppointmentSuccessScreen extends StatefulWidget {
   });
 
   @override
-  State<AppointmentSuccessScreen> createState() => _AppointmentSuccessScreenState();
+  State<AppointmentSuccessScreen> createState() =>
+      _AppointmentSuccessScreenState();
 }
 
 class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
@@ -63,7 +64,9 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
       final liveDate = _parseReceiptDate(receipt);
 
       setState(() {
-        _liveReceipt = receipt.isNotEmpty ? receipt : widget.appointment.receiptData;
+        _liveReceipt = receipt.isNotEmpty
+            ? receipt
+            : widget.appointment.receiptData;
         if (liveToken != null && liveToken.isNotEmpty) {
           _token = liveToken;
         }
@@ -139,7 +142,9 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                       fontFamily: 'serif',
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: dark ? Theme.of(context).colorScheme.onSurface : PunjabColors.primaryDark,
+                      color: dark
+                          ? Theme.of(context).colorScheme.onSurface
+                          : PunjabColors.primaryDark,
                     ),
                   ),
                   const Gap(28),
@@ -151,7 +156,11 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                         color: PunjabColors.primaryDark,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 48),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
                     ),
                   ),
                   const Gap(18),
@@ -161,7 +170,9 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
-                      color: dark ? Theme.of(context).colorScheme.onSurface : PunjabColors.primaryDark,
+                      color: dark
+                          ? Theme.of(context).colorScheme.onSurface
+                          : PunjabColors.primaryDark,
                       height: 1.15,
                     ),
                   ),
@@ -182,10 +193,7 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                     dark: dark,
                   ),
                   const Gap(20),
-                  _QrCheckInCard(
-                    qrData: _generateQrCodeData(),
-                    dark: dark,
-                  ),
+                  _QrCheckInCard(qrData: _generateQrCodeData(), dark: dark),
                   const Gap(20),
                   GridView.count(
                     crossAxisCount: 2,
@@ -227,7 +235,8 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: dark
-                          ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35)
+                          ? Theme.of(context).colorScheme.primaryContainer
+                                .withValues(alpha: 0.35)
                           : _instructionBg,
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -236,7 +245,9 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                       children: [
                         Icon(
                           Icons.info_outline_rounded,
-                          color: dark ? Theme.of(context).colorScheme.primary : PunjabColors.primaryDark,
+                          color: dark
+                              ? Theme.of(context).colorScheme.primary
+                              : PunjabColors.primaryDark,
                           size: 22,
                         ),
                         const Gap(12),
@@ -261,8 +272,12 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                                   fontSize: 13,
                                   height: 1.4,
                                   color: dark
-                                      ? Theme.of(context).colorScheme.onSurfaceVariant
-                                      : PunjabColors.primaryDark.withValues(alpha: 0.85),
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant
+                                      : PunjabColors.primaryDark.withValues(
+                                          alpha: 0.85,
+                                        ),
                                 ),
                               ),
                             ],
@@ -280,7 +295,10 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                         await generateAndPrintAppointmentPDF(_pdfAppointment);
                       } catch (e) {
                         if (context.mounted) {
-                          AppSnackBar.showError(context, 'Error generating PDF: $e');
+                          AppSnackBar.showError(
+                            context,
+                            'Error generating PDF: $e',
+                          );
                         }
                       }
                     },
@@ -293,9 +311,17 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
                       onPressed: _handleBackToHome,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: PunjabColors.primaryDark,
-                        side: const BorderSide(color: PunjabColors.primaryDark, width: 1.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        side: const BorderSide(
+                          color: PunjabColors.primaryDark,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       icon: const Icon(Icons.home_rounded),
                       label: const Text('Back to Home'),
@@ -339,7 +365,10 @@ class _AppointmentSuccessScreenState extends State<AppointmentSuccessScreen> {
         .toList();
   }
 
-  static String? _pickReceiptField(Map<String, dynamic> receipt, List<String> keys) {
+  static String? _pickReceiptField(
+    Map<String, dynamic> receipt,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       final value = receipt[key];
       if (value != null && value.toString().trim().isNotEmpty) {
@@ -387,13 +416,17 @@ class _QueueTokenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardFill = dark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.white;
+    final cardFill = dark
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Colors.white;
 
     return Container(
       decoration: BoxDecoration(
         color: cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+        ),
         boxShadow: dark
             ? null
             : [
@@ -425,16 +458,27 @@ class _QueueTokenCard extends StatelessWidget {
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
-                              color: PunjabColors.primary.withValues(alpha: 0.12),
+                              color: PunjabColors.primary.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: PunjabColors.primary.withValues(alpha: 0.25)),
+                              border: Border.all(
+                                color: PunjabColors.primary.withValues(
+                                  alpha: 0.25,
+                                ),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -470,7 +514,9 @@ class _QueueTokenCard extends StatelessWidget {
                             child: SizedBox(
                               width: 28,
                               height: 28,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                              ),
                             ),
                           ),
                         )
@@ -515,14 +561,18 @@ class _QrCheckInCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardFill = dark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.white;
+    final cardFill = dark
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
         color: cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+        ),
         boxShadow: dark
             ? null
             : [
@@ -604,14 +654,18 @@ class _DetailTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardFill = dark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.white;
+    final cardFill = dark
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Colors.white;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: cardFill,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

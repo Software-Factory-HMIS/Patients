@@ -10,6 +10,8 @@ import '../services/pharmacy_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../utils/app_date_format.dart';
 import '../utils/app_snackbar.dart';
+import '../utils/clinical_history_assembler.dart';
+import '../utils/lab_order_presenter.dart';
 
 class PatientHistoryDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
@@ -93,14 +95,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     }).toList();
   }
 
-  String _labDedupeKey(Map<String, dynamic> m) {
-    final resultId = m['resultId'] ?? m['resultID'] ?? m['ResultID'];
-    if (resultId != null && resultId.toString().isNotEmpty) return 'rid:${resultId}';
-    final test = (m['testName'] ?? m['test'] ?? m['Test'] ?? '').toString().trim().toLowerCase();
-    final date = (m['encounterDate'] ?? m['date'] ?? m['Date'] ?? m['sampleDate'] ?? '').toString().trim().toLowerCase();
-    final result = (m['resultValue'] ?? m['result'] ?? m['Result'] ?? m['resultNumeric'] ?? '').toString().trim().toLowerCase();
-    return 't:$test|d:$date|r:$result';
-  }
+  String _labDedupeKey(Map<String, dynamic> m) => LabOrderPresenter.dedupeKey(m);
 
   /// Flattened labs: encounter orders + top-level clinical-history labs (Gap 4A merge).
   List<Map<String, dynamic>> get _aggregatedLabOrders {
@@ -205,21 +200,11 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
 
   /// Count of lab packages + standalone test orders (for tile display), not total test rows.
   int get _labPackageCount {
-    int count = 0;
+    var count = 0;
     for (final data in _encounterDataList) {
-      final labOrdersRaw = data['labOrders'] as List<dynamic>? ?? [];
-      final packageKeys = <String>{};
-      int standalone = 0;
-      for (final order in labOrdersRaw) {
-        final packageId = order['packageId'];
-        if (packageId != null) {
-          final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
-          packageKeys.add(packageKey);
-        } else {
-          standalone++;
-        }
-      }
-      count += packageKeys.length + standalone;
+      count += LabOrderPresenter.countPackagesAndStandalone(
+        data['labOrders'] as List<dynamic>? ?? [],
+      );
     }
     return count;
   }
@@ -275,10 +260,27 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
 
   void _onHistoryTabChanged() {
     if (_tabController.indexIsChanging) return;
-    final i = _tabController.index;
+    _loadHistoryTab(_tabController.index);
+    _prefetchNeighborHistoryTab(_tabController.index);
+  }
+
+  void _loadHistoryTab(int i) {
     if (i == 1) _ensureActiveMedicinesLoaded();
     if (i == 6) _ensureSurgeryLoaded();
     if (i == 7) _ensurePregnancyLoaded();
+  }
+
+  void _prefetchNeighborHistoryTab(int i) {
+    _loadHistoryTab(i + 1);
+  }
+
+  void _prefetchUpcomingHistoryTabs() {
+    _ensureActiveMedicinesLoaded();
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted || _loading) return;
+      _ensureSurgeryLoaded();
+      if (_showPregnancy) _ensurePregnancyLoaded();
+    });
   }
 
   Widget _pill({required IconData icon, required String label, required String value, required Color color}) {
@@ -325,59 +327,6 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     _surgerySearchController.dispose();
     _pregnancySearchController.dispose();
     super.dispose();
-  }
-
-  int? _parseId(dynamic v) {
-    if (v == null) return null;
-    if (v is int) return v;
-    return int.tryParse(v.toString());
-  }
-
-  Map<int, List<dynamic>> _groupByEncounterId(List<dynamic>? rows) {
-    final map = <int, List<dynamic>>{};
-    if (rows == null) return map;
-    for (final row in rows) {
-      if (row is! Map) continue;
-      final id = _parseId(row['encounterId'] ?? row['EncounterId'] ?? row['EncounterID']);
-      if (id == null) continue;
-      map.putIfAbsent(id, () => []).add(Map<String, dynamic>.from(row));
-    }
-    return map;
-  }
-
-  List<Map<String, dynamic>> _buildEncounterDataListFromHistory(Map<String, dynamic> history) {
-    final encounters = List<Map<String, dynamic>>.from(
-      (history['encounters'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? const [],
-    );
-    final modules = (history['encounterModules'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
-    final vitalsBy = _groupByEncounterId(history['vitals'] as List?);
-    final complaintsBy = _groupByEncounterId(modules['complaints'] as List?);
-    final symptomsBy = _groupByEncounterId(modules['symptoms'] as List?);
-    final diagnosesBy = _groupByEncounterId(modules['diagnoses'] as List?);
-    final labBy = _groupByEncounterId(modules['labOrders'] as List?);
-    final radBy = _groupByEncounterId(modules['radiologyOrders'] as List?);
-    final medsBy = _groupByEncounterId(modules['medicines'] as List?);
-    final notesBy = _groupByEncounterId(modules['notes'] as List?);
-
-    final out = <Map<String, dynamic>>[];
-    for (final encounter in encounters) {
-      final id = _parseId(encounter['encounterId'] ?? encounter['EncounterID']);
-      if (id == null) continue;
-      final notes = notesBy[id] ?? const [];
-      out.add({
-        'encounter': encounter,
-        'vitals': vitalsBy[id] ?? const [],
-        'complaints': complaintsBy[id] ?? const [],
-        'symptoms': symptomsBy[id] ?? const [],
-        'diagnoses': diagnosesBy[id] ?? const [],
-        'labOrders': labBy[id] ?? const [],
-        'radiologyOrders': radBy[id] ?? const [],
-        'medicines': medsBy[id] ?? const [],
-        'notes': notes,
-        'clinicalNotes': notes,
-      });
-    }
-    return out;
   }
 
   Future<void> _loadPatientHistory() async {
@@ -448,7 +397,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
       _allVitals = List<dynamic>.from(history['vitals'] as List? ?? const []);
       _labResultsFromApi = List<dynamic>.from(history['labs'] as List? ?? const []);
       _radiologyFromApi = List<dynamic>.from(history['radiology'] as List? ?? const []);
-      final encounterDataList = _buildEncounterDataListFromHistory(history);
+      final encounterDataList = ClinicalHistoryAssembler.fromHistory(history);
 
       if (mounted) {
         setState(() {
@@ -456,6 +405,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
           _loading = false;
           _error = null;
         });
+        _prefetchUpcomingHistoryTabs();
       }
     } catch (e) {
       print('Unexpected error loading patient history: $e');

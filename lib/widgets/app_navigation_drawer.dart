@@ -7,7 +7,8 @@ class AppNavigationDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = (patient['fullName'] ?? patient['FullName'] ?? 'Patient').toString();
+    final name = (patient['fullName'] ?? patient['FullName'] ?? 'Patient')
+        .toString();
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -18,7 +19,11 @@ class AppNavigationDrawer extends StatelessWidget {
               alignment: Alignment.bottomLeft,
               child: Text(
                 name,
-                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),

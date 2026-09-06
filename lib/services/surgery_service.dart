@@ -5,6 +5,7 @@ class SurgeryService {
 
   static final EmrApiClient _api = EmrApiClient();
 
-  static Future<List<Map<String, dynamic>>> getPatientSurgeries(int patientId) =>
-      _api.getPatientSurgeries(patientId);
+  static Future<List<Map<String, dynamic>>> getPatientSurgeries(
+    int patientId,
+  ) => _api.getPatientSurgeries(patientId);
 }

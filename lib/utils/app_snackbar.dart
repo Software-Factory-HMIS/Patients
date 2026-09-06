@@ -32,7 +32,12 @@ class AppSnackBar {
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white, height: 1.35),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  height: 1.35,
+                ),
                 maxLines: 5,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -57,7 +62,10 @@ class AppSnackBar {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          content: Text(
+            message,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+          ),
           backgroundColor: Colors.green.shade700,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
@@ -70,7 +78,10 @@ class AppSnackBar {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          content: Text(
+            message,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+          ),
           backgroundColor: Colors.orange.shade800,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),

@@ -39,9 +39,12 @@ class LabReportDetailScreen extends StatelessWidget {
     final theme = HealthReportTheme.lab(context, dark: dark);
     final statusColor = labStatusColor(report);
     final meta = <HealthMetaItem>[
-      if (report.date != null) HealthMetaItem(label: 'Sample Date', value: report.date!),
-      if (report.orderedBy != null) HealthMetaItem(label: 'Ordered By', value: report.orderedBy!),
-      if (report.normalRange != null) HealthMetaItem(label: 'Reference Range', value: report.normalRange!),
+      if (report.date != null)
+        HealthMetaItem(label: 'Sample Date', value: report.date!),
+      if (report.orderedBy != null)
+        HealthMetaItem(label: 'Ordered By', value: report.orderedBy!),
+      if (report.normalRange != null)
+        HealthMetaItem(label: 'Reference Range', value: report.normalRange!),
       if (report.abnormalFlags != null && report.abnormalFlags!.isNotEmpty)
         HealthMetaItem(label: 'Flags', value: report.abnormalFlags!),
     ];
@@ -75,7 +78,8 @@ class LabReportDetailScreen extends StatelessWidget {
               theme: theme,
               title: 'Interpretation',
               body: report.status!,
-              highlight: report.isCritical ||
+              highlight:
+                  report.isCritical ||
                   (report.status ?? '').toLowerCase().contains('abnormal'),
             ),
           ],

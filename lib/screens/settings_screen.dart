@@ -37,7 +37,8 @@ class SettingsScreen extends StatelessWidget {
                       child: ValueListenableBuilder<Locale>(
                         valueListenable: LocaleService.instance.localeNotifier,
                         builder: (context, current, _) {
-                          final selected = LocaleService.instance.currentLanguage;
+                          final selected =
+                              LocaleService.instance.currentLanguage;
                           return Row(
                             children: [
                               Expanded(
@@ -45,7 +46,8 @@ class SettingsScreen extends StatelessWidget {
                                   icon: Icons.translate_rounded,
                                   label: l.languageEnglish,
                                   isSelected: selected == AppLanguage.english,
-                                  onTap: () => LocaleService.instance.setLanguage(AppLanguage.english),
+                                  onTap: () => LocaleService.instance
+                                      .setLanguage(AppLanguage.english),
                                 ),
                               ),
                               const Gap(12),
@@ -54,7 +56,8 @@ class SettingsScreen extends StatelessWidget {
                                   icon: Icons.menu_book_rounded,
                                   label: l.languageUrdu,
                                   isSelected: selected == AppLanguage.urdu,
-                                  onTap: () => LocaleService.instance.setLanguage(AppLanguage.urdu),
+                                  onTap: () => LocaleService.instance
+                                      .setLanguage(AppLanguage.urdu),
                                 ),
                               ),
                             ],
@@ -80,7 +83,8 @@ class SettingsScreen extends StatelessWidget {
                                   previewColor: const Color(0xFFFFF8E7),
                                   previewBorder: const Color(0xFFFFE082),
                                   iconColor: const Color(0xFFF59E0B),
-                                  onTap: () => ThemeService.instance.setThemeMode(AppThemeMode.light),
+                                  onTap: () => ThemeService.instance
+                                      .setThemeMode(AppThemeMode.light),
                                 ),
                               ),
                               const Gap(12),
@@ -92,7 +96,8 @@ class SettingsScreen extends StatelessWidget {
                                   previewColor: const Color(0xFF1E293B),
                                   previewBorder: const Color(0xFF334155),
                                   iconColor: const Color(0xFF93C5FD),
-                                  onTap: () => ThemeService.instance.setThemeMode(AppThemeMode.dark),
+                                  onTap: () => ThemeService.instance
+                                      .setThemeMode(AppThemeMode.dark),
                                 ),
                               ),
                             ],
@@ -196,8 +201,10 @@ class _OptionCard extends StatelessWidget {
                 ? colorScheme.primary.withValues(alpha: 0.12)
                 : colorScheme.surface.withValues(alpha: 0.6),
             border: Border.all(
-              color: isSelected ? colorScheme.primary : colorScheme.outline.withValues(alpha: 0.35),
-              width: isSelected ? 2 : 1,
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outline.withValues(alpha: 0.35),
+              width: 2,
             ),
           ),
           child: Column(
@@ -209,13 +216,25 @@ class _OptionCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: previewColor,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: previewBorder ?? colorScheme.outline),
+                    border: Border.all(
+                      color: previewBorder ?? colorScheme.outline,
+                    ),
                   ),
-                  child: Icon(icon, size: 28, color: iconColor ?? colorScheme.primary),
+                  child: Icon(
+                    icon,
+                    size: 28,
+                    color: iconColor ?? colorScheme.primary,
+                  ),
                 ),
                 const Gap(12),
               ] else ...[
-                Icon(icon, size: 32, color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant),
+                Icon(
+                  icon,
+                  size: 32,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
                 const Gap(12),
               ],
               Text(
@@ -223,13 +242,23 @@ class _OptionCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurface,
                 ),
               ),
-              if (isSelected) ...[
-                const Gap(8),
-                Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 20),
-              ],
+              const Gap(8),
+              // Reserve checkmark space so selected/unselected stay equal height.
+              SizedBox(
+                height: 20,
+                child: isSelected
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        color: colorScheme.primary,
+                        size: 20,
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

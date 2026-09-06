@@ -44,15 +44,18 @@ class Hospital {
       type: json['Type'] as String? ?? json['type'] as String?,
       subtype: json['Subtype'] as String? ?? json['subtype'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
-      division: json['Division'] as String? ??
+      division:
+          json['Division'] as String? ??
           json['division'] as String? ??
           json['DivisionName'] as String? ??
           json['divisionName'] as String?,
-      district: json['District'] as String? ??
+      district:
+          json['District'] as String? ??
           json['district'] as String? ??
           json['DistrictName'] as String? ??
           json['districtName'] as String?,
-      tehsil: json['Tehsil'] as String? ??
+      tehsil:
+          json['Tehsil'] as String? ??
           json['tehsil'] as String? ??
           json['TehsilName'] as String? ??
           json['tehsilName'] as String?,
@@ -110,11 +113,14 @@ class Department {
 
   factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
-      departmentID: json['DepartmentID'] as int? ?? json['departmentID'] as int? ?? 0,
+      departmentID:
+          json['DepartmentID'] as int? ?? json['departmentID'] as int? ?? 0,
       name: json['Name'] as String? ?? json['name'] as String? ?? '',
-      description: json['Description'] as String? ?? json['description'] as String?,
+      description:
+          json['Description'] as String? ?? json['description'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
-      hospitalCount: json['HospitalCount'] as int? ?? json['hospitalCount'] as int? ?? 0,
+      hospitalCount:
+          json['HospitalCount'] as int? ?? json['hospitalCount'] as int? ?? 0,
     );
   }
 }
@@ -123,16 +129,22 @@ class QueueResponse {
   final int queueId;
   final String tokenNumber;
 
-  QueueResponse({
-    required this.queueId,
-    required this.tokenNumber,
-  });
+  QueueResponse({required this.queueId, required this.tokenNumber});
 
   factory QueueResponse.fromJson(Map<String, dynamic> json) {
     return QueueResponse(
-      queueId: json['queueId'] as int? ?? json['QueueID'] as int,
-      tokenNumber: json['tokenNumber'] as String? ?? json['TokenNumber'] as String,
+      queueId: readInt(json['queueId'] ?? json['QueueID']) ?? 0,
+      tokenNumber:
+          json['tokenNumber']?.toString() ??
+          json['TokenNumber']?.toString() ??
+          '',
     );
+  }
+
+  static int? readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
   }
 }
 
@@ -155,11 +167,19 @@ class HospitalDepartment {
 
   factory HospitalDepartment.fromJson(Map<String, dynamic> json) {
     return HospitalDepartment(
-      hospitalDepartmentID: json['hospitalDepartmentID'] as int? ?? json['HospitalDepartmentID'] as int? ?? 0,
+      hospitalDepartmentID:
+          json['hospitalDepartmentID'] as int? ??
+          json['HospitalDepartmentID'] as int? ??
+          0,
       hospitalID: json['hospitalID'] as int? ?? json['HospitalID'] as int? ?? 0,
-      departmentID: json['departmentID'] as int? ?? json['DepartmentID'] as int? ?? 0,
-      departmentName: json['departmentName'] as String? ?? json['DepartmentName'] as String? ?? '',
-      speciality: json['speciality'] as String? ?? json['Speciality'] as String?,
+      departmentID:
+          json['departmentID'] as int? ?? json['DepartmentID'] as int? ?? 0,
+      departmentName:
+          json['departmentName'] as String? ??
+          json['DepartmentName'] as String? ??
+          '',
+      speciality:
+          json['speciality'] as String? ?? json['Speciality'] as String?,
       isOpd: json['isOpd'] as bool? ?? json['IsOpd'] as bool? ?? false,
     );
   }
@@ -187,5 +207,49 @@ class AppointmentDetails {
     this.estimatedWaitTime,
     this.receiptData,
   });
-}
 
+  /// Rebuilds a booking from a live queue visit row (home / recent visits).
+  static AppointmentDetails? tryFromVisit(
+    Map<String, dynamic> visit, {
+    required String patientName,
+    required String patientMRN,
+  }) {
+    final queueId = QueueResponse.readInt(
+      visit['queueId'] ?? visit['queueID'] ?? visit['QueueID'],
+    );
+    if (queueId == null || queueId <= 0) return null;
+
+    final token = visit['tokenNumber']?.toString().trim();
+    final hospitalId = QueueResponse.readInt(visit['hospitalId']) ?? 0;
+    final departmentId =
+        QueueResponse.readInt(visit['hospitalDepartmentId']) ??
+        QueueResponse.readInt(visit['departmentId']) ??
+        0;
+    final date = DateTime.tryParse(
+      visit['appointmentDate']?.toString() ??
+          visit['queueDate']?.toString() ??
+          '',
+    );
+
+    return AppointmentDetails(
+      queueResponse: QueueResponse(
+        queueId: queueId,
+        tokenNumber: (token == null || token.isEmpty) ? 'N/A' : token,
+      ),
+      hospital: Hospital(
+        hospitalID: hospitalId,
+        name: visit['hospitalName']?.toString() ?? 'Hospital',
+        isActive: true,
+      ),
+      department: Department(
+        departmentID: departmentId,
+        name: visit['departmentName']?.toString() ?? 'Department',
+        isActive: true,
+        hospitalCount: 0,
+      ),
+      patientName: patientName,
+      patientMRN: patientMRN,
+      appointmentDate: date ?? DateTime.now(),
+    );
+  }
+}

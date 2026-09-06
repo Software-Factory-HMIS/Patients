@@ -48,9 +48,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _initializeApiClient() async {
     try {
       _apiClient = EmrApiClient();
-    } catch (e) {
-      debugPrint('Error initializing API client: $e');
-    }
+    } catch (_) {}
   }
 
   @override
@@ -62,7 +60,8 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _requestOtp() async {
     if (_apiClient == null) await _initializeApiClient();
     if (_apiClient == null) {
-      if (mounted) AppSnackBar.showError(context, context.l10n.apiFailedInitClient);
+      if (mounted)
+        AppSnackBar.showError(context, context.l10n.apiFailedInitClient);
       return;
     }
 
@@ -104,7 +103,7 @@ class _OtpScreenState extends State<OtpScreen> {
     final l = context.l10n;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: KeyboardInsetPadding(
         child: SignInAuthLayout(
           showBackButton: true,
@@ -150,23 +149,29 @@ class _OtpScreenState extends State<OtpScreen> {
                       height: 1.4,
                     ),
                   ),
-                  const Gap(20),
-                  Row(
-                    children: [
-                      _DeliveryTile(
-                        icon: Icons.sms_rounded,
-                        label: l.channelSms,
-                        selected: widget.deliveryChannel == OtpDeliveryChannel.sms,
-                      ),
-                      const Gap(12),
-                      _DeliveryTile(
-                        icon: Icons.chat_rounded,
-                        label: l.channelWhatsApp,
-                        selected: widget.deliveryChannel == OtpDeliveryChannel.whatsApp,
-                      ),
-                    ],
-                  ),
-                  const Gap(24),
+                  if (whatsappOtpEnabled) ...[
+                    const Gap(20),
+                    Row(
+                      children: [
+                        _DeliveryTile(
+                          icon: Icons.sms_rounded,
+                          label: l.channelSms,
+                          selected:
+                              widget.deliveryChannel == OtpDeliveryChannel.sms,
+                        ),
+                        const Gap(12),
+                        _DeliveryTile(
+                          icon: Icons.chat_rounded,
+                          label: l.channelWhatsApp,
+                          selected:
+                              widget.deliveryChannel ==
+                              OtpDeliveryChannel.whatsApp,
+                        ),
+                      ],
+                    ),
+                    const Gap(24),
+                  ] else
+                    const Gap(24),
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: Stack(
@@ -174,7 +179,8 @@ class _OtpScreenState extends State<OtpScreen> {
                       children: [
                         ListenableBuilder(
                           listenable: _otpController,
-                          builder: (_, __) => _OtpBoxes(text: _otpController.text),
+                          builder: (_, __) =>
+                              _OtpBoxes(text: _otpController.text),
                         ),
                         Opacity(
                           opacity: 0.01,
@@ -190,7 +196,8 @@ class _OtpScreenState extends State<OtpScreen> {
                               LengthLimitingTextInputFormatter(6),
                             ],
                             validator: (value) {
-                              if (value == null || value.isEmpty) return l.enter6DigitCode;
+                              if (value == null || value.isEmpty)
+                                return l.enter6DigitCode;
                               if (value.length != 6) return l.otpMustBe6Digits;
                               return null;
                             },
@@ -204,11 +211,16 @@ class _OtpScreenState extends State<OtpScreen> {
                   Text(
                     l.otpExpiresIn5Min,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13, color: SignInAuthTheme.textMuted),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: SignInAuthTheme.textMuted,
+                    ),
                   ),
                   const Gap(6),
                   TextButton(
-                    onPressed: (_isRequestingOtp || _isVerifyingOtp) ? null : _requestOtp,
+                    onPressed: (_isRequestingOtp || _isVerifyingOtp)
+                        ? null
+                        : _requestOtp,
                     child: Text(
                       _isRequestingOtp ? l.sending : l.resendCode,
                       style: const TextStyle(
@@ -221,7 +233,9 @@ class _OtpScreenState extends State<OtpScreen> {
                   SignInContinueButton(
                     label: l.signIn,
                     loading: _isVerifyingOtp,
-                    onPressed: (_isVerifyingOtp || _isRequestingOtp) ? null : _handleOtpSubmit,
+                    onPressed: (_isVerifyingOtp || _isRequestingOtp)
+                        ? null
+                        : _handleOtpSubmit,
                   ),
                 ],
               ),
@@ -237,7 +251,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
     if (_apiClient == null) await _initializeApiClient();
     if (_apiClient == null) {
-      if (mounted) AppSnackBar.showError(context, context.l10n.apiFailedInitClient);
+      if (mounted)
+        AppSnackBar.showError(context, context.l10n.apiFailedInitClient);
       return;
     }
 
@@ -251,8 +266,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (!mounted) return;
 
-      await UserStorage.saveUserData(response);
       await AuthService.instance.saveLoginResponse(response);
+      await UserStorage.saveUserData(AuthService.instance.patientData!);
       InactivityService.instance.resetActivity();
 
       final mrn = response['MRN'] ?? response['mrn'] ?? '';
@@ -261,7 +276,9 @@ class _OtpScreenState extends State<OtpScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => PatientShell(patientIdentifier: identifier)),
+        MaterialPageRoute(
+          builder: (context) => PatientShell(patientIdentifier: identifier),
+        ),
         (route) => false,
       );
     } catch (e) {
@@ -310,7 +327,9 @@ class _DeliveryTile extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: selected ? scheme.primary : SignInAuthTheme.mutedTextColor(context),
+              color: selected
+                  ? scheme.primary
+                  : SignInAuthTheme.mutedTextColor(context),
               size: 28,
             ),
             const Gap(8),
@@ -318,7 +337,9 @@ class _DeliveryTile extends StatelessWidget {
               label,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: selected ? scheme.primary : SignInAuthTheme.bodyTextColor(context),
+                color: selected
+                    ? scheme.primary
+                    : SignInAuthTheme.bodyTextColor(context),
               ),
             ),
           ],
@@ -342,7 +363,10 @@ class _OtpBoxes extends StatelessWidget {
         final focused = i == text.length;
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: i == 0 ? 0 : 4, right: i == 5 ? 0 : 4),
+            padding: EdgeInsets.only(
+              left: i == 0 ? 0 : 4,
+              right: i == 5 ? 0 : 4,
+            ),
             child: Container(
               height: 52,
               alignment: Alignment.center,
@@ -350,7 +374,9 @@ class _OtpBoxes extends StatelessWidget {
                 color: SignInAuthTheme.inputFill,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: focused ? SignInAuthTheme.primary : SignInAuthTheme.border,
+                  color: focused
+                      ? SignInAuthTheme.primary
+                      : SignInAuthTheme.border,
                   width: focused ? 2 : 1,
                 ),
               ),

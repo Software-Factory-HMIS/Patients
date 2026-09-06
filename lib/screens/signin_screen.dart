@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -48,9 +46,7 @@ class _SignInScreenState extends State<SignInScreen> {
           _cnicController.text = CnicInputFormatter.format(cnic.toString());
         }
       }
-    } catch (e) {
-      debugPrint('Error loading saved user data: $e');
-    }
+    } catch (_) {}
   }
 
   @override
@@ -65,7 +61,7 @@ class _SignInScreenState extends State<SignInScreen> {
     final l = context.l10n;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Container(
@@ -75,41 +71,65 @@ class _SignInScreenState extends State<SignInScreen> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final metrics = SignInMetrics.of(context, constraints);
-                    final verticalPad = metrics.mediumGap * 2;
 
-                    return SingleChildScrollView(
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: metrics.horizontalPadding,
-                        vertical: metrics.mediumGap,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: math.max(0, constraints.maxHeight - verticalPad),
-                        ),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: metrics.cardMaxWidth),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                SignInAuthHeader(metrics: metrics),
-                                Gap(metrics.largeGap),
-                                _buildSignInContent(context, metrics, l),
-                                Gap(metrics.mediumGap),
-                                SignInHospitalSupportButton(
-                                  compact: metrics.isShortHeight,
-                                  loading: _supportLoading,
-                                  onPressed: _showNearestHospitalSupport,
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, bodyConstraints) {
+                              return SingleChildScrollView(
+                                keyboardDismissBehavior:
+                                    ScrollViewKeyboardDismissBehavior.onDrag,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: metrics.horizontalPadding,
                                 ),
-                                Gap(metrics.smallGap),
-                                const SignInAuthFooter(),
-                              ],
-                            ),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: bodyConstraints.maxHeight,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: metrics.cardMaxWidth,
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          SignInAuthHeader(metrics: metrics),
+                                          Gap(metrics.mediumGap),
+                                          _buildSignInContent(
+                                            context,
+                                            metrics,
+                                            l,
+                                          ),
+                                          Gap(metrics.mediumGap),
+                                          SignInHospitalSupportButton(
+                                            compact: metrics.isShortHeight,
+                                            loading: _supportLoading,
+                                            onPressed:
+                                                _showNearestHospitalSupport,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      ),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            metrics.horizontalPadding,
+                            metrics.smallGap,
+                            metrics.horizontalPadding,
+                            metrics.mediumGap,
+                          ),
+                          child: const SignInAuthFooter(),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -192,7 +212,8 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() => _supportLoading = true);
 
     try {
-      final position = await PatientLocationService.instance.requestCurrentPosition();
+      final position = await PatientLocationService.instance
+          .requestCurrentPosition();
       if (!mounted) return;
 
       if (position == null) {
@@ -218,7 +239,11 @@ class _SignInScreenState extends State<SignInScreen> {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          icon: const Icon(Icons.local_hospital_rounded, color: SignInAuthTheme.primary, size: 36),
+          icon: const Icon(
+            Icons.local_hospital_rounded,
+            color: SignInAuthTheme.primary,
+            size: 36,
+          ),
           title: Text(l.nearestHospital),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -226,13 +251,18 @@ class _SignInScreenState extends State<SignInScreen> {
             children: [
               Text(
                 nearest.hospital.name,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
               ),
               const Gap(8),
               if (nearest.hospital.location != 'Location not specified')
                 Text(
                   nearest.hospital.location,
-                  style: TextStyle(color: SignInAuthTheme.mutedTextColor(dialogContext)),
+                  style: TextStyle(
+                    color: SignInAuthTheme.mutedTextColor(dialogContext),
+                  ),
                 ),
               const Gap(8),
               Text(
@@ -332,7 +362,10 @@ class _SignInScreenState extends State<SignInScreen> {
               : context.l10n.accountNotFoundMessage(cnic),
         ),
         actions: [
-          FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.ok)),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.ok),
+          ),
         ],
       ),
     );
@@ -348,7 +381,10 @@ class _SignInScreenState extends State<SignInScreen> {
           context.l10n.phoneMissingMessage(patientName ?? context.l10n.there),
         ),
         actions: [
-          FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.l10n.ok)),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.ok),
+          ),
         ],
       ),
     );
@@ -360,10 +396,7 @@ class _SignInScreenState extends State<SignInScreen> {
     );
 
     if (imagePath != null && mounted) {
-      AppSnackBar.showSuccess(
-        context,
-        context.l10n.cnicPhotoCaptured,
-      );
+      AppSnackBar.showSuccess(context, context.l10n.cnicPhotoCaptured);
     }
   }
 }
@@ -425,15 +458,32 @@ class _CnicInputField extends StatelessWidget {
           color: isDark ? scheme.onSurfaceVariant : SignInAuthTheme.titleGreen,
           letterSpacing: 0.8,
         ),
-        prefixIcon: Icon(Icons.badge_outlined, size: iconSize, color: SignInAuthTheme.mutedTextColor(context)),
-        prefixIconConstraints: BoxConstraints(minWidth: iconBox, minHeight: iconBox),
+        prefixIcon: Icon(
+          Icons.badge_outlined,
+          size: iconSize,
+          color: SignInAuthTheme.mutedTextColor(context),
+        ),
+        prefixIconConstraints: BoxConstraints(
+          minWidth: iconBox,
+          minHeight: iconBox,
+        ),
         suffixIcon: IconButton(
           onPressed: onCameraTap,
-          icon: Icon(Icons.photo_camera_outlined, size: iconSize, color: scheme.primary),
+          icon: Icon(
+            Icons.photo_camera_outlined,
+            size: iconSize,
+            color: scheme.primary,
+          ),
           tooltip: l.scanCnic,
         ),
-        suffixIconConstraints: BoxConstraints(minWidth: iconBox, minHeight: iconBox),
-        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 13 : 16),
+        suffixIconConstraints: BoxConstraints(
+          minWidth: iconBox,
+          minHeight: iconBox,
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 4,
+          vertical: compact ? 13 : 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outline),
@@ -452,7 +502,10 @@ class _CnicInputField extends StatelessWidget {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: SignInAuthTheme.danger, width: 1.5),
+          borderSide: const BorderSide(
+            color: SignInAuthTheme.danger,
+            width: 1.5,
+          ),
         ),
       ),
       onFieldSubmitted: onSubmitted,
@@ -476,7 +529,10 @@ class CnicInputFormatter extends TextInputFormatter {
   }
 
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final formatted = format(newValue.text);
     return TextEditingValue(
       text: formatted,

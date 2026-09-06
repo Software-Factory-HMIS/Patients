@@ -8,6 +8,8 @@ class PharmacyService {
   static Future<List<Map<String, dynamic>>> getActivePatientMedicines({
     required int patientId,
     bool getAllHistory = false,
-  }) =>
-      _api.getActivePatientMedicines(patientId: patientId, getAllHistory: getAllHistory);
+  }) => _api.getActivePatientMedicines(
+    patientId: patientId,
+    getAllHistory: getAllHistory,
+  );
 }

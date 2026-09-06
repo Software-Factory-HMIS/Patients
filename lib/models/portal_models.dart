@@ -49,6 +49,48 @@ class LabResultsSummary {
     );
   }
 
+  /// Client-side summary when the API summary is empty/missing.
+  factory LabResultsSummary.fromReports(List<LabReport> reports) {
+    var normal = 0, elevated = 0, critical = 0, pending = 0;
+    String? lastDate;
+    String? firstDate;
+    for (final r in reports) {
+      if (!r.hasResult) {
+        pending++;
+      } else if (r.isCritical) {
+        critical++;
+      } else {
+        final status = (r.status ?? '').toLowerCase();
+        final flags = (r.abnormalFlags ?? '').toLowerCase();
+        if (status.contains('abnormal') ||
+            status.contains('high') ||
+            status.contains('low') ||
+            status.contains('elevated') ||
+            flags == 'h' ||
+            flags == 'l' ||
+            flags == 'a') {
+          elevated++;
+        } else {
+          normal++;
+        }
+      }
+      final d = r.date;
+      if (d != null && d.isNotEmpty) {
+        lastDate ??= d;
+        firstDate = d;
+      }
+    }
+    return LabResultsSummary(
+      total: reports.length,
+      normal: normal,
+      elevated: elevated,
+      critical: critical,
+      pending: pending,
+      lastDate: lastDate,
+      firstDate: firstDate,
+    );
+  }
+
   bool get hasAbnormal => elevated > 0 || critical > 0;
 }
 
@@ -74,6 +116,28 @@ class RadiologySummary {
       pending: _asInt(json['pendingReports']),
       lastDate: AppDateFormat.formatDateOrNull(json['lastReportDate']),
       firstDate: AppDateFormat.formatDateOrNull(json['firstReportDate']),
+    );
+  }
+
+  /// Client-side summary when the API summary is empty/missing.
+  factory RadiologySummary.fromReports(List<RadiologyReport> reports) {
+    var finals = 0;
+    String? lastDate;
+    String? firstDate;
+    for (final r in reports) {
+      if (r.hasReportText) finals++;
+      final d = r.displayDate;
+      if (d != null && d.isNotEmpty) {
+        lastDate ??= d;
+        firstDate = d;
+      }
+    }
+    return RadiologySummary(
+      total: reports.length,
+      finalReports: finals,
+      pending: reports.length - finals,
+      lastDate: lastDate,
+      firstDate: firstDate,
     );
   }
 }
@@ -114,10 +178,12 @@ class LabReport {
     return LabReport(
       test: json['test']?.toString() ?? 'Unknown test',
       result: json['result']?.toString(),
-      normalRange: json['normalRange']?.toString() ?? json['Normal Range']?.toString(),
+      normalRange:
+          json['normalRange']?.toString() ?? json['Normal Range']?.toString(),
       status: json['status']?.toString(),
       date: AppDateFormat.formatDateOrNull(json['date'] ?? json['sampleDate']),
-      orderedBy: json['orderedBy']?.toString() ?? json['Ordered By']?.toString(),
+      orderedBy:
+          json['orderedBy']?.toString() ?? json['Ordered By']?.toString(),
       abnormalFlags: json['abnormalFlags']?.toString(),
       resultId: _asIntOrNull(json['resultId']),
       sampleId: _asIntOrNull(json['sampleId']),
@@ -159,14 +225,20 @@ class RadiologyReport {
 
   factory RadiologyReport.fromJson(Map<String, dynamic> json) {
     return RadiologyReport(
-      testName: json['testName']?.toString() ??
+      testName:
+          json['testName']?.toString() ??
           json['procedure']?.toString() ??
           'Radiology study',
-      orderDate: AppDateFormat.formatDateOrNull(json['orderDate'] ?? json['date']),
+      orderDate: AppDateFormat.formatDateOrNull(
+        json['orderDate'] ?? json['date'],
+      ),
       finalReportDate: AppDateFormat.formatDateOrNull(json['finalReportDate']),
-      findings: json['finalFindings']?.toString() ?? json['findings']?.toString(),
+      findings:
+          json['finalFindings']?.toString() ?? json['findings']?.toString(),
       impression: json['impression']?.toString(),
-      radiologist: json['radiologist_Name']?.toString() ?? json['radiologist']?.toString(),
+      radiologist:
+          json['radiologist_Name']?.toString() ??
+          json['radiologist']?.toString(),
       recommendations: json['recommendations']?.toString(),
       orderId: _asIntOrNull(json['orderId']),
       orderDetailId: _asIntOrNull(json['orderDetailId']),
@@ -215,26 +287,40 @@ class PrescriptionItem {
   });
 
   factory PrescriptionItem.fromJson(Map<String, dynamic> json) {
-    final dosageAmount = json['dosageAmount'] ?? json['dosageValue'] ?? json['dosage'] ?? json['Dosage'];
+    final dosageAmount =
+        json['dosageAmount'] ??
+        json['dosageValue'] ??
+        json['dosage'] ??
+        json['Dosage'];
     final dosageUnit = json['dosageUnit'] ?? json['DosageUnit'];
     final dosageText = _formatDosage(dosageAmount, dosageUnit);
 
     return PrescriptionItem(
-      medication: json['medication']?.toString() ??
+      medication:
+          json['medication']?.toString() ??
           json['Medication']?.toString() ??
           json['medicineName']?.toString() ??
           json['MedicineName']?.toString() ??
           json['name']?.toString() ??
           'Medicine',
-      salt: json['salt']?.toString() ?? json['Salt']?.toString() ?? json['SaltName']?.toString(),
+      salt:
+          json['salt']?.toString() ??
+          json['Salt']?.toString() ??
+          json['SaltName']?.toString(),
       dosage: dosageText,
       frequency: json['frequency']?.toString() ?? json['Frequency']?.toString(),
       duration: json['duration']?.toString() ?? json['Duration']?.toString(),
-      indication: json['indication']?.toString() ?? json['Indication']?.toString(),
-      prescriber: json['prescriber']?.toString() ?? json['Prescriber']?.toString(),
+      indication:
+          json['indication']?.toString() ?? json['Indication']?.toString(),
+      prescriber:
+          json['prescriber']?.toString() ?? json['Prescriber']?.toString(),
       status: json['status']?.toString() ?? json['Status']?.toString(),
-      startDate: AppDateFormat.formatDateOrNull(json['startDate'] ?? json['StartDate']),
-      endDate: AppDateFormat.formatDateOrNull(json['endDate'] ?? json['EndDate']),
+      startDate: AppDateFormat.formatDateOrNull(
+        json['startDate'] ?? json['StartDate'],
+      ),
+      endDate: AppDateFormat.formatDateOrNull(
+        json['endDate'] ?? json['EndDate'],
+      ),
       discontinuedDate: AppDateFormat.formatDateOrNull(
         json['discontinuedDate'] ?? json['DiscontinuedDate'],
       ),
@@ -265,7 +351,11 @@ class PrescriptionItem {
     if (endDate != null && endDate!.isNotEmpty) {
       final end = DateTime.tryParse(endDate!) ?? _parseDdMmYyyy(endDate!);
       if (end != null) {
-        final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        final today = DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        );
         final endDay = DateTime(end.year, end.month, end.day);
         if (endDay.isBefore(today)) return false;
       }
@@ -279,13 +369,32 @@ class PrescriptionItem {
 }
 
 String? _formatDosage(dynamic amount, dynamic unit) {
-  final amountText = amount?.toString().trim();
-  if (amountText == null || amountText.isEmpty) return null;
+  var amountText = amount?.toString().trim() ?? '';
+  if (amountText.isEmpty) return null;
 
-  final unitText = unit?.toString().trim();
-  if (unitText == null || unitText.isEmpty) return amountText;
+  // Collapse "400mg mg" / "400 mg mg" style duplicates in preformatted values.
+  amountText = amountText.replaceFirstMapped(
+    RegExp(r'([a-zA-Z%µμ/]+)\s+\1$', caseSensitive: false),
+    (m) => m.group(1)!,
+  );
 
-  if (amountText.toLowerCase().endsWith(unitText.toLowerCase())) return amountText;
+  final unitText = unit?.toString().trim() ?? '';
+  if (unitText.isEmpty) return amountText;
+
+  final lowerAmount = amountText.toLowerCase();
+  final lowerUnit = unitText.toLowerCase();
+  if (lowerAmount == lowerUnit ||
+      lowerAmount.endsWith(lowerUnit) ||
+      lowerAmount.endsWith(' $lowerUnit') ||
+      lowerAmount.contains(lowerUnit)) {
+    return amountText;
+  }
+
+  // Amount already has a unit suffix (e.g. "400mg", "5 ml").
+  if (RegExp(r'\d\s*[a-zA-Z%µμ/]+$').hasMatch(amountText)) {
+    return amountText;
+  }
+
   return '$amountText $unitText';
 }
 

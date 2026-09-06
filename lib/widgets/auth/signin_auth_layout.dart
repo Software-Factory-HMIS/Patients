@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import '../../utils/app_localizations_ext.dart';
+import '../../utils/brand_assets.dart';
 import 'signin_auth_theme.dart';
 
 /// Responsive sizing for sign-in flow screens.
@@ -45,8 +46,12 @@ class SignInMetrics {
 
   factory SignInMetrics.of(BuildContext context, BoxConstraints constraints) {
     final size = MediaQuery.sizeOf(context);
-    final width = constraints.maxWidth.isFinite ? constraints.maxWidth : size.width;
-    final height = constraints.maxHeight.isFinite ? constraints.maxHeight : size.height;
+    final width = constraints.maxWidth.isFinite
+        ? constraints.maxWidth
+        : size.width;
+    final height = constraints.maxHeight.isFinite
+        ? constraints.maxHeight
+        : size.height;
 
     final isCompactWidth = width < 380;
     final isShortHeight = height < 740;
@@ -57,19 +62,47 @@ class SignInMetrics {
       isShortHeight: isShortHeight,
       isVeryShortHeight: isVeryShortHeight,
       horizontalPadding: isCompactWidth ? 16 : 24,
-      cardPadding: isVeryShortHeight ? 16 : isShortHeight ? 18 : 22,
+      cardPadding: isVeryShortHeight
+          ? 16
+          : isShortHeight
+          ? 18
+          : 22,
       cardMaxWidth: 430,
       titleFontSize: isCompactWidth ? 15 : 16,
       labelFontSize: isCompactWidth ? 14 : 16,
       inputHeight: isVeryShortHeight ? 50 : 56,
       buttonHeight: isVeryShortHeight ? 48 : 54,
-      smallGap: isVeryShortHeight ? 6 : isShortHeight ? 8 : 10,
-      mediumGap: isVeryShortHeight ? 10 : isShortHeight ? 12 : 16,
-      largeGap: isVeryShortHeight ? 14 : isShortHeight ? 16 : 22,
-      infoBoxPadding: isVeryShortHeight ? 10 : isShortHeight ? 12 : 14,
+      smallGap: isVeryShortHeight
+          ? 6
+          : isShortHeight
+          ? 8
+          : 10,
+      mediumGap: isVeryShortHeight
+          ? 10
+          : isShortHeight
+          ? 12
+          : 16,
+      largeGap: isVeryShortHeight
+          ? 14
+          : isShortHeight
+          ? 16
+          : 22,
+      infoBoxPadding: isVeryShortHeight
+          ? 10
+          : isShortHeight
+          ? 12
+          : 14,
       iconSize: isCompactWidth ? 20 : 22,
-      logoSize: isVeryShortHeight ? 88 : isShortHeight ? 100 : 148,
-      headerTitleFontSize: isVeryShortHeight ? 19 : isShortHeight ? 21 : 24,
+      logoSize: isVeryShortHeight
+          ? 88
+          : isShortHeight
+          ? 100
+          : 112,
+      headerTitleFontSize: isVeryShortHeight
+          ? 26
+          : isShortHeight
+          ? 30
+          : 34,
     );
   }
 }
@@ -95,33 +128,63 @@ class SignInAuthLayout extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final metrics = SignInMetrics.of(context, constraints);
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: metrics.horizontalPadding,
-                vertical: metrics.mediumGap,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - metrics.mediumGap * 2),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (showBackButton)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: onBack ?? () => Navigator.maybePop(context),
-                          icon: Icon(Icons.arrow_back_rounded, color: SignInAuthTheme.bodyTextColor(context)),
+            return Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, bodyConstraints) {
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: metrics.horizontalPadding,
                         ),
-                      ),
-                    SignInAuthHeader(metrics: metrics),
-                    Gap(metrics.largeGap),
-                    SizedBox(width: double.infinity, child: child),
-                    Gap(metrics.mediumGap),
-                    const SignInAuthFooter(),
-                  ],
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: bodyConstraints.maxHeight,
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (showBackButton)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: IconButton(
+                                      onPressed:
+                                          onBack ??
+                                          () => Navigator.maybePop(context),
+                                      icon: Icon(
+                                        Icons.arrow_back_rounded,
+                                        color: SignInAuthTheme.bodyTextColor(
+                                          context,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                SignInAuthHeader(metrics: metrics),
+                                Gap(metrics.mediumGap),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: child,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    metrics.horizontalPadding,
+                    metrics.smallGap,
+                    metrics.horizontalPadding,
+                    metrics.mediumGap,
+                  ),
+                  child: const SignInAuthFooter(),
+                ),
+              ],
             );
           },
         ),
@@ -138,36 +201,61 @@ class SignInAuthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = metrics;
-    final logoSize = m?.logoSize ?? 148;
-    final titleSize = m?.headerTitleFontSize ?? 24;
-    final titleGap = m?.mediumGap ?? 16;
+    final logoSize = m?.logoSize ?? 112;
+    final titleSize = m?.headerTitleFontSize ?? 34;
+    final titleStyle = TextStyle(
+      fontFamily: 'serif',
+      fontSize: titleSize,
+      fontWeight: FontWeight.w800,
+      height: 1.05,
+      letterSpacing: -0.5,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Image.asset(
-          'assets/images/punjab.png',
+          BrandAssets.logo,
           width: logoSize,
           height: logoSize,
           fit: BoxFit.contain,
           alignment: Alignment.center,
+          filterQuality: FilterQuality.high,
           errorBuilder: (_, __, ___) => Icon(
-            Icons.account_balance_rounded,
-            size: logoSize * 0.8,
+            Icons.health_and_safety_rounded,
+            size: logoSize * 0.85,
             color: SignInAuthTheme.primary,
           ),
         ),
-        Gap(titleGap),
+        const Gap(10),
+        Text.rich(
+          TextSpan(
+            style: titleStyle,
+            children: const [
+              TextSpan(
+                text: 'My Health ',
+                style: TextStyle(color: SignInAuthTheme.titleGreen),
+              ),
+              TextSpan(
+                text: 'Record',
+                style: TextStyle(color: SignInAuthTheme.brandLink),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const Gap(4),
         Text(
           context.l10n.governmentOfPunjab,
           textAlign: TextAlign.center,
-          style: SignInAuthTheme.titleStyleFor(context).copyWith(fontSize: titleSize, height: 1.15),
-        ),
-        Text(
-          context.l10n.patientApp,
-          textAlign: TextAlign.center,
-          style: SignInAuthTheme.titleStyleFor(context).copyWith(fontSize: titleSize, height: 1.15),
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.2,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+            color: SignInAuthTheme.textMuted,
+          ),
         ),
       ],
     );
@@ -219,16 +307,23 @@ class SignInContinueButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: SignInAuthTheme.primary,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: SignInAuthTheme.primary.withValues(alpha: 0.5),
+          disabledBackgroundColor: SignInAuthTheme.primary.withValues(
+            alpha: 0.5,
+          ),
           elevation: 0,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: loading
             ? const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -243,7 +338,11 @@ class SignInContinueButton extends StatelessWidget {
                     ),
                   ),
                   const Gap(10),
-                  Icon(Icons.arrow_forward_rounded, size: compact ? 20 : 22, color: Colors.white),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: compact ? 20 : 22,
+                    color: Colors.white,
+                  ),
                 ],
               ),
       ),
@@ -319,13 +418,17 @@ class SignInHospitalSupportButton extends StatelessWidget {
         onPressed: loading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: SignInAuthTheme.bodyTextColor(context),
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
           side: BorderSide(color: Theme.of(context).colorScheme.outline),
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 16 : 20,
             vertical: compact ? 12 : 14,
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
         ),
         icon: loading
             ? SizedBox(
@@ -343,7 +446,10 @@ class SignInHospitalSupportButton extends StatelessWidget {
               ),
         label: Text(
           l.hospitalSupport,
-          style: TextStyle(fontSize: compact ? 13 : 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: compact ? 13 : 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -357,22 +463,35 @@ class SignInAuthFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = context.l10n;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
+        Image.asset(
+          BrandAssets.punjabCrest,
+          width: 64,
+          height: 52,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          semanticLabel: l.governmentOfPunjab,
+        ),
+        const Gap(6),
         Text(
           l.healthcarePortalFooter,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             letterSpacing: 0.8,
             fontWeight: FontWeight.w600,
             color: SignInAuthTheme.textMuted,
           ),
         ),
-        const Gap(8),
+        const Gap(4),
         Text(
           l.copyrightPitb,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12, color: SignInAuthTheme.textMuted),
+          style: const TextStyle(
+            fontSize: 11,
+            color: SignInAuthTheme.textMuted,
+          ),
         ),
       ],
     );

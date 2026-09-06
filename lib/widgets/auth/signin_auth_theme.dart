@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Visual tokens for Government of Punjab sign-in flow (matches design mockup).
+/// Visual tokens for My Health Record sign-in flow.
 class SignInAuthTheme {
   SignInAuthTheme._();
 
   static const primary = Color(0xFF0B4D35);
   static const primaryDark = Color(0xFF083D2A);
   static const titleGreen = Color(0xFF0A3F2C);
+  static const brandLink = Color(0xFF009091);
   static const background = Color(0xFFF6F8F7);
   static const cardWhite = Colors.white;
   static const inputFill = Color(0xFFE9EEF5);
@@ -29,11 +30,7 @@ class SignInAuthTheme {
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [
-        const Color(0xFFDFEDE4),
-        const Color(0xFFF0F5F2),
-        background,
-      ],
+      colors: [const Color(0xFFDFEDE4), const Color(0xFFF0F5F2), background],
       stops: const [0.0, 0.28, 1.0],
     ),
   );
@@ -71,7 +68,8 @@ class SignInAuthTheme {
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
-  static ColorScheme _scheme(BuildContext context) => Theme.of(context).colorScheme;
+  static ColorScheme _scheme(BuildContext context) =>
+      Theme.of(context).colorScheme;
 
   static BoxDecoration pageDecorationFor(BuildContext context) {
     if (isDark(context)) {

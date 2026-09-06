@@ -19,7 +19,7 @@ http.Client createHttpClient(String url, bool isDevelopmentUrl) {
       };
     return IOClient(httpClient);
   }
-  
+
   // For production URLs, use standard HTTP client with proper certificate validation
   return http.Client();
 }

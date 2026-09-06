@@ -9,6 +9,8 @@ import '../widgets/punjab_ui.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/app_snackbar.dart';
 import '../utils/clinical_notes_format.dart';
+import '../utils/clinical_history_assembler.dart';
+import '../utils/lab_order_presenter.dart';
 import 'patient_file_print_helper.dart';
 
 class PatientFileScreen extends StatefulWidget {
@@ -74,59 +76,6 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     } catch (e) {
       // ignore
     }
-  }
-
-  int? _parseId(dynamic v) {
-    if (v == null) return null;
-    if (v is int) return v;
-    return int.tryParse(v.toString());
-  }
-
-  Map<int, List<dynamic>> _groupByEncounterId(List<dynamic>? rows) {
-    final map = <int, List<dynamic>>{};
-    if (rows == null) return map;
-    for (final row in rows) {
-      if (row is! Map) continue;
-      final id = _parseId(row['encounterId'] ?? row['EncounterId'] ?? row['EncounterID']);
-      if (id == null) continue;
-      map.putIfAbsent(id, () => []).add(Map<String, dynamic>.from(row));
-    }
-    return map;
-  }
-
-  List<Map<String, dynamic>> _buildEncounterDataListFromHistory(Map<String, dynamic> history) {
-    final encounters = List<Map<String, dynamic>>.from(
-      (history['encounters'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? const [],
-    );
-    final modules = (history['encounterModules'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
-    final vitalsBy = _groupByEncounterId(history['vitals'] as List?);
-    final complaintsBy = _groupByEncounterId(modules['complaints'] as List?);
-    final symptomsBy = _groupByEncounterId(modules['symptoms'] as List?);
-    final diagnosesBy = _groupByEncounterId(modules['diagnoses'] as List?);
-    final labBy = _groupByEncounterId(modules['labOrders'] as List?);
-    final radBy = _groupByEncounterId(modules['radiologyOrders'] as List?);
-    final medsBy = _groupByEncounterId(modules['medicines'] as List?);
-    final notesBy = _groupByEncounterId(modules['notes'] as List?);
-
-    final out = <Map<String, dynamic>>[];
-    for (final encounter in encounters) {
-      final id = _parseId(encounter['encounterId'] ?? encounter['EncounterID']);
-      if (id == null) continue;
-      final notes = notesBy[id] ?? const [];
-      out.add({
-        'encounter': encounter,
-        'vitals': vitalsBy[id] ?? const [],
-        'complaints': complaintsBy[id] ?? const [],
-        'symptoms': symptomsBy[id] ?? const [],
-        'diagnoses': diagnosesBy[id] ?? const [],
-        'labOrders': labBy[id] ?? const [],
-        'radiologyOrders': radBy[id] ?? const [],
-        'medicines': medsBy[id] ?? const [],
-        'notes': notes,
-        'clinicalNotes': notes,
-      });
-    }
-    return out;
   }
 
   bool _isDateInRange(DateTime? d, DateTime from, DateTime to) {
@@ -350,7 +299,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
 
       final history = results[0] as Map<String, dynamic>;
       final surgeries = results[1] as List<Map<String, dynamic>>;
-      final encounterDataList = _buildEncounterDataListFromHistory(history);
+      final encounterDataList = ClinicalHistoryAssembler.fromHistory(history);
       final encounters = encounterDataList
           .map((e) => Map<String, dynamic>.from(e['encounter'] as Map))
           .toList();
@@ -1743,70 +1692,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  List<String> _labOrderListLabels(List<dynamic> labOrders) {
-    final seen = <String>{};
-    final labels = <String>[];
-    for (final lab in labOrders) {
-      final type = (lab['type'] ?? '').toString();
-      final isPackage = type == 'package' ||
-          type == 'package_test' ||
-          lab['packageId'] != null;
-      if (isPackage) {
-        final pkgName = (lab['packageName'] ?? 'N/A').toString().trim();
-        final key = 'pkg_${lab['packageId'] ?? pkgName}_${lab['orderId'] ?? ''}';
-        if (seen.add(key)) {
-          labels.add('$pkgName (Package)');
-        }
-      } else {
-        final name = (lab['testName'] ?? 'N/A').toString();
-        final key = 'test_${lab['testId'] ?? name}_${lab['orderId'] ?? ''}';
-        if (seen.add(key)) {
-          labels.add('$name (Test)');
-        }
-      }
-    }
-    return labels;
-  }
-
-  bool _labHasResult(dynamic lab) {
-    final resultId = lab['resultId'];
-    final resultValue = lab['resultValue'];
-    return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
-  }
-
-  List<MapEntry<String, List<dynamic>>> _groupLabResultsByPackage(List<dynamic> results) {
-    final groups = <String, List<dynamic>>{};
-    final order = <String>[];
-    for (final lab in results) {
-      final type = (lab['type'] ?? '').toString();
-      final isPackage = type == 'package' ||
-          type == 'package_test' ||
-          lab['packageId'] != null;
-      final key = isPackage
-          ? 'pkg_${lab['packageId'] ?? lab['packageName']}_${lab['orderId'] ?? ''}'
-          : 'standalone';
-      if (!groups.containsKey(key)) {
-        groups[key] = [];
-        order.add(key);
-      }
-      groups[key]!.add(lab);
-    }
-    return [
-      for (final key in order)
-        MapEntry(
-          key == 'standalone'
-              ? (groups[key]!.length > 1 ? 'Tests' : '')
-              : (groups[key]!.first['packageName'] ?? 'Package').toString(),
-          groups[key]!,
-        ),
-    ];
-  }
-
   Widget _buildLabResultsSection(List<dynamic> labOrders) {
     final cs = Theme.of(context).colorScheme;
-    final resultsWithData = labOrders.where(_labHasResult).toList();
-    final pendingLabels = _labOrderListLabels(
-      labOrders.where((lab) => !_labHasResult(lab)).toList(),
+    final resultsWithData = labOrders.where(LabOrderPresenter.hasResult).toList();
+    final pendingLabels = LabOrderPresenter.pendingLabels(
+      labOrders.where((lab) => !LabOrderPresenter.hasResult(lab)).toList(),
     );
 
     if (resultsWithData.isEmpty) {
@@ -1910,7 +1800,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             ),
             const SizedBox(height: 4),
             // Table rows grouped by package
-            for (final group in _groupLabResultsByPackage(resultsWithData)) ...[
+            for (final group in LabOrderPresenter.groupResultsByPackage(resultsWithData)) ...[
               if (group.key.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 2),
@@ -2585,41 +2475,49 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
-  Widget _buildVitalChip(String label, String value, bool isOutOfRange) {
+  Widget _buildVitalChip(
+    String label,
+    String value,
+    bool isOutOfRange, {
+    bool isHeader = false,
+  }) {
     final cs = Theme.of(context).colorScheme;
-    final display = value.trim().isEmpty ? '-' : value;
+    final display = value.trim().isEmpty ? '—' : value;
     final bg = isOutOfRange ? cs.errorContainer : cs.surfaceContainerHighest;
     final fg = isOutOfRange ? cs.onErrorContainer : cs.onSurface;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         border: isOutOfRange
             ? Border.all(color: cs.error.withValues(alpha: 0.6), width: 1)
-            : null,
+            : Border.all(color: cs.outlineVariant, width: 0.5),
       ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label ',
-              style: TextStyle(
-                fontSize: 11,
-                color: fg.withValues(alpha: 0.75),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isHeader ? 10 : 11,
+              fontWeight: FontWeight.w600,
+              color: PunjabColors.textSecondary,
             ),
-            TextSpan(
-              text: display,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isOutOfRange ? FontWeight.bold : FontWeight.w600,
-                color: isOutOfRange ? cs.error : fg,
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            display,
+            style: TextStyle(
+              fontSize: isHeader ? 12 : 14,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+              color: isOutOfRange ? cs.error : fg,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2632,9 +2530,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     String rr,
     String weight,
     String height,
-    String bsr,
-  ) {
-    // Parse BP for out-of-range check
+    String bsr, {
+    bool isHeader = false,
+  }) {
     double? bpSystolic, bpDiastolic;
     if (bp.contains('/')) {
       final parts = bp.split('/');
@@ -2644,46 +2542,73 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       }
     }
 
-    // Calculate BMI
     final bmi = _calculateBMI(weight, height);
     final bmiStr = bmi != null ? bmi.toStringAsFixed(1) : '';
 
-    // Check which vitals are out of range
-    final bpSystolicOutOfRange = bpSystolic != null && !_isSystolicNormal(bpSystolic);
-    final bpDiastolicOutOfRange = bpDiastolic != null && !_isDiastolicNormal(bpDiastolic);
+    final bpSystolicOutOfRange =
+        bpSystolic != null && !_isSystolicNormal(bpSystolic);
+    final bpDiastolicOutOfRange =
+        bpDiastolic != null && !_isDiastolicNormal(bpDiastolic);
     final bpOutOfRange = bpSystolicOutOfRange || bpDiastolicOutOfRange;
-    
     final hrValue = double.tryParse(hr);
     final hrOutOfRange = hrValue != null && !_isPulseNormal(hrValue);
-    
     final tempValue = double.tryParse(temp);
-    final tempOutOfRange = tempValue != null && !_isTemperatureNormal(tempValue);
-    
+    final tempOutOfRange =
+        tempValue != null && !_isTemperatureNormal(tempValue);
     final spo2Value = double.tryParse(spo2);
-    final spo2OutOfRange = spo2Value != null && !_isO2SaturationNormal(spo2Value);
-    
+    final spo2OutOfRange =
+        spo2Value != null && !_isO2SaturationNormal(spo2Value);
     final rrValue = double.tryParse(rr);
     final rrOutOfRange = rrValue != null && !_isRespiratoryRateNormal(rrValue);
-    
     final bmiOutOfRange = bmi != null && !_isBMINormal(bmi);
-    
     final bsrValue = double.tryParse(bsr);
     final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        if (bp.isNotEmpty) _buildVitalChip('BP', bp, bpOutOfRange),
-        if (hr.isNotEmpty) _buildVitalChip('HR', hr, hrOutOfRange),
-        if (temp.isNotEmpty) _buildVitalChip('Temp', temp, tempOutOfRange),
-        if (spo2.isNotEmpty) _buildVitalChip('SpO₂', spo2, spo2OutOfRange),
-        if (rr.isNotEmpty) _buildVitalChip('RR', rr, rrOutOfRange),
-        if (weight.isNotEmpty) _buildVitalChip('Wt', weight, false),
-        if (height.isNotEmpty) _buildVitalChip('Ht', height, false),
-        if (bmiStr.isNotEmpty) _buildVitalChip('BMI', bmiStr, bmiOutOfRange),
-        if (bsr.isNotEmpty) _buildVitalChip('BSR', bsr, bsrOutOfRange),
-      ],
+    final l = context.l10n;
+    final tiles = <Widget>[
+      if (bp.isNotEmpty)
+        _buildVitalChip(l.vitalBp, bp, bpOutOfRange, isHeader: isHeader),
+      if (hr.isNotEmpty)
+        _buildVitalChip(l.vitalHr, hr, hrOutOfRange, isHeader: isHeader),
+      if (temp.isNotEmpty)
+        _buildVitalChip(l.vitalTemp, temp, tempOutOfRange, isHeader: isHeader),
+      if (spo2.isNotEmpty)
+        _buildVitalChip(l.vitalSpo2, spo2, spo2OutOfRange, isHeader: isHeader),
+      if (rr.isNotEmpty)
+        _buildVitalChip(l.vitalRr, rr, rrOutOfRange, isHeader: isHeader),
+      if (weight.isNotEmpty)
+        _buildVitalChip(l.vitalWt, weight, false, isHeader: isHeader),
+      if (height.isNotEmpty)
+        _buildVitalChip(l.vitalHt, height, false, isHeader: isHeader),
+      if (bmiStr.isNotEmpty)
+        _buildVitalChip(l.vitalBmi, bmiStr, bmiOutOfRange, isHeader: isHeader),
+      if (bsr.isNotEmpty)
+        _buildVitalChip(l.vitalBsr, bsr, bsrOutOfRange, isHeader: isHeader),
+    ];
+
+    if (tiles.isEmpty) {
+      return Text(
+        'No vitals recorded',
+        style: TextStyle(
+          fontSize: 12,
+          color: PunjabColors.textSecondary.withValues(alpha: 0.9),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = constraints.maxWidth >= 340 ? 4 : 2;
+        const gap = 8.0;
+        final tileWidth = (constraints.maxWidth - gap * (cols - 1)) / cols;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final tile in tiles) SizedBox(width: tileWidth, child: tile),
+          ],
+        );
+      },
     );
   }
 

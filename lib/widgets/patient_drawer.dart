@@ -23,16 +23,20 @@ class PatientDrawer extends StatelessWidget {
 
   String? _field(String key, [String? altKey]) {
     final fromPatient = patient?[key];
-    if (fromPatient != null && fromPatient.toString().isNotEmpty) return fromPatient.toString();
+    if (fromPatient != null && fromPatient.toString().isNotEmpty)
+      return fromPatient.toString();
     if (altKey != null) {
       final altPatient = patient?[altKey];
-      if (altPatient != null && altPatient.toString().isNotEmpty) return altPatient.toString();
+      if (altPatient != null && altPatient.toString().isNotEmpty)
+        return altPatient.toString();
     }
     final fromSaved = savedUserData?[key];
-    if (fromSaved != null && fromSaved.toString().isNotEmpty) return fromSaved.toString();
+    if (fromSaved != null && fromSaved.toString().isNotEmpty)
+      return fromSaved.toString();
     if (altKey != null) {
       final altSaved = savedUserData?[altKey];
-      if (altSaved != null && altSaved.toString().isNotEmpty) return altSaved.toString();
+      if (altSaved != null && altSaved.toString().isNotEmpty)
+        return altSaved.toString();
     }
     return null;
   }
@@ -66,7 +70,10 @@ class PatientDrawer extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white.withValues(alpha: 0.2),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.45), width: 2),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          width: 2,
+                        ),
                       ),
                       child: Center(
                         child: Text(
@@ -109,7 +116,8 @@ class PatientDrawer extends StatelessWidget {
                 ),
                 if (cnic != null || phone != null || email != null) ...[
                   const Gap(18),
-                  if (cnic != null) _InfoChip(icon: Icons.badge_outlined, label: cnic),
+                  if (cnic != null)
+                    _InfoChip(icon: Icons.badge_outlined, label: cnic),
                   if (phone != null) ...[
                     const Gap(8),
                     _InfoChip(icon: Icons.phone_outlined, label: phone),
@@ -179,7 +187,11 @@ class PatientDrawer extends StatelessWidget {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        icon: Icon(Icons.support_agent_rounded, color: colorScheme.primary, size: 36),
+                        icon: Icon(
+                          Icons.support_agent_rounded,
+                          color: colorScheme.primary,
+                          size: 36,
+                        ),
                         title: const Text('Need help?'),
                         content: const Text(
                           'Use Book Visit to get a hospital token.\n\n'
@@ -211,7 +223,10 @@ class PatientDrawer extends StatelessWidget {
                 },
                 borderRadius: BorderRadius.circular(14),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Icon(Icons.logout_rounded, color: colorScheme.error),
@@ -285,7 +300,9 @@ class _DrawerNavTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final accent = selected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final accent = selected
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -310,7 +327,11 @@ class _DrawerNavTile extends StatelessWidget {
                         : colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(icon, color: selected ? colorScheme.primary : accent, size: 22),
+                  child: Icon(
+                    icon,
+                    color: selected ? colorScheme.primary : accent,
+                    size: 22,
+                  ),
                 ),
                 const Gap(14),
                 Expanded(
@@ -318,12 +339,18 @@ class _DrawerNavTile extends StatelessWidget {
                     label,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: selected ? colorScheme.primary : colorScheme.onSurface,
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
                     ),
                   ),
                 ),
                 if (selected)
-                  Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 20),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: colorScheme.primary,
+                    size: 20,
+                  ),
               ],
             ),
           ),

@@ -7,19 +7,21 @@ import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
 import 'services/locale_service.dart';
 import 'services/theme_service.dart';
+import 'utils/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
+  logResolvedApiEndpoints();
   await AuthService.instance.init();
   await ThemeService.instance.init();
   await LocaleService.instance.init();
-  
+
   runApp(const MyApp());
 }
 
@@ -73,7 +75,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             builder: (context, mode, __) {
               return MaterialApp(
                 navigatorKey: _navigatorKey,
-                title: 'Government of Punjab Patient\'s App',
+                title: 'My Health Record',
                 locale: locale,
                 supportedLocales: LocaleService.supportedLocales,
                 localizationsDelegates: const [
@@ -82,12 +84,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   GlobalWidgetsLocalizations.delegate,
                   GlobalCupertinoLocalizations.delegate,
                 ],
-                navigatorObservers: [
-                  _InactivityObserver(),
-                ],
+                navigatorObservers: [_InactivityObserver()],
                 theme: ThemeService.instance.getTheme(),
                 darkTheme: ThemeService.instance.getDarkTheme(),
-                themeMode: mode == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light,
+                themeMode: mode == AppThemeMode.dark
+                    ? ThemeMode.dark
+                    : ThemeMode.light,
                 home: const SplashScreen(),
                 debugShowCheckedModeBanner: false,
               );
@@ -125,4 +127,3 @@ class _InactivityObserver extends NavigatorObserver {
     InactivityService.instance.resetActivity();
   }
 }
-

@@ -113,11 +113,7 @@ class AppFormCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
 
-  const AppFormCard({
-    super.key,
-    required this.child,
-    this.padding,
-  });
+  const AppFormCard({super.key, required this.child, this.padding});
 
   @override
   Widget build(BuildContext context) {
@@ -249,7 +245,9 @@ class AppPrimaryButton extends StatelessWidget {
               height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  colorScheme.onPrimary,
+                ),
               ),
             )
           : Icon(icon ?? Icons.arrow_forward_rounded, size: 22),
@@ -258,7 +256,7 @@ class AppPrimaryButton extends StatelessWidget {
   }
 }
 
-/// Friendly info box for guidance (registration help, next steps, etc.).
+/// Friendly info box for guidance (reception help, next steps, etc.).
 class AppHelpBanner extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -416,7 +414,11 @@ class AppSelectionSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: 22),
+              Icon(
+                Icons.check_circle_rounded,
+                color: colorScheme.primary,
+                size: 22,
+              ),
               const Gap(8),
               Text(
                 'Ready to book',

@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/user_storage.dart';
 
-enum AppThemeMode {
-  light,
-  dark,
-}
+enum AppThemeMode { light, dark }
 
 extension AppThemeModeExtension on AppThemeMode {
   String get storageKey => this == AppThemeMode.dark ? 'dark' : 'light';
@@ -20,8 +17,9 @@ class ThemeService {
   ThemeService._();
   static final ThemeService instance = ThemeService._();
 
-  final ValueNotifier<AppThemeMode> themeNotifier =
-      ValueNotifier<AppThemeMode>(AppThemeMode.light);
+  final ValueNotifier<AppThemeMode> themeNotifier = ValueNotifier<AppThemeMode>(
+    AppThemeMode.light,
+  );
 
   Future<void> init() async {
     final saved = await UserStorage.getThemeMode();
@@ -39,6 +37,8 @@ class ThemeService {
   ThemeData getDarkTheme() => AppTheme.darkTheme;
 
   ThemeMode getThemeMode() {
-    return themeNotifier.value == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
+    return themeNotifier.value == AppThemeMode.dark
+        ? ThemeMode.dark
+        : ThemeMode.light;
   }
 }

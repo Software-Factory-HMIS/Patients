@@ -9,16 +9,16 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Government of Punjab Patient\'s App';
+  String get appTitle => 'My Health Record';
 
   @override
-  String get appNameShort => 'Government of Punjab Patient\'s App';
+  String get appNameShort => 'My Health Record';
 
   @override
   String get governmentOfPunjab => 'Government of Punjab';
 
   @override
-  String get patientApp => 'Patient App';
+  String get patientApp => 'My Health Record';
 
   @override
   String get healthDepartment => 'Health Department';
@@ -149,7 +149,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'View your hospital visits and medical records.';
 
   @override
-  String get profileSubtitle => 'Manage your account and personal details.';
+  String get profileSubtitle => 'Manage your profile and personal details.';
 
   @override
   String get healthRecords => 'Health Records';
@@ -326,7 +326,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpDialogMessage =>
-      'For account or medical record issues, contact your hospital reception or Punjab Health support.';
+      'For patient record or medical record issues, contact your hospital reception or Punjab Health support.';
 
   @override
   String get trustedByPunjabHealth => 'Trusted by Punjab Health';
@@ -402,6 +402,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepConfirm => 'Confirm';
 
   @override
+  String get patientComplaint => 'Patient Complaint';
+
+  @override
+  String get patientComplaintHint =>
+      'Describe your main problem or symptoms for the doctor.';
+
+  @override
+  String get patientHistory => 'History';
+
+  @override
+  String get patientHistoryHint =>
+      'Any relevant past illness, medicines, or notes for hospital staff.';
+
+  @override
   String get cnicNumber => 'CNIC Number';
 
   @override
@@ -409,7 +423,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signInInfoMessage =>
-      'Enter your CNIC to securely access hospital records. Unregistered patients should contact reception.';
+      'Enter your CNIC to securely access hospital records. If your record is not found, contact hospital reception.';
 
   @override
   String get enterCnic => 'Please enter your CNIC number';
@@ -427,11 +441,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanCnic => 'Scan CNIC';
 
   @override
-  String get accountNotFound => 'Account not found';
+  String get accountNotFound => 'Patient not found';
 
   @override
   String accountNotFoundMessage(String cnic) {
-    return 'We could not find a patient with CNIC $cnic.\n\nPlease visit hospital reception for registration.';
+    return 'We could not find a patient with CNIC $cnic.\n\nPlease visit hospital reception for assistance.';
   }
 
   @override
@@ -439,7 +453,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String phoneMissingMessage(String name) {
-    return 'Hello $name,\n\nYour account does not have a phone number. Please visit hospital reception to update your contact details.';
+    return 'Hello $name,\n\nYour patient record does not have a phone number. Please visit hospital reception to update your contact details.';
   }
 
   @override
@@ -477,8 +491,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contactSupport => 'Need Help? Contact Support';
 
   @override
-  String get healthcarePortalFooter =>
-      'HEALTHCARE PORTAL  |  PUNJAB GOVERNMENT';
+  String get healthcarePortalFooter => 'MY HEALTH RECORD  |  PUNJAB GOVERNMENT';
 
   @override
   String get copyrightPitb => '© 2024 Health and Population Department';
@@ -575,7 +588,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phoneVerifyInfo =>
-      'We will send a 6-digit code to your registered number. Visit reception if this number is wrong.';
+      'We will send a 6-digit code to the phone number on your patient record. Visit reception if this number is wrong.';
 
   @override
   String get howToSendCode => 'How should we send the code?';
@@ -617,7 +630,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signIn => 'Sign In';
 
   @override
-  String get registeredNumber => 'your registered number';
+  String get registeredNumber => 'your phone number';
 
   @override
   String otpSentVia(String channel, String phone) {
@@ -645,9 +658,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get apiInvalidOtp => 'Invalid OTP code. Please try again.';
 
   @override
-  String get apiInvalidCnicPassword => 'Invalid CNIC or password.';
-
-  @override
   String get apiPatientNotFound => 'Patient not found';
 
   @override
@@ -666,7 +676,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String apiAccountFoundOtp(String phone) {
-    return 'We found your account. OTP will be sent to $phone.';
+    return 'We found your patient record. OTP will be sent to $phone.';
   }
 
   @override
@@ -675,4 +685,152 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apiUnknownError => 'Something went wrong. Please try again.';
+
+  @override
+  String get visitFrom => 'From';
+
+  @override
+  String get visitTo => 'To';
+
+  @override
+  String get refreshRecords => 'Refresh records';
+
+  @override
+  String get showRecords => 'Show records';
+
+  @override
+  String get sectionVitals => 'Vitals';
+
+  @override
+  String get sectionComplaints => 'Complaints';
+
+  @override
+  String get sectionSymptoms => 'Symptoms';
+
+  @override
+  String get sectionDiagnosis => 'Diagnosis';
+
+  @override
+  String get sectionMedicines => 'Medicines';
+
+  @override
+  String get sectionLabTests => 'Lab tests';
+
+  @override
+  String get sectionClinicalNotes => 'Clinical notes';
+
+  @override
+  String get sectionProcedureNote => 'Procedure note';
+
+  @override
+  String get sectionComplications => 'Complications';
+
+  @override
+  String checkupTitle(String type) {
+    return '$type checkup';
+  }
+
+  @override
+  String get checkupGeneric => 'Checkup';
+
+  @override
+  String get statusCheckedIn => 'Checked in';
+
+  @override
+  String get statusCheckedOut => 'Checked out';
+
+  @override
+  String get statusCompleted => 'Completed';
+
+  @override
+  String get statusStopped => 'Stopped';
+
+  @override
+  String get factAnesthesia => 'Anesthesia';
+
+  @override
+  String get factAssistant => 'Assistant';
+
+  @override
+  String get factOutcome => 'Outcome';
+
+  @override
+  String medQty(String qty) {
+    return 'Qty $qty';
+  }
+
+  @override
+  String medDurationDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medDurationWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count weeks',
+      one: '1 week',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medDurationMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count months',
+      one: '1 month',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String medImmediatelyFor(String duration) {
+    return 'Immediately for $duration';
+  }
+
+  @override
+  String untilDate(String date) {
+    return 'Until $date';
+  }
+
+  @override
+  String encounterViewOnly(String id) {
+    return 'Encounter #$id — view only';
+  }
+
+  @override
+  String get vitalBp => 'BP';
+
+  @override
+  String get vitalHr => 'HR';
+
+  @override
+  String get vitalTemp => 'Temp';
+
+  @override
+  String get vitalSpo2 => 'SpO₂';
+
+  @override
+  String get vitalRr => 'RR';
+
+  @override
+  String get vitalWt => 'Wt';
+
+  @override
+  String get vitalHt => 'Ht';
+
+  @override
+  String get vitalBmi => 'BMI';
+
+  @override
+  String get vitalBsr => 'BSR';
 }

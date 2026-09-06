@@ -66,7 +66,8 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   }
 
   String get _radCountLabel {
-    if (_radSummary.finalReports > 0) return '${_radSummary.finalReports} Final';
+    if (_radSummary.finalReports > 0)
+      return '${_radSummary.finalReports} Final';
     if (_radSummary.total > 0) return '${_radSummary.total} Reports';
     return '0';
   }
@@ -127,7 +128,9 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: PunjabColors.primary));
+      return const Center(
+        child: CircularProgressIndicator(color: PunjabColors.primary),
+      );
     }
 
     final l = context.l10n;
@@ -144,10 +147,7 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
           PunjabBottomNav.navBarHeight,
         ),
         children: [
-          PunjabPageHeader(
-            title: l.healthHub,
-            subtitle: l.healthHubSubtitle,
-          ),
+          PunjabPageHeader(title: l.healthHub, subtitle: l.healthHubSubtitle),
           const Gap(4),
           _PrescriptionsBanner(
             background: _rxBannerBg,
@@ -183,7 +183,9 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
           ),
           const Gap(22),
           _SectionHeader(
-            title: _activeRx.length == 1 ? l.activePrescription : l.activePrescriptions,
+            title: _activeRx.length == 1
+                ? l.activePrescription
+                : l.activePrescriptions,
             action: l.refillHistory,
             onAction: _openRxHistory,
           ),
@@ -287,7 +289,9 @@ class _PrescriptionsBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = count == 1 ? '1 Active Medication' : '$count Active Medications';
+    final label = count == 1
+        ? '1 Active Medication'
+        : '$count Active Medications';
 
     return Material(
       color: background,
@@ -306,7 +310,11 @@ class _PrescriptionsBanner extends StatelessWidget {
                   color: accent,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.medication_liquid_rounded, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.medication_liquid_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const Gap(14),
               Expanded(
@@ -446,17 +454,24 @@ class _ActivePrescriptionCard extends StatelessWidget {
                         runSpacing: 6,
                         children: [
                           if (rx.frequency != null && rx.frequency!.isNotEmpty)
-                            _RxMetaChip(icon: Icons.schedule_rounded, label: rx.frequency!),
+                            _RxMetaChip(
+                              icon: Icons.schedule_rounded,
+                              label: rx.frequency!,
+                            ),
                           if (rx.startDate != null && rx.startDate!.isNotEmpty)
                             _RxMetaChip(
                               icon: Icons.event_rounded,
                               label: 'Start: ${rx.startDate}',
                             ),
                           if (rx.dosage != null && rx.dosage!.isNotEmpty)
-                            _RxMetaChip(icon: Icons.medication_outlined, label: rx.dosage!),
+                            _RxMetaChip(
+                              icon: Icons.medication_outlined,
+                              label: rx.dosage!,
+                            ),
                         ],
                       ),
-                      if (rx.indication != null && rx.indication!.trim().isNotEmpty) ...[
+                      if (rx.indication != null &&
+                          rx.indication!.trim().isNotEmpty) ...[
                         const Gap(8),
                         Text(
                           rx.indication!,

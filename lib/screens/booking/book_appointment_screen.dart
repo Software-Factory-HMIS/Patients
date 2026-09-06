@@ -33,6 +33,8 @@ class BookAppointmentScreen extends StatefulWidget {
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   final _portal = PatientPortalService();
+  final _complaintController = TextEditingController();
+  final _historyController = TextEditingController();
   EmrApiClient? _api;
   Hospital? _selectedHospital;
   HospitalDepartment? _selectedHospitalDepartment;
@@ -56,6 +58,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   @override
   void dispose() {
     PatientPortalService.visitRevision.removeListener(_loadRecentAppointments);
+    _complaintController.dispose();
+    _historyController.dispose();
     super.dispose();
   }
 
@@ -84,7 +88,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 
   String _patientCnicDigits() {
-    final raw = widget.savedUserData?['CNIC']?.toString() ??
+    final raw =
+        widget.savedUserData?['CNIC']?.toString() ??
         widget.savedUserData?['cnic']?.toString() ??
         widget.patient['CNIC']?.toString() ??
         widget.patient['cnic']?.toString() ??
@@ -103,16 +108,18 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 
   Future<NearbyHospitalsResponse> _loadNearbyHospitals() async {
-    final position = await PatientLocationService.instance.requestCurrentPosition();
+    final position = await PatientLocationService.instance
+        .requestCurrentPosition();
     if (position == null) {
       return const NearbyHospitalsResponse(results: []);
     }
 
-    final results = await NearestHospitalService(api: _api).findNearestHospitals(
-      latitude: position.latitude,
-      longitude: position.longitude,
-      limit: 5,
-    );
+    final results = await NearestHospitalService(api: _api)
+        .findNearestHospitals(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          limit: 5,
+        );
 
     return NearbyHospitalsResponse(
       latitude: position.latitude,
@@ -131,7 +138,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       final departments = <HospitalDepartment>[];
       for (final item in data) {
         try {
-          final dept = HospitalDepartment.fromJson(item as Map<String, dynamic>);
+          final dept = HospitalDepartment.fromJson(
+            item as Map<String, dynamic>,
+          );
           if (dept.hospitalDepartmentID > 0) departments.add(dept);
         } catch (_) {}
       }
@@ -160,40 +169,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       }
     }
 
-    try {
-      final patient = await _api!.fetchPatient(searchIdentifier);
-      final patientId = patient['patientId'] as int? ?? patient['PatientID'] as int?;
-      if (patientId == null) throw Exception('Patient ID not found');
-      return patientId;
-    } catch (fetchError) {
-      if (saved != null &&
-          (fetchError.toString().contains('400') || fetchError.toString().contains('404'))) {
-        final registered = await _api!.registerPatient(
-          fullName: saved['fullName'] as String? ?? 'Unknown',
-          cnic: (saved['cnic'] as String? ?? '').isNotEmpty
-              ? saved['cnic'] as String
-              : saved['phone'] as String? ?? '',
-          phone: (saved['phone'] as String? ?? '').isNotEmpty
-              ? saved['phone'] as String
-              : saved['cnic'] as String? ?? '',
-          email: saved['email'] as String? ?? '',
-          dateOfBirth: saved['dateOfBirth'] as DateTime? ?? DateTime(1990, 1, 1),
-          gender: saved['gender'] as String? ?? 'Male',
-          address: saved['address'] as String? ?? '',
-          bloodGroup: saved['bloodGroup'] as String?,
-          createdBy: 1,
-        );
-        final patientId =
-            registered['patientId'] as int? ?? registered['PatientID'] as int?;
-        if (patientId == null) throw Exception('Patient registered but ID missing');
-        return patientId;
-      }
-      rethrow;
-    }
+    final patient = await _api!.fetchPatient(searchIdentifier);
+    final patientId =
+        patient['patientId'] as int? ?? patient['PatientID'] as int?;
+    if (patientId == null) throw Exception('Patient ID not found');
+    return patientId;
   }
 
   Future<void> _handleAppointmentSubmission() async {
-    if (_selectedHospital == null || _selectedHospitalDepartment == null) return;
+    if (_selectedHospital == null || _selectedHospitalDepartment == null)
+      return;
 
     setState(() {
       _submittingAppointment = true;
@@ -203,17 +188,20 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     try {
       final patientId = await _fetchPatientId();
       final saved = widget.savedUserData;
-      final patientName = saved?['FullName'] as String? ??
+      final patientName =
+          saved?['FullName'] as String? ??
           saved?['fullName'] as String? ??
           widget.patient['fullName'] as String? ??
           widget.patient['name'] as String? ??
           'Unknown';
-      final patientMRN = saved?['MRN'] as String? ??
+      final patientMRN =
+          saved?['MRN'] as String? ??
           saved?['mrn'] as String? ??
           widget.patient['mrn']?.toString() ??
           _patientCnic();
 
-      final deptName = (_selectedHospitalDepartment!.departmentName).toLowerCase();
+      final deptName = (_selectedHospitalDepartment!.departmentName)
+          .toLowerCase();
       final queueResponse = await _api!.addPatientToQueue(
         patientId: patientId,
         hospitalId: _selectedHospital!.hospitalID,
@@ -223,11 +211,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         queueType: deptName.contains('emergency') ? 'Emergency' : 'OPD',
         visitPurpose: 'Check-Up',
         patientSource: 'SELF_CHECKIN',
+        patientComplaint: _complaintController.text,
+        patientHistory: _historyController.text,
       );
 
-      final queueId = queueResponse['queueId'] as int?;
-      final tokenNumber = queueResponse['tokenNumber'] as String? ?? 'N/A';
-      if (queueId == null) throw Exception('Queue ID not returned');
+      final queueId = QueueResponse.readInt(queueResponse['queueId']);
+      final tokenNumber = queueResponse['tokenNumber']?.toString() ?? 'N/A';
+      if (queueId == null || queueId <= 0) {
+        throw Exception('Queue ID not returned');
+      }
 
       Map<String, dynamic> receiptData = {};
       try {
@@ -242,7 +234,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       );
 
       final appointmentDetails = AppointmentDetails(
-        queueResponse: QueueResponse(queueId: queueId, tokenNumber: tokenNumber),
+        queueResponse: QueueResponse(
+          queueId: queueId,
+          tokenNumber: tokenNumber,
+        ),
         hospital: _selectedHospital!,
         department: department,
         patientName: patientName,
@@ -271,6 +266,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           _hospitalDepartments = null;
           _onConfirmStep = false;
           _submittingAppointment = false;
+          _complaintController.clear();
+          _historyController.clear();
         });
         await _loadRecentAppointments();
       }
@@ -299,8 +296,42 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     });
   }
 
+  Future<void> _openExistingBooking(Map<String, dynamic> visit) async {
+    final saved = widget.savedUserData;
+    final patientName =
+        saved?['FullName'] as String? ??
+        saved?['fullName'] as String? ??
+        widget.patient['fullName'] as String? ??
+        widget.patient['name'] as String? ??
+        'Unknown';
+    final patientMRN =
+        saved?['MRN'] as String? ??
+        saved?['mrn'] as String? ??
+        widget.patient['mrn']?.toString() ??
+        _patientCnic();
+    final details = AppointmentDetails.tryFromVisit(
+      visit,
+      patientName: patientName,
+      patientMRN: patientMRN,
+    );
+    if (details == null) {
+      if (!mounted) return;
+      setState(() => _appointmentError = context.l10n.couldNotBookVisit);
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AppointmentSuccessScreen(
+          appointment: details,
+          onGoHome: widget.onGoHome,
+        ),
+      ),
+    );
+  }
+
   void _goToConfirmStep() {
-    if (_selectedHospital == null || _selectedHospitalDepartment == null) return;
+    if (_selectedHospital == null || _selectedHospitalDepartment == null)
+      return;
     setState(() => _onConfirmStep = true);
   }
 
@@ -334,97 +365,122 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               bottomNavSpace,
             ),
             sliver: SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  PunjabPageHeader(
-                    title: l.bookAppointment,
-                    subtitle: l.bookVisitSubtitle,
+              delegate: SliverChildListDelegate([
+                PunjabPageHeader(
+                  title: l.bookAppointment,
+                  subtitle: l.bookVisitSubtitle,
+                ),
+                PunjabCard(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                  child: PunjabBookingStepper(currentStep: _currentStep),
+                ),
+                const Gap(16),
+                if (!_onConfirmStep) ...[
+                  _BookingSectionHeader(
+                    title: l.selectHospital,
+                    subtitle: l.selectHospitalSubtitle,
                   ),
-                  PunjabCard(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                    child: PunjabBookingStepper(currentStep: _currentStep),
+                  const Gap(14),
+                  _BookingFieldCard(
+                    title: l.hospital,
+                    child: SearchableHospitalSelect(
+                      selectedHospital: _selectedHospital,
+                      onSearch: _searchHospitals,
+                      loadNearbyHospitals: _loadNearbyHospitals,
+                      showHeader: false,
+                      placeholder: l.searchAndSelectHospital,
+                      searchPlaceholder: l.searchHospitalByName,
+                      onSelected: _onHospitalSelected,
+                    ),
                   ),
                   const Gap(16),
-                  if (!_onConfirmStep) ...[
-                    _BookingSectionHeader(
-                      title: l.selectHospital,
-                      subtitle: l.selectHospitalSubtitle,
+                  _BookingSectionHeader(
+                    title: l.selectDepartment,
+                    subtitle: l.selectDepartmentSubtitle,
+                  ),
+                  const Gap(14),
+                  _BookingFieldCard(
+                    title: l.department,
+                    child: _DepartmentField(
+                      enabled: departmentEnabled,
+                      loading: _loadingHospitalDepartments,
+                      value: _selectedHospitalDepartment,
+                      departments: _hospitalDepartments,
+                      hintText: _selectedHospital == null
+                          ? l.pickHospitalFirstHint
+                          : l.selectDepartmentHint,
+                      onChanged: departmentEnabled
+                          ? _onDepartmentSelected
+                          : null,
                     ),
-                    const Gap(14),
-                    _BookingFieldCard(
-                      title: l.hospital,
-                      child: SearchableHospitalSelect(
-                        selectedHospital: _selectedHospital,
-                        onSearch: _searchHospitals,
-                        loadNearbyHospitals: _loadNearbyHospitals,
-                        showHeader: false,
-                        placeholder: l.searchAndSelectHospital,
-                        searchPlaceholder: l.searchHospitalByName,
-                        onSelected: _onHospitalSelected,
-                      ),
-                    ),
-                    const Gap(16),
-                    _BookingSectionHeader(
-                      title: l.selectDepartment,
-                      subtitle: l.selectDepartmentSubtitle,
-                    ),
-                    const Gap(14),
-                    _BookingFieldCard(
-                      title: l.department,
-                      child: _DepartmentField(
-                        enabled: departmentEnabled,
-                        loading: _loadingHospitalDepartments,
-                        value: _selectedHospitalDepartment,
-                        departments: _hospitalDepartments,
-                        hintText: _selectedHospital == null
-                            ? l.pickHospitalFirstHint
-                            : l.selectDepartmentHint,
-                        onChanged: departmentEnabled ? _onDepartmentSelected : null,
-                      ),
-                    ),
-                  ] else ...[
-                    _BookingConfirmSummary(
-                      hospitalName: _selectedHospital!.name,
-                      departmentName: _selectedHospitalDepartment!.departmentName,
-                    ),
-                  ],
-                  if (_appointmentError != null) ...[
-                    const Gap(16),
-                    _BookingErrorBanner(
-                      title: l.couldNotBookVisit,
-                      message: _appointmentError!,
-                    ),
-                  ],
+                  ),
+                ] else ...[
+                  _BookingConfirmSummary(
+                    hospitalName: _selectedHospital!.name,
+                    departmentName: _selectedHospitalDepartment!.departmentName,
+                  ),
                   const Gap(16),
-                  PunjabPrimaryButton(
-                    label: _onConfirmStep ? l.bookMyVisit : l.next,
-                    icon: Icons.arrow_forward_rounded,
-                    loading: _submittingAppointment,
-                    onPressed: _onConfirmStep
-                        ? (_canContinue && !_submittingAppointment
+                  _BookingSectionHeader(
+                    title: l.patientComplaint,
+                    subtitle: l.patientComplaintHint,
+                  ),
+                  const Gap(14),
+                  _BookingNotesField(
+                    controller: _complaintController,
+                    hint: l.patientComplaintHint,
+                    maxLength: 2000,
+                  ),
+                  const Gap(16),
+                  _BookingSectionHeader(
+                    title: l.patientHistory,
+                    subtitle: l.patientHistoryHint,
+                  ),
+                  const Gap(14),
+                  _BookingNotesField(
+                    controller: _historyController,
+                    hint: l.patientHistoryHint,
+                    maxLength: 2000,
+                  ),
+                ],
+                if (_appointmentError != null) ...[
+                  const Gap(16),
+                  _BookingErrorBanner(
+                    title: l.couldNotBookVisit,
+                    message: _appointmentError!,
+                  ),
+                ],
+                const Gap(16),
+                PunjabPrimaryButton(
+                  label: _onConfirmStep ? l.bookMyVisit : l.next,
+                  icon: Icons.arrow_forward_rounded,
+                  loading: _submittingAppointment,
+                  onPressed: _onConfirmStep
+                      ? (_canContinue && !_submittingAppointment
                             ? _handleAppointmentSubmission
                             : null)
-                        : (_canContinue ? _goToConfirmStep : null),
+                      : (_canContinue ? _goToConfirmStep : null),
+                ),
+                if (_loadingRecentVisits) ...[
+                  const Gap(20),
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
-                  if (_loadingRecentVisits) ...[
-                    const Gap(20),
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
-                      ),
+                ] else if (_recentAppointments != null &&
+                    _recentAppointments!.isNotEmpty) ...[
+                  const Gap(20),
+                  PunjabSectionTitle(title: l.recentVisits),
+                  const Gap(12),
+                  ..._recentAppointments!.map(
+                    (apt) => _RecentVisitCard(
+                      appointment: apt,
+                      onTap: () => _openExistingBooking(apt),
                     ),
-                  ] else if (_recentAppointments != null &&
-                      _recentAppointments!.isNotEmpty) ...[
-                    const Gap(20),
-                    PunjabSectionTitle(title: l.recentVisits),
-                    const Gap(12),
-                    ..._recentAppointments!.map(
-                      (apt) => _RecentVisitCard(appointment: apt),
-                    ),
-                  ],
+                  ),
                 ],
-              ),
+              ]),
             ),
           ),
         ],
@@ -437,10 +493,7 @@ class _BookingSectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _BookingSectionHeader({
-    required this.title,
-    required this.subtitle,
-  });
+  const _BookingSectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -450,9 +503,9 @@ class _BookingSectionHeader extends StatelessWidget {
         Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: PunjabColors.textPrimary,
-              ),
+            fontWeight: FontWeight.w800,
+            color: PunjabColors.textPrimary,
+          ),
         ),
         const Gap(4),
         Text(
@@ -473,10 +526,7 @@ class _BookingFieldCard extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _BookingFieldCard({
-    required this.title,
-    required this.child,
-  });
+  const _BookingFieldCard({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -488,9 +538,9 @@ class _BookingFieldCard extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: PunjabColors.textPrimary,
-                ),
+              fontWeight: FontWeight.w700,
+              color: PunjabColors.textPrimary,
+            ),
           ),
           const Gap(14),
           child,
@@ -536,19 +586,21 @@ class _DepartmentField extends StatelessWidget {
     final fillColor = !enabled
         ? const Color(0xFFF3F5F4)
         : hasValue
-            ? PunjabColors.primary.withValues(alpha: 0.06)
-            : Colors.white;
+        ? PunjabColors.primary.withValues(alpha: 0.06)
+        : Colors.white;
     final borderColor = !enabled
         ? const Color(0xFFE8ECE9)
         : hasValue
-            ? PunjabColors.primary.withValues(alpha: 0.35)
-            : PunjabColors.border;
+        ? PunjabColors.primary.withValues(alpha: 0.35)
+        : PunjabColors.border;
     final textColor = !enabled
         ? const Color(0xFF8A968F)
         : hasValue
-            ? PunjabColors.textPrimary
-            : PunjabColors.textSecondary;
-    final iconColor = !enabled ? const Color(0xFFB0BAB4) : PunjabColors.textSecondary;
+        ? PunjabColors.textPrimary
+        : PunjabColors.textSecondary;
+    final iconColor = !enabled
+        ? const Color(0xFFB0BAB4)
+        : PunjabColors.textSecondary;
 
     return DropdownButtonFormField<HospitalDepartment>(
       value: value,
@@ -566,7 +618,10 @@ class _DepartmentField extends StatelessWidget {
       decoration: InputDecoration(
         filled: true,
         fillColor: fillColor,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: borderColor),
@@ -595,10 +650,7 @@ class _DepartmentField extends StatelessWidget {
       items: departments?.map((dept) {
         return DropdownMenuItem(
           value: dept,
-          child: Text(
-            dept.departmentName,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(dept.departmentName, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       onChanged: onChanged,
@@ -627,14 +679,18 @@ class _BookingConfirmSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: PunjabColors.primary, size: 22),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: PunjabColors.primary,
+                size: 22,
+              ),
               const Gap(8),
               Text(
                 l.readyToBook,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: PunjabColors.primary,
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: PunjabColors.primary,
+                ),
               ),
             ],
           ),
@@ -651,6 +707,66 @@ class _BookingConfirmSummary extends StatelessWidget {
             value: departmentName,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BookingNotesField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final int maxLength;
+
+  const _BookingNotesField({
+    required this.controller,
+    required this.hint,
+    required this.maxLength,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PunjabCard(
+      padding: const EdgeInsets.all(18),
+      child: TextField(
+        controller: controller,
+        maxLines: 4,
+        maxLength: maxLength,
+        textInputAction: TextInputAction.newline,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: PunjabColors.textPrimary,
+          height: 1.35,
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: PunjabColors.textSecondary,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: PunjabColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(
+              color: PunjabColors.primary,
+              width: 1.5,
+            ),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: PunjabColors.border),
+          ),
+        ),
       ),
     );
   }
@@ -710,10 +826,7 @@ class _BookingErrorBanner extends StatelessWidget {
   final String title;
   final String message;
 
-  const _BookingErrorBanner({
-    required this.title,
-    required this.message,
-  });
+  const _BookingErrorBanner({required this.title, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -761,7 +874,8 @@ class _BookingErrorBanner extends StatelessWidget {
 
 class _RecentVisitCard extends StatelessWidget {
   final Map<String, dynamic> appointment;
-  const _RecentVisitCard({required this.appointment});
+  final VoidCallback onTap;
+  const _RecentVisitCard({required this.appointment, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -774,8 +888,12 @@ class _RecentVisitCard extends StatelessWidget {
       child: PunjabCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         child: ListTile(
+          onTap: onTap,
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.local_hospital_rounded, color: PunjabColors.primary),
+          leading: const Icon(
+            Icons.local_hospital_rounded,
+            color: PunjabColors.primary,
+          ),
           title: Text(
             hospital,
             style: const TextStyle(fontWeight: FontWeight.w700),
@@ -787,7 +905,10 @@ class _RecentVisitCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: const Icon(Icons.chevron_right, color: PunjabColors.textSecondary),
+          trailing: const Icon(
+            Icons.chevron_right,
+            color: PunjabColors.textSecondary,
+          ),
         ),
       ),
     );

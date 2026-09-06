@@ -38,17 +38,14 @@ class PatientPortalService {
     final results = await Future.wait([
       _api.getAllPatientEncounters(patientId, fromDate: twelveMonthsAgo),
       _api.getActivePatientMedicines(patientId: patientId),
-      _api.getPatientLabSummary(patientId),
-      _api.getPatientRadiologySummary(patientId),
+      loadLabSummary(patientId),
+      loadRadiologySummary(patientId),
     ]);
 
     final encounters = results[0] as List<Map<String, dynamic>>;
     final activeMeds = results[1] as List<Map<String, dynamic>>;
-    final labSummary = results[2] as Map<String, dynamic>;
-    final radSummary = results[3] as Map<String, dynamic>;
-
-    final lab = LabResultsSummary.fromJson(labSummary);
-    final rad = RadiologySummary.fromJson(radSummary);
+    final lab = results[2] as LabResultsSummary;
+    final rad = results[3] as RadiologySummary;
 
     return HomeStats(
       visitCount: encounters.length,
@@ -62,12 +59,22 @@ class PatientPortalService {
 
   Future<LabResultsSummary> loadLabSummary(int patientId) async {
     final data = await _api.getPatientLabSummary(patientId);
-    return LabResultsSummary.fromJson(data);
+    final summary = LabResultsSummary.fromJson(data);
+    if (summary.total > 0) return summary;
+    // Fallback when summary SP is missing/empty but results exist.
+    final reports = await loadLabReports(patientId);
+    if (reports.isEmpty) return summary;
+    return LabResultsSummary.fromReports(reports);
   }
 
   Future<RadiologySummary> loadRadiologySummary(int patientId) async {
     final data = await _api.getPatientRadiologySummary(patientId);
-    return RadiologySummary.fromJson(data);
+    final summary = RadiologySummary.fromJson(data);
+    if (summary.total > 0) return summary;
+    // Fallback when summary SP is missing/empty but reports exist.
+    final reports = await loadRadiologyReports(patientId);
+    if (reports.isEmpty) return summary;
+    return RadiologySummary.fromReports(reports);
   }
 
   Future<List<LabReport>> loadLabReports(int patientId) async {
@@ -87,7 +94,10 @@ class PatientPortalService {
 
   Future<List<PrescriptionItem>> loadActivePrescriptions(int patientId) async {
     final rows = await _api.getActivePatientMedicines(patientId: patientId);
-    return rows.map(PrescriptionItem.fromJson).where((rx) => rx.isActive).toList();
+    return rows
+        .map(PrescriptionItem.fromJson)
+        .where((rx) => rx.isActive)
+        .toList();
   }
 
   Future<List<PrescriptionItem>> loadPrescriptionHistory(int patientId) async {
@@ -109,7 +119,9 @@ class PatientPortalService {
       patientCnic: patientCnic,
       patient: patient,
     );
-    final upcoming = visits.where((v) => _isRelevantVisitDate(_visitDate(v))).toList();
+    final upcoming = visits
+        .where((v) => _isRelevantVisitDate(_visitDate(v)))
+        .toList();
     if (upcoming.isEmpty) return null;
     return _enrichVisitDetails(upcoming.first);
   }
@@ -144,11 +156,14 @@ class PatientPortalService {
 
     final today = DateTime.now();
     final start = DateTime(today.year, today.month, today.day);
-    final end = start.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final end = start
+        .add(const Duration(days: 1))
+        .subtract(const Duration(milliseconds: 1));
     final mrn = patient?['mrn'] ?? patient?['MRN'];
     final searchTerms = <String>{
       if (normalizedCnic.length == 13) normalizedCnic,
-      if (mrn != null && mrn.toString().trim().isNotEmpty) mrn.toString().trim(),
+      if (mrn != null && mrn.toString().trim().isNotEmpty)
+        mrn.toString().trim(),
     };
 
     final byQueueId = <int, Map<String, dynamic>>{};
@@ -183,6 +198,7 @@ class PatientPortalService {
       for (final term in searchTerms) {
         final rows = await _api.searchPatientQueue(
           hospitalId: hospitalId,
+          patientId: patientId,
           searchText: term,
           startDate: start,
           endDate: end,
@@ -241,21 +257,32 @@ class PatientPortalService {
   }
 
   bool _rowBelongsToPatient(Map<String, dynamic> row, int patientId) {
-    final rowPatientId = row['patientId'] ?? row['PatientId'] ?? row['PatientID'];
-    final parsed = rowPatientId is int ? rowPatientId : int.tryParse(rowPatientId?.toString() ?? '');
+    final rowPatientId =
+        row['patientId'] ?? row['PatientId'] ?? row['PatientID'];
+    final parsed = rowPatientId is int
+        ? rowPatientId
+        : int.tryParse(rowPatientId?.toString() ?? '');
     return parsed == patientId;
   }
 
   bool _isActiveQueueRow(Map<String, dynamic> row) {
-    final status = (row['queueStatus'] ?? row['QueueStatus'] ?? row['status'] ?? row['Status'] ?? '')
-        .toString()
-        .toLowerCase();
+    final status =
+        (row['queueStatus'] ??
+                row['QueueStatus'] ??
+                row['status'] ??
+                row['Status'] ??
+                '')
+            .toString()
+            .toLowerCase();
     if (status.contains('cancel')) return false;
-    if (status.contains('checked out') || status.contains('completed')) return false;
+    if (status.contains('checked out') || status.contains('completed'))
+      return false;
     return true;
   }
 
-  Future<Map<String, dynamic>> _enrichVisitDetails(Map<String, dynamic> visit) async {
+  Future<Map<String, dynamic>> _enrichVisitDetails(
+    Map<String, dynamic> visit,
+  ) async {
     final merged = Map<String, dynamic>.from(visit);
     final hospitalId = _asInt(merged['hospitalId']);
     final deptId = _asInt(merged['hospitalDepartmentId']);
@@ -269,7 +296,9 @@ class PatientPortalService {
           if (entry is! Map) continue;
           final map = Map<String, dynamic>.from(entry as Map);
           final rowDeptId = _asInt(
-            map['hospitalDepartmentID'] ?? map['hospitalDepartmentId'] ?? map['HospitalDepartmentID'],
+            map['hospitalDepartmentID'] ??
+                map['hospitalDepartmentId'] ??
+                map['HospitalDepartmentID'],
           );
           if (rowDeptId == deptId) {
             final name = _pickField(map, const [
@@ -306,9 +335,14 @@ class PatientPortalService {
     return _pickFieldInsensitive(row, keys);
   }
 
-  static String? _pickFieldInsensitive(Map<String, dynamic> row, List<String> keys) {
+  static String? _pickFieldInsensitive(
+    Map<String, dynamic> row,
+    List<String> keys,
+  ) {
     final normalized = <String, dynamic>{};
-    row.forEach((key, value) => normalized[key.toString().toLowerCase()] = value);
+    row.forEach(
+      (key, value) => normalized[key.toString().toLowerCase()] = value,
+    );
 
     for (final key in keys) {
       final value = normalized[key.toLowerCase()];
@@ -319,9 +353,14 @@ class PatientPortalService {
     return null;
   }
 
-  static dynamic _pickValueInsensitive(Map<String, dynamic> row, List<String> keys) {
+  static dynamic _pickValueInsensitive(
+    Map<String, dynamic> row,
+    List<String> keys,
+  ) {
     final normalized = <String, dynamic>{};
-    row.forEach((key, value) => normalized[key.toString().toLowerCase()] = value);
+    row.forEach(
+      (key, value) => normalized[key.toString().toLowerCase()] = value,
+    );
 
     for (final key in keys) {
       final value = normalized[key.toLowerCase()];
@@ -330,7 +369,11 @@ class PatientPortalService {
     return null;
   }
 
-  static bool _isGenericLabel(dynamic value, String generic, [String? generic2]) {
+  static bool _isGenericLabel(
+    dynamic value,
+    String generic, [
+    String? generic2,
+  ]) {
     final text = value?.toString().trim().toLowerCase() ?? '';
     if (text.isEmpty) return true;
     if (text == generic.toLowerCase()) return true;
@@ -352,14 +395,16 @@ class PatientPortalService {
     );
 
     return {
-      'hospitalName': _pickFieldInsensitive(row, const [
+      'hospitalName':
+          _pickFieldInsensitive(row, const [
             'hospitalName',
             'hospital_Name',
             'hospital',
             'facilityName',
           ]) ??
           'Hospital',
-      'departmentName': _pickFieldInsensitive(row, const [
+      'departmentName':
+          _pickFieldInsensitive(row, const [
             'departmentName',
             'department_Name',
             'hospitalDepartmentName',
@@ -369,10 +414,17 @@ class PatientPortalService {
           'Outpatient',
       'appointmentDate': date?.toIso8601String(),
       'queueDate': date?.toIso8601String(),
-      'tokenNumber': _pickValueInsensitive(row, const ['tokenNumber', 'token', 'queueToken']),
+      'tokenNumber': _pickValueInsensitive(row, const [
+        'tokenNumber',
+        'token',
+        'queueToken',
+      ]),
       'queueId': _pickValueInsensitive(row, const ['queueId', 'queueID']),
       'room': _pickValueInsensitive(row, const ['room', 'roomNumber']),
-      'hospitalId': _pickValueInsensitive(row, const ['hospitalId', 'hospitalID']),
+      'hospitalId': _pickValueInsensitive(row, const [
+        'hospitalId',
+        'hospitalID',
+      ]),
       'hospitalDepartmentId': _pickValueInsensitive(row, const [
         'hospitalDepartmentId',
         'hospitalDepartmentID',
@@ -392,7 +444,9 @@ class PatientPortalService {
 
   DateTime? _visitDate(Map<String, dynamic>? visit) {
     if (visit == null) return null;
-    return _parseDate(visit['appointmentDate'] ?? visit['queueDate'] ?? visit['entryTime']);
+    return _parseDate(
+      visit['appointmentDate'] ?? visit['queueDate'] ?? visit['entryTime'],
+    );
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
