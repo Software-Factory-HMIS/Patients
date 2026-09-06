@@ -158,7 +158,7 @@ class EmrApiClient {
     
     for (final uri in uris) {
       try {
-        final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+        final res = await _authenticatedGet(uri).timeout(const Duration(seconds: 10));
         
         if (res.statusCode >= 200 && res.statusCode < 300) {
           final response = json.decode(res.body);
@@ -1077,11 +1077,8 @@ class EmrApiClient {
           await Future.delayed(Duration(milliseconds: 300 * attempt));
         }
         
-        final res = await _client.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode(body),
-        ).timeout(const Duration(seconds: 15));
+        final res = await _authenticatedPost(uri, body: body)
+            .timeout(const Duration(seconds: 15));
         
         if (res.statusCode == 409) {
           // Patient already in queue or other conflict - return existing queue info if available
@@ -1141,10 +1138,8 @@ class EmrApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl/api/queue/$queueId/print');
     try {
-      final res = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 15));
+      final res = await _authenticatedPost(uri)
+          .timeout(const Duration(seconds: 15));
       
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Parse and return the receipt data

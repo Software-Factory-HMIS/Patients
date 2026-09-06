@@ -1096,6 +1096,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       for (final t in tests) {
         labOrders.add({
           'type': 'package_test',
+          'packageId': pkg['packageId'],
+          'orderId': pkg['orderId'],
           'packageName': pkg['packageName'],
           'testName': t['testName'],
           'resultId': t['resultId'],
@@ -1741,38 +1743,81 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     );
   }
 
+  List<String> _labOrderListLabels(List<dynamic> labOrders) {
+    final seen = <String>{};
+    final labels = <String>[];
+    for (final lab in labOrders) {
+      final type = (lab['type'] ?? '').toString();
+      final isPackage = type == 'package' ||
+          type == 'package_test' ||
+          lab['packageId'] != null;
+      if (isPackage) {
+        final pkgName = (lab['packageName'] ?? 'N/A').toString().trim();
+        final key = 'pkg_${lab['packageId'] ?? pkgName}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$pkgName (Package)');
+        }
+      } else {
+        final name = (lab['testName'] ?? 'N/A').toString();
+        final key = 'test_${lab['testId'] ?? name}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$name (Test)');
+        }
+      }
+    }
+    return labels;
+  }
+
+  bool _labHasResult(dynamic lab) {
+    final resultId = lab['resultId'];
+    final resultValue = lab['resultValue'];
+    return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
+  }
+
+  List<MapEntry<String, List<dynamic>>> _groupLabResultsByPackage(List<dynamic> results) {
+    final groups = <String, List<dynamic>>{};
+    final order = <String>[];
+    for (final lab in results) {
+      final type = (lab['type'] ?? '').toString();
+      final isPackage = type == 'package' ||
+          type == 'package_test' ||
+          lab['packageId'] != null;
+      final key = isPackage
+          ? 'pkg_${lab['packageId'] ?? lab['packageName']}_${lab['orderId'] ?? ''}'
+          : 'standalone';
+      if (!groups.containsKey(key)) {
+        groups[key] = [];
+        order.add(key);
+      }
+      groups[key]!.add(lab);
+    }
+    return [
+      for (final key in order)
+        MapEntry(
+          key == 'standalone'
+              ? (groups[key]!.length > 1 ? 'Tests' : '')
+              : (groups[key]!.first['packageName'] ?? 'Package').toString(),
+          groups[key]!,
+        ),
+    ];
+  }
+
   Widget _buildLabResultsSection(List<dynamic> labOrders) {
     final cs = Theme.of(context).colorScheme;
-    // Filter out orders without results
-    final resultsWithData = labOrders.where((lab) {
-      final resultId = lab['resultId'];
-      final resultValue = lab['resultValue'];
-      return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
-    }).toList();
+    final resultsWithData = labOrders.where(_labHasResult).toList();
+    final pendingLabels = _labOrderListLabels(
+      labOrders.where((lab) => !_labHasResult(lab)).toList(),
+    );
 
     if (resultsWithData.isEmpty) {
-      // If no results, show just test names like before
-      final testNames = labOrders.map<String>((lab) {
-        final isPackage = lab['type'] == 'package';
-        final isPackageTest = lab['type'] == 'package_test';
-        final name = isPackageTest
-            ? (lab['testName'] ?? 'N/A')
-            : (isPackage
-                ? (lab['packageName'] ?? 'N/A')
-                : (lab['testName'] ?? 'N/A'));
-        final type = (isPackage || isPackageTest) ? 'Package' : 'Test';
-        return '$name ($type)';
-      }).toList();
-      
-      if (testNames.isEmpty) {
+      if (pendingLabels.isEmpty) {
         return const SizedBox.shrink();
       }
-      
       return _buildCompactDetailSection(
         'Lab Tests',
         Icons.science,
         cs.primary,
-        testNames,
+        pendingLabels,
       );
     }
 
@@ -1794,7 +1839,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       return isCritical || status == 'HIGH' || status == 'LOW' || status == 'CRITICAL' || status == 'ABNORMAL';
     }
     
-    return Container(
+    final resultsSection = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
@@ -1864,15 +1909,22 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            // Table rows
-            ...resultsWithData.map((lab) {
-              final isPackage = lab['type'] == 'package';
-              final isPackageTest = lab['type'] == 'package_test';
-              final testName = isPackageTest
-                  ? (lab['testName'] ?? 'N/A')
-                  : (isPackage
-                      ? (lab['packageName'] ?? lab['testName'] ?? 'N/A')
-                      : (lab['testName'] ?? 'N/A'));
+            // Table rows grouped by package
+            for (final group in _groupLabResultsByPackage(resultsWithData)) ...[
+              if (group.key.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 2),
+                  child: Text(
+                    group.key,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ...group.value.map((lab) {
+              final testName = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
               final resultValue = (lab['resultValue'] ?? '').toString();
               final units = (lab['units'] ?? '').toString();
               final referenceRange = (lab['referenceRange'] ?? '').toString();
@@ -1982,7 +2034,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                   ],
                 ),
               );
-            }).toList(),
+              }),
+            ],
             // Interpretation section (if any)
             if (resultsWithData.any((lab) => (lab['resultInterpretation'] ?? '').toString().isNotEmpty)) ...[
               const SizedBox(height: 8),
@@ -2022,6 +2075,22 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           ],
         ),
       ),
+    );
+
+    if (pendingLabels.isEmpty) return resultsSection;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCompactDetailSection(
+          'Lab Tests',
+          Icons.science,
+          cs.primary,
+          pendingLabels,
+        ),
+        const SizedBox(height: 8),
+        resultsSection,
+      ],
     );
   }
 
@@ -2398,9 +2467,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.25),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cs.error.withValues(alpha: 0.3), width: 1),
+        border: Border.all(color: cs.outlineVariant, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2411,14 +2480,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(
                 children: [
-                  Icon(Icons.favorite, color: cs.error, size: 14),
+                  Icon(Icons.favorite, color: cs.onSurfaceVariant, size: 14),
                   const SizedBox(width: 6),
                   Text(
                     'Vitals',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: cs.error,
+                      color: cs.onSurface,
                     ),
                   ),
                   if (recordedDate != null) ...[
@@ -2451,14 +2520,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.favorite, color: cs.error, size: 14),
+                Icon(Icons.favorite, color: cs.onSurfaceVariant, size: 14),
                 const SizedBox(width: 6),
                 Text(
                   'Vitals',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: cs.error,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(width: 8),

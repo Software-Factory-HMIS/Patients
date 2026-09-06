@@ -613,96 +613,37 @@ class PatientFilePrintHelper {
     );
   }
 
-  static pw.Widget _buildLabSection(List<dynamic> labOrders) {
-    if (labOrders.isEmpty) return pw.SizedBox.shrink();
-    final hasResults = labOrders.any((l) =>
-        (l['resultValue'] ?? l['resultId']) != null ||
-        ((l['resultValue'] ?? '').toString().isNotEmpty));
-
-    if (hasResults) {
-      return pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Laboratory Results:',
-            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-            columnWidths: const {
-              0: pw.FlexColumnWidth(2),
-              1: pw.FlexColumnWidth(1),
-              2: pw.FlexColumnWidth(0.8),
-              3: pw.FlexColumnWidth(1.5),
-              4: pw.FlexColumnWidth(0.8),
-            },
-            children: [
-              pw.TableRow(
-                decoration: const pw.BoxDecoration(color: PdfColors.blue50),
-                children: [
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Test', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Result', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Unit', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Ref Range', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(4),
-                    child: pw.Text('Status', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  ),
-                ],
-              ),
-              ...labOrders.where((l) {
-                final rv = l['resultValue'] ?? l['resultId'];
-                return rv != null || (l['resultValue']?.toString() ?? '').isNotEmpty;
-              }).take(15).map((lab) {
-                final name = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
-                final result = (lab['resultValue'] ?? '').toString();
-                final units = (lab['units'] ?? '').toString();
-                final ref = (lab['referenceRange'] ?? '').toString();
-                final status = (lab['resultStatus'] ?? lab['abnormalFlags'] ?? 'N/A').toString();
-                return pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(name, style: const pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(result, style: const pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(units, style: const pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(ref, style: const pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pw.Text(status, style: const pw.TextStyle(fontSize: 8)),
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
-        ],
-      );
+  static List<String> _uniqueLabOrderLabels(List<dynamic> labOrders) {
+    final seen = <String>{};
+    final labels = <String>[];
+    for (final lab in labOrders) {
+      final packageId = lab['packageId'];
+      if (packageId != null) {
+        final pkgName = (lab['packageName'] ?? 'N/A').toString().trim();
+        final key = 'pkg_${packageId}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$pkgName (Package)');
+        }
+      } else {
+        final name = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
+        final key = 'test_${lab['testId'] ?? name}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$name (Test)');
+        }
+      }
     }
+    return labels;
+  }
 
+  static bool _labHasResult(dynamic lab) {
+    final resultId = lab['resultId'];
+    final resultValue = lab['resultValue'];
+    return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
+  }
+
+  static pw.Widget _pendingLabNames(List<dynamic> pending) {
+    final labels = _uniqueLabOrderLabels(pending);
+    if (labels.isEmpty) return pw.SizedBox.shrink();
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -714,8 +655,7 @@ class PatientFilePrintHelper {
         pw.Wrap(
           spacing: 4,
           runSpacing: 2,
-          children: labOrders.map((lab) {
-            final name = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
+          children: labels.map((name) {
             return pw.Container(
               padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: pw.BoxDecoration(
@@ -726,6 +666,123 @@ class PatientFilePrintHelper {
               child: pw.Text(name, style: const pw.TextStyle(fontSize: 7)),
             );
           }).toList(),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildLabSection(List<dynamic> labOrders) {
+    if (labOrders.isEmpty) return pw.SizedBox.shrink();
+    final results = labOrders.where(_labHasResult).toList();
+    final pending = labOrders.where((l) => !_labHasResult(l)).toList();
+
+    if (results.isEmpty) {
+      return _pendingLabNames(pending);
+    }
+
+    String? lastGroup;
+    final tableRows = <pw.TableRow>[
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text('Test', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text('Result', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text('Unit', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text('Ref Range', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text('Status', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+          ),
+        ],
+      ),
+    ];
+
+    for (final lab in results) {
+      final packageId = lab['packageId'];
+      final groupKey = packageId != null
+          ? 'pkg_${packageId}_${lab['orderId'] ?? ''}'
+          : 'standalone';
+      if (packageId != null && groupKey != lastGroup) {
+        lastGroup = groupKey;
+        final pkgName = (lab['packageName'] ?? 'Package').toString();
+        tableRows.add(
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.blue100),
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(pkgName, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(),
+              pw.SizedBox(),
+              pw.SizedBox(),
+              pw.SizedBox(),
+            ],
+          ),
+        );
+      }
+      tableRows.add(
+        pw.TableRow(
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text((lab['testName'] ?? lab['packageName'] ?? 'N/A').toString(), style: const pw.TextStyle(fontSize: 8)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text((lab['resultValue'] ?? '').toString(), style: const pw.TextStyle(fontSize: 8)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text((lab['units'] ?? '').toString(), style: const pw.TextStyle(fontSize: 8)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text((lab['referenceRange'] ?? '').toString(), style: const pw.TextStyle(fontSize: 8)),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text((lab['resultStatus'] ?? lab['abnormalFlags'] ?? 'N/A').toString(), style: const pw.TextStyle(fontSize: 8)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        if (pending.isNotEmpty) ...[
+          _pendingLabNames(pending),
+          pw.SizedBox(height: 8),
+        ],
+        pw.Text(
+          'Laboratory Results:',
+          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(2),
+            1: pw.FlexColumnWidth(1),
+            2: pw.FlexColumnWidth(0.8),
+            3: pw.FlexColumnWidth(1.5),
+            4: pw.FlexColumnWidth(0.8),
+          },
+          children: tableRows,
         ),
       ],
     );

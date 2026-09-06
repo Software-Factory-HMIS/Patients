@@ -910,7 +910,7 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
     final diagnoses = data['diagnoses'] as List<dynamic>;
     final labOrdersRaw = data['labOrders'] as List<dynamic>;
     
-    // Group lab orders: one row per package, multiple rows for individual tests
+    // Group lab orders: collect all tests per package, individual tests as-is
     final Map<String, Map<String, dynamic>> packageMap = {};
     final List<Map<String, dynamic>> testItems = [];
     
@@ -919,7 +919,6 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
       final bool isPackage = packageId != null;
       
       if (isPackage) {
-        // Group by packageId - only keep one entry per package
         final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
         if (!packageMap.containsKey(packageKey)) {
           final rateValue = order['rate'];
@@ -933,23 +932,26 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
             'packageCost': rate,
             'orderId': order['orderId'],
             'orderNumber': order['orderNumber'],
-            // Preserve result data if available
-            'resultId': order['resultId'],
-            'resultValue': order['resultValue'],
-            'resultNumeric': order['resultNumeric'],
-            'units': order['units'],
-            'referenceRange': order['referenceRange'],
-            'abnormalFlags': order['abnormalFlags'],
-            'validationStatus': order['validationStatus'],
-            'isCritical': order['isCritical'],
-            'resultStatus': order['resultStatus'],
-            'resultInterpretation': order['resultInterpretation'],
-            'entryDate': order['entryDate'],
-            'validationDate': order['validationDate'],
-            'sampleTestId': order['sampleTestId'],
-            'sampleBarcode': order['sampleBarcode'],
+            'tests': <Map<String, dynamic>>[],
           };
         }
+        (packageMap[packageKey]!['tests'] as List<Map<String, dynamic>>).add({
+          'testName': order['testName'] ?? 'N/A',
+          'resultId': order['resultId'],
+          'resultValue': order['resultValue'],
+          'resultNumeric': order['resultNumeric'],
+          'units': order['units'],
+          'referenceRange': order['referenceRange'],
+          'abnormalFlags': order['abnormalFlags'],
+          'validationStatus': order['validationStatus'],
+          'isCritical': order['isCritical'],
+          'resultStatus': order['resultStatus'],
+          'resultInterpretation': order['resultInterpretation'],
+          'entryDate': order['entryDate'],
+          'validationDate': order['validationDate'],
+          'sampleTestId': order['sampleTestId'],
+          'sampleBarcode': order['sampleBarcode'],
+        });
       } else {
         // Individual test - add to list with all result data
         final rateValue = order['rate'];
@@ -982,10 +984,35 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
       }
     }
     
-    final labOrders = [
-      ...packageMap.values.toList(),
-      ...testItems,
-    ];
+    // Expand packages: one row per test (for results). List view collapses to package names.
+    final List<Map<String, dynamic>> labOrders = [];
+    for (final pkg in packageMap.values) {
+      final tests = pkg['tests'] as List<dynamic>;
+      for (final t in tests) {
+        labOrders.add({
+          'type': 'package_test',
+          'packageId': pkg['packageId'],
+          'orderId': pkg['orderId'],
+          'packageName': pkg['packageName'],
+          'testName': t['testName'],
+          'resultId': t['resultId'],
+          'resultValue': t['resultValue'],
+          'resultNumeric': t['resultNumeric'],
+          'units': t['units'],
+          'referenceRange': t['referenceRange'],
+          'abnormalFlags': t['abnormalFlags'],
+          'validationStatus': t['validationStatus'],
+          'isCritical': t['isCritical'],
+          'resultStatus': t['resultStatus'],
+          'resultInterpretation': t['resultInterpretation'],
+          'entryDate': t['entryDate'],
+          'validationDate': t['validationDate'],
+          'sampleTestId': t['sampleTestId'],
+          'sampleBarcode': t['sampleBarcode'],
+        });
+      }
+    }
+    labOrders.addAll(testItems);
     final radiologyOrders = data['radiologyOrders'] as List<dynamic>;
     final medicines = data['medicines'] as List<dynamic>;
     final clinicalNoteTexts = extractClinicalNoteTexts(
@@ -1654,34 +1681,80 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
     );
   }
 
+  List<String> _labOrderListLabels(List<dynamic> labOrders) {
+    final seen = <String>{};
+    final labels = <String>[];
+    for (final lab in labOrders) {
+      final type = (lab['type'] ?? '').toString();
+      final isPackage = type == 'package' ||
+          type == 'package_test' ||
+          lab['packageId'] != null;
+      if (isPackage) {
+        final pkgName = (lab['packageName'] ?? 'N/A').toString().trim();
+        final key = 'pkg_${lab['packageId'] ?? pkgName}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$pkgName (Package)');
+        }
+      } else {
+        final name = (lab['testName'] ?? 'N/A').toString();
+        final key = 'test_${lab['testId'] ?? name}_${lab['orderId'] ?? ''}';
+        if (seen.add(key)) {
+          labels.add('$name (Test)');
+        }
+      }
+    }
+    return labels;
+  }
+
+  bool _labHasResult(dynamic lab) {
+    final resultId = lab['resultId'];
+    final resultValue = lab['resultValue'];
+    return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
+  }
+
+  List<MapEntry<String, List<dynamic>>> _groupLabResultsByPackage(List<dynamic> results) {
+    final groups = <String, List<dynamic>>{};
+    final order = <String>[];
+    for (final lab in results) {
+      final type = (lab['type'] ?? '').toString();
+      final isPackage = type == 'package' ||
+          type == 'package_test' ||
+          lab['packageId'] != null;
+      final key = isPackage
+          ? 'pkg_${lab['packageId'] ?? lab['packageName']}_${lab['orderId'] ?? ''}'
+          : 'standalone';
+      if (!groups.containsKey(key)) {
+        groups[key] = [];
+        order.add(key);
+      }
+      groups[key]!.add(lab);
+    }
+    return [
+      for (final key in order)
+        MapEntry(
+          key == 'standalone'
+              ? (groups[key]!.length > 1 ? 'Tests' : '')
+              : (groups[key]!.first['packageName'] ?? 'Package').toString(),
+          groups[key]!,
+        ),
+    ];
+  }
+
   Widget _buildLabResultsSection(List<dynamic> labOrders) {
-    // Filter out orders without results
-    final resultsWithData = labOrders.where((lab) {
-      final resultId = lab['resultId'];
-      final resultValue = lab['resultValue'];
-      return resultId != null || (resultValue != null && resultValue.toString().isNotEmpty);
-    }).toList();
+    final resultsWithData = labOrders.where(_labHasResult).toList();
+    final pendingLabels = _labOrderListLabels(
+      labOrders.where((lab) => !_labHasResult(lab)).toList(),
+    );
 
     if (resultsWithData.isEmpty) {
-      // If no results, show just test names like before
-      final testNames = labOrders.map<String>((lab) {
-        final bool isPackage = lab['type'] == 'package';
-        final name = isPackage
-            ? (lab['packageName'] ?? 'N/A')
-            : (lab['testName'] ?? 'N/A');
-        final type = isPackage ? 'Package' : 'Test';
-        return '$name ($type)';
-      }).toList();
-      
-      if (testNames.isEmpty) {
+      if (pendingLabels.isEmpty) {
         return const SizedBox.shrink();
       }
-      
       return _buildCompactDetailSection(
         'Lab Tests',
         Icons.science,
         Colors.blue,
-        testNames,
+        pendingLabels,
       );
     }
 
@@ -1703,7 +1776,7 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
       return isCritical || status == 'HIGH' || status == 'LOW' || status == 'CRITICAL' || status == 'ABNORMAL';
     }
     
-    return Container(
+    final resultsSection = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
@@ -1773,12 +1846,22 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            // Table rows
-            ...resultsWithData.map((lab) {
-              final bool isPackage = lab['type'] == 'package';
-              final testName = isPackage
-                  ? (lab['packageName'] ?? lab['testName'] ?? 'N/A')
-                  : (lab['testName'] ?? 'N/A');
+            // Table rows grouped by package
+            for (final group in _groupLabResultsByPackage(resultsWithData)) ...[
+              if (group.key.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 2),
+                  child: Text(
+                    group.key,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: _getColorShade(color, 700),
+                    ),
+                  ),
+                ),
+              ...group.value.map((lab) {
+              final testName = (lab['testName'] ?? lab['packageName'] ?? 'N/A').toString();
               final resultValue = (lab['resultValue'] ?? '').toString();
               final units = (lab['units'] ?? '').toString();
               final referenceRange = (lab['referenceRange'] ?? '').toString();
@@ -1888,7 +1971,8 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
                   ],
                 ),
               );
-            }).toList(),
+              }),
+            ],
             // Interpretation section (if any)
             if (resultsWithData.any((lab) => (lab['resultInterpretation'] ?? '').toString().isNotEmpty)) ...[
               const SizedBox(height: 8),
@@ -1928,6 +2012,22 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
           ],
         ),
       ),
+    );
+
+    if (pendingLabels.isEmpty) return resultsSection;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCompactDetailSection(
+          'Lab Tests',
+          Icons.science,
+          Colors.blue,
+          pendingLabels,
+        ),
+        const SizedBox(height: 8),
+        resultsSection,
+      ],
     );
   }
 
@@ -2302,9 +2402,9 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.red[50],
+        color: Colors.grey[50],
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.red[200]!, width: 1),
+        border: Border.all(color: Colors.grey[300]!, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2315,14 +2415,14 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
               padding: const EdgeInsets.only(bottom: 4),
               child: Row(
                 children: [
-                  Icon(Icons.favorite, color: Colors.red[700], size: 14),
+                  Icon(Icons.favorite, color: Colors.grey[700], size: 14),
                   const SizedBox(width: 6),
                   Text(
                     'Vitals',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Colors.red[700],
+                      color: Colors.grey[800],
                     ),
                   ),
                   if (recordedDate != null) ...[
@@ -2349,14 +2449,14 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.favorite, color: Colors.red[700], size: 14),
+                Icon(Icons.favorite, color: Colors.grey[700], size: 14),
                 const SizedBox(width: 6),
                 Text(
                   'Vitals',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.red[700],
+                    color: Colors.grey[800],
                   ),
                 ),
                 const SizedBox(width: 8),
