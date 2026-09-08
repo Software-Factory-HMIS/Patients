@@ -8,6 +8,9 @@ import '../utils/app_localizations_ext.dart';
 import '../widgets/punjab_ui.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/app_snackbar.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../utils/clinical_notes_format.dart';
 import '../utils/clinical_history_assembler.dart';
 import '../utils/lab_order_presenter.dart';
@@ -48,6 +51,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
   List<dynamic> _headerAllergies = [];
   List<dynamic> _headerRiskFactors = [];
   List<Map<String, dynamic>> _headerMedications = [];
+  List<Map<String, dynamic>> _medicinesGiven = [];
+  List<Map<String, dynamic>> _vaccines = [];
+  List<Map<String, dynamic>> _transfusions = [];
 
   // Date filters
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 15));
@@ -138,6 +144,18 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
       timeline.add({'type': 'surgery', 'date': parsedDate, 'data': surgery});
     }
 
+    void addExtra(String type, List<Map<String, dynamic>> rows) {
+      for (final row in rows) {
+        final raw = row['givenAt'] ?? row['GivenAt'];
+        final parsed = raw is DateTime ? raw : DateTime.tryParse(raw?.toString() ?? '');
+        timeline.add({'type': type, 'date': parsed, 'data': row});
+      }
+    }
+
+    addExtra('medicine_given', _medicinesGiven);
+    addExtra('vaccine', _vaccines);
+    addExtra('transfusion', _transfusions);
+
     timeline.sort((a, b) {
       final dateA = a['date'] as DateTime?;
       final dateB = b['date'] as DateTime?;
@@ -184,6 +202,7 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         _api!.getPatientAllergies(parsedPatientId),
         _api!.getPatientRiskFactors(parsedPatientId),
         _api!.getActivePatientMedicines(patientId: parsedPatientId),
+        _api!.getPatientSafeExtras(parsedPatientId).catchError((_) => <String, dynamic>{}),
       ]);
       print('[IPD File] Header summary results loaded: ${results.length} items');
 
@@ -217,6 +236,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
             'name': saltName,
             'saltName': saltName,
           }).toList();
+          final extras = results[4] as Map<String, dynamic>;
+          final vax = extras['vaccines'];
+          if (vax is List) {
+            _vaccines = vax.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+          }
           print('[IPD File] Header medications: ${_headerMedications.length}');
         } catch (e, stackTrace) {
           print('[IPD File] Error in setState for header summary: $e');
@@ -295,15 +319,27 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           toDate: endDate,
         ),
         _loadSurgeriesInRange(parsedPatientId, startDate, endDate),
+        _api!.getPatientSafeExtras(
+          parsedPatientId,
+          fromDate: startDate,
+          toDate: endDate,
+        ).catchError((_) => <String, dynamic>{}),
       ]);
 
       final history = results[0] as Map<String, dynamic>;
       final surgeries = results[1] as List<Map<String, dynamic>>;
+      final extras = results[2] as Map<String, dynamic>;
       final encounterDataList = ClinicalHistoryAssembler.fromHistory(history);
       final encounters = encounterDataList
           .map((e) => Map<String, dynamic>.from(e['encounter'] as Map))
           .toList();
       final vitals = List<dynamic>.from(history['vitals'] as List? ?? const []);
+
+      List<Map<String, dynamic>> extraList(String key) {
+        final raw = extras[key];
+        if (raw is! List) return [];
+        return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      }
 
       if (!mounted) return;
       setState(() {
@@ -311,6 +347,9 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         _encounterDataList = encounterDataList;
         _allVitals = vitals;
         _surgeries = surgeries;
+        _medicinesGiven = extraList('medicinesGiven');
+        _vaccines = extraList('vaccines');
+        _transfusions = extraList('transfusions');
         _combinedTimeline = _computeCombinedTimeline();
         _dataLoaded = true;
         _loading = false;
@@ -479,6 +518,12 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _dataLoaded && !_loading ? _exportHistory : null,
+            icon: const Icon(Icons.ios_share, size: 16),
+            label: const Text('Export FHIR + PDF'),
+          ),
         ],
       ),
     );
@@ -573,6 +618,14 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
           return '';
         }
       }).where((s) => s.isNotEmpty),
+    );
+
+    final vaccinesText = joinWithComma(
+      _vaccines.map((v) {
+        final name = (v['vaccineName'] ?? v['VaccineName'] ?? '').toString();
+        return name;
+      }).where((s) => s.isNotEmpty),
+      max: 4,
     );
 
     final medsText = joinWithComma(
@@ -716,6 +769,8 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                     _pill(icon: Icons.healing, label: 'Chronic', value: chronicText),
                                     const SizedBox(width: 14),
                                     _pill(icon: Icons.local_pharmacy, label: 'Current Meds', value: medsText),
+                                    const SizedBox(width: 14),
+                                    _pill(icon: Icons.vaccines, label: 'Vaccines', value: vaccinesText),
                                     const SizedBox(width: 14),
                                     _pill(icon: Icons.report_problem, label: 'Risk Factors', value: risksText),
                                   ],
@@ -897,6 +952,15 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                                   if (type == 'surgery') {
                                     return _buildSurgeryCard(item['data'] as Map<String, dynamic>);
                                   }
+                                  if (type == 'medicine_given' ||
+                                      type == 'vaccine' ||
+                                      type == 'transfusion') {
+                                    return _buildSafeExtraCard(
+                                      type,
+                                      item['data'] as Map<String, dynamic>,
+                                      item['date'] as DateTime?,
+                                    );
+                                  }
                                   return const SizedBox.shrink();
                                 },
                               ),
@@ -917,6 +981,11 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         title: Text('Patient File', style: theme.appBarTheme.titleTextStyle),
         actions: [
           IconButton(
+            icon: const Icon(Icons.ios_share),
+            onPressed: _exportHistory,
+            tooltip: 'Export FHIR + PDF',
+          ),
+          IconButton(
             icon: const Icon(Icons.print),
             onPressed: _generateAndPrintAllEncounters,
             tooltip: 'Print All Encounters',
@@ -936,9 +1005,6 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                           encounter['EncounterDate'] ?? 
                           encounter['checkInTime'] ?? 
                           encounter['CheckInTime'];
-    final status = encounter['encounterStatus'] ?? 
-                   encounter['EncounterStatus'] ?? 
-                   '';
     final doctorName = encounter['doctorName'] ?? 
                       encounter['DoctorName'] ?? 
                       encounter['doctor'] ?? 
@@ -1125,23 +1191,6 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: cs.onPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cs.onPrimary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: cs.onPrimary.withValues(alpha: 0.5), width: 1),
-                      ),
-                      child: Text(
-                        status.toString().toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
                           color: cs.onPrimary,
                         ),
                       ),
@@ -2610,6 +2659,89 @@ class _PatientFileScreenState extends State<PatientFileScreen> {
         );
       },
     );
+  }
+
+  Widget _buildSafeExtraCard(String type, Map<String, dynamic> row, DateTime? date) {
+    final cs = Theme.of(context).colorScheme;
+    late final String title;
+    late final String detail;
+    late final IconData icon;
+    if (type == 'vaccine') {
+      title = 'Vaccine';
+      detail = (row['vaccineName'] ?? row['VaccineName'] ?? 'Vaccine').toString();
+      icon = Icons.vaccines;
+    } else if (type == 'transfusion') {
+      title = 'Blood given';
+      final product = (row['productType'] ?? '').toString();
+      final bg = (row['bloodGroup'] ?? '').toString();
+      detail = [product, bg].where((e) => e.isNotEmpty).join(' · ');
+      icon = Icons.bloodtype;
+    } else {
+      title = 'Medicine given';
+      final name = (row['medicineName'] ?? '').toString();
+      final slot = (row['timeSlot'] ?? '').toString();
+      detail = [name, slot].where((e) => e.isNotEmpty).join(' · ');
+      icon = Icons.medication;
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(icon, color: cs.primary),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(
+          [
+            if (date != null) AppDateFormat.formatDateTime(date),
+            if (detail.isNotEmpty) detail,
+          ].join(' — '),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportHistory() async {
+    final patientId = widget.patient['patientId'] ?? widget.patient['PatientID'];
+    final parsed = patientId is int ? patientId : int.tryParse(patientId?.toString() ?? '');
+    if (_api == null || parsed == null) {
+      AppSnackBar.showError(context, 'Cannot export yet.');
+      return;
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final fhir = await _api!.getPatientIpsFhir(
+        parsed,
+        fromDate: _startDate,
+        toDate: _endDate,
+      );
+      final dir = await getTemporaryDirectory();
+      final fhirFile = File(
+        '${dir.path}/hmis-ips-$parsed-${_startDate.toIso8601String().substring(0, 10)}.json',
+      );
+      await fhirFile.writeAsString(fhir);
+      final pdfBytes = await PatientFilePrintHelper.buildPdfBytes(
+        encounterDataList: _encounterDataList,
+        patient: widget.patient,
+      );
+      if (mounted) Navigator.pop(context);
+      final files = <XFile>[XFile(fhirFile.path, mimeType: 'application/fhir+json')];
+      if (pdfBytes != null) {
+        final pdfFile = File('${dir.path}/hmis-history-$parsed.pdf');
+        await pdfFile.writeAsBytes(pdfBytes);
+        files.add(XFile(pdfFile.path, mimeType: 'application/pdf'));
+      }
+      await Share.shareXFiles(
+        files,
+        text: 'My HMIS medical history (FHIR + PDF)',
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        AppSnackBar.showError(context, 'Export failed: $e');
+      }
+    }
   }
 
   Future<void> _generateAndPrintAllEncounters() async {

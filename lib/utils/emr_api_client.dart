@@ -383,6 +383,42 @@ class EmrApiClient {
     return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
   }
 
+  /// GET /api/encounters/patient/{id}/safe-extras — patient-safe extras (no staff-only rows).
+  Future<Map<String, dynamic>> getPatientSafeExtras(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/safe-extras')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) return {};
+    if (res.body.trim().isEmpty) return {};
+    final data = json.decode(res.body);
+    return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
+  }
+
+  /// GET /api/fhir/Patient/{id}/ips — FHIR R4 IPS JSON (audited).
+  Future<String> getPatientIpsFhir(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/fhir/Patient/$patientId/ips')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to export FHIR (${res.statusCode})');
+    }
+    return res.body;
+  }
+
   /// GET /api/encounters/{encounterId}
   Future<Map<String, dynamic>> getEncounterDetails(int encounterId) async {
     final res = await _authenticatedGet(

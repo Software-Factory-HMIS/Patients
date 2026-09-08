@@ -11,6 +11,7 @@ import '../../widgets/patient_avatar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/app_localizations_ext.dart';
 import '../../widgets/punjab_ui.dart';
+import '../../widgets/voice_appointment_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
@@ -353,6 +354,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        Gap(metrics.isCompact ? 8 : 12),
+                        _QuickActionTile(
+                          icon: Icons.mic_rounded,
+                          label: 'Speak to book',
+                          iconColor: PunjabColors.primary,
+                          onTap: () => VoiceAppointmentSheet.show(
+                            context,
+                            patientId: widget.patientId,
+                            patient: widget.patient,
+                            savedUserData: widget.savedUserData,
+                            onGoHome: () {},
+                          ),
+                          dark: dark,
+                          compact: metrics.isCompact,
                         ),
                         Gap(metrics.isCompact ? 18 : 22),
                         _SectionHeader(

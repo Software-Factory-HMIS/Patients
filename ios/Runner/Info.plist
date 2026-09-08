@@ -52,5 +52,9 @@
 	<string>Photo library access lets you choose a profile picture.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location helps us find the nearest hospital when you need support.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone is used so you can book a visit by speaking.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition helps book your hospital visit by voice.</string>
 </dict>
 </plist>

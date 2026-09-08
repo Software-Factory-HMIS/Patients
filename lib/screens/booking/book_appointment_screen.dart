@@ -9,6 +9,7 @@ import '../../utils/user_storage.dart';
 import '../../utils/app_localizations_ext.dart';
 import '../../widgets/punjab_ui.dart';
 import '../../widgets/searchable_hospital_select.dart';
+import '../../widgets/voice_appointment_sheet.dart';
 import '../appointment_success_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
@@ -370,6 +371,18 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   title: l.bookAppointment,
                   subtitle: l.bookVisitSubtitle,
                 ),
+                PunjabPrimaryButton(
+                  label: 'Speak to book',
+                  icon: Icons.mic_rounded,
+                  onPressed: () => VoiceAppointmentSheet.show(
+                    context,
+                    patientId: widget.patientId,
+                    patient: widget.patient,
+                    savedUserData: widget.savedUserData,
+                    onGoHome: widget.onGoHome,
+                  ),
+                ),
+                const Gap(16),
                 PunjabCard(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
                   child: PunjabBookingStepper(currentStep: _currentStep),

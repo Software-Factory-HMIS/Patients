@@ -15,6 +15,14 @@ class PatientFilePrintHelper {
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => pdf);
   }
 
+  static Future<Uint8List?> buildPdfBytes({
+    required List<Map<String, dynamic>> encounterDataList,
+    required Map<String, dynamic> patient,
+  }) async {
+    if (encounterDataList.isEmpty) return null;
+    return _buildEncounterPdf(encounterDataList, patient);
+  }
+
   static Future<Uint8List> _buildEncounterPdf(
     List<Map<String, dynamic>> encounterDataList,
     Map<String, dynamic> patient,
@@ -246,8 +254,6 @@ class PatientFilePrintHelper {
         encounter['doctorName'] ?? encounter['DoctorName'] ?? 'N/A';
     final encounterType =
         encounter['encounterType'] ?? encounter['EncounterType'] ?? '';
-    final encounterStatus =
-        encounter['encounterStatus'] ?? encounter['EncounterStatus'] ?? '';
 
     DateTime? parsedDate;
     if (encounterDate != null) {
@@ -324,21 +330,6 @@ class PatientFilePrintHelper {
                       ),
                     ],
                   ],
-                ),
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.white,
-                    borderRadius: pw.BorderRadius.circular(4),
-                  ),
-                  child: pw.Text(
-                    encounterStatus.toString().toUpperCase(),
-                    style: pw.TextStyle(
-                      fontSize: 9,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue700,
-                    ),
-                  ),
                 ),
               ],
             ),

@@ -834,9 +834,6 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
                           encounter['EncounterDate'] ?? 
                           encounter['checkInTime'] ?? 
                           encounter['CheckInTime'];
-    final status = encounter['encounterStatus'] ?? 
-                   encounter['EncounterStatus'] ?? 
-                   '';
     final doctorName = encounter['doctorName'] ?? 
                       encounter['DoctorName'] ?? 
                       encounter['doctor'] ?? 
@@ -1053,22 +1050,6 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
                         ),
                       ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _getStatusColor(status), width: 1),
-                  ),
-                  child: Text(
-                    status.toString().toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _getStatusColor(status),
-                    ),
                   ),
                 ),
               ],
