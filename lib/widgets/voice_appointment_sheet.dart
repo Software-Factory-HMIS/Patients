@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../screens/appointment_success_screen.dart';
+import '../screens/settings_screen.dart';
 import '../services/voice_appointment_service.dart';
+import '../utils/app_localizations_ext.dart';
 
 class VoiceAppointmentSheet extends StatefulWidget {
   final int patientId;
@@ -28,6 +30,8 @@ class VoiceAppointmentSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => VoiceAppointmentSheet(
         patientId: patientId,
         patient: patient,
@@ -83,8 +87,12 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
     super.dispose();
   }
 
+  bool get _needsApiKey =>
+      (_svc.error ?? '').toLowerCase().contains('api key');
+
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -107,7 +115,7 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Speak to book a visit',
+            l.speakToBookTitle,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -120,7 +128,7 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('You: ${_svc.lastHeard}',
+              child: Text('${l.voiceBookingYou}: ${_svc.lastHeard}',
                   style: const TextStyle(fontSize: 13)),
             ),
           ],
@@ -128,7 +136,7 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('Assistant: ${_svc.lastSaid}',
+              child: Text('${l.voiceBookingAssistant}: ${_svc.lastSaid}',
                   style: TextStyle(fontSize: 13, color: cs.primary)),
             ),
           ],
@@ -137,19 +145,32 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
             Text(_svc.error!, style: TextStyle(color: cs.error, fontSize: 13)),
           ],
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () async {
-                    await _svc.stop();
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: const Text('Stop'),
+          if (_needsApiKey)
+            FilledButton(
+              onPressed: () async {
+                final nav = Navigator.of(context);
+                await _svc.stop();
+                nav.pop();
+                nav.push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+              child: Text(l.voiceBookingOpenSettings),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await _svc.stop();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    child: Text(l.voiceBookingStop),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

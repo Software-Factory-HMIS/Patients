@@ -6,20 +6,23 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Gemini Live: mic PCM in, spoken reply + transcripts out.
 class GeminiLiveBookingSession {
-  GeminiLiveBookingSession({required this.apiKey, this.model});
+  GeminiLiveBookingSession({this.apiKey, this.accessToken, this.model});
 
-  final String apiKey;
+  final String? apiKey;
+  final String? accessToken;
   final String? model;
 
-  static const _host =
+  static const _hostBeta =
       'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+  static const _hostAlpha =
+      'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained';
 
   static const systemInstruction = '''
 You are a helpful Punjab HMIS voice assistant for patients booking a hospital visit.
 Speak briefly in the patient's language (Urdu, Roman Urdu, or English — mix is OK).
 You only help book a visit. Do not give medical advice.
 Ask one question at a time.
-Steps: hospital name → date → complaint → confirm yes/no.
+Steps: hospital name → confirm hospital yes/no → date → complaint → confirm booking yes/no.
 If they name a future date, say we can only issue today's queue token.
 When the app sends you a fact (hospital found, date accepted), acknowledge in one short sentence and ask the next question.
 ''';
@@ -38,6 +41,8 @@ When the app sends you a fact (hospital found, date accepted), acknowledge in on
   void Function(String err)? onError;
 
   bool get isOpen => _open;
+  bool get usesEphemeralToken =>
+      (accessToken ?? '').trim().isNotEmpty;
 
   Future<bool> connect() async {
     final id = model?.trim().isNotEmpty == true
@@ -48,6 +53,10 @@ When the app sends you a fact (hospital found, date accepted), acknowledge in on
       return true;
     } catch (_) {
       await close();
+      if (usesEphemeralToken) {
+        onError?.call('Could not start Gemini Live.');
+        return false;
+      }
       try {
         await _openSocket('gemini-live-2.5-flash-native-audio');
         return true;
@@ -60,9 +69,19 @@ When the app sends you a fact (hospital found, date accepted), acknowledge in on
   }
 
   Future<void> _openSocket(String modelId) async {
-    final uri = Uri.parse(
-      '$_host?key=${Uri.encodeQueryComponent(apiKey.trim())}',
-    );
+    final token = accessToken?.trim();
+    final key = apiKey?.trim();
+    final Uri uri;
+    if (token != null && token.isNotEmpty) {
+      uri = Uri.parse(
+        '$_hostAlpha?access_token=${Uri.encodeQueryComponent(token)}',
+      );
+    } else if (key != null && key.isNotEmpty) {
+      uri = Uri.parse('$_hostBeta?key=${Uri.encodeQueryComponent(key)}');
+    } else {
+      throw StateError('No Live credential.');
+    }
+
     final channel = WebSocketChannel.connect(uri);
     await channel.ready.timeout(const Duration(seconds: 12));
     _channel = channel;
@@ -81,6 +100,17 @@ When the app sends you a fact (hospital found, date accepted), acknowledge in on
         }
       },
     );
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        await _ready!.future.timeout(const Duration(seconds: 2));
+      } catch (_) {
+        if (_ready != null && !_ready!.isCompleted) _ready!.complete();
+      }
+      _open = true;
+      return;
+    }
+
     channel.sink.add(jsonEncode({
       'setup': {
         'model': 'models/$modelId',
@@ -231,8 +261,8 @@ When the app sends you a fact (hospital found, date accepted), acknowledge in on
   }
 
   Future<void> close() async {
-    _flushIn();
-    _flushOut();
+    _inUtterance = '';
+    _outUtterance = '';
     _open = false;
     await _sub?.cancel();
     _sub = null;

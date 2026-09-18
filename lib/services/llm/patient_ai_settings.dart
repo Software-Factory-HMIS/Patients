@@ -1,8 +1,8 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../utils/app_secure_storage.dart';
 
 /// Device settings for patient voice booking. Later these come from HMIS like hospital AI keys.
 class PatientAiSettings {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = appSecureStorage;
   static const _kProvider = 'patient_ai_provider';
   static const _kModel = 'patient_ai_model';
   static const _kKey = 'patient_ai_key';

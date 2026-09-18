@@ -318,7 +318,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
     if (!mounted) return;
     setState(() {
       _saving = false;
-      _savedNote = 'Saved on this phone. Later this will come from HMIS.';
+      _savedNote = context.l10n.voiceBookingSaved;
     });
   }
 
@@ -330,28 +330,28 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     if (_loading) {
-      return const _SettingsCard(
+      return _SettingsCard(
         icon: Icons.mic_rounded,
-        title: 'Voice booking (Gemini)',
-        subtitle: 'Loading…',
-        child: LinearProgressIndicator(),
+        title: l.voiceBookingSettings,
+        subtitle: l.voiceBookingLoading,
+        child: const LinearProgressIndicator(),
       );
     }
 
     return _SettingsCard(
       icon: Icons.mic_rounded,
-      title: 'Voice booking (Gemini)',
-      subtitle:
-          'Used when the patient taps Speak. Same idea as hospital AI keys. Later this comes from the database.',
+      title: l.voiceBookingSettings,
+      subtitle: l.voiceBookingSettingsSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DropdownButtonFormField<String>(
             value: _provider,
-            decoration: const InputDecoration(
-              labelText: 'Provider',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.voiceBookingProvider,
+              border: const OutlineInputBorder(),
             ),
             items: const [
               DropdownMenuItem(value: 'gemini', child: Text('Google Gemini')),
@@ -365,9 +365,9 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
             value: PatientAiSettings.liveModels.contains(_model)
                 ? _model
                 : PatientAiSettings.defaultModel,
-            decoration: const InputDecoration(
-              labelText: 'Live model',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l.voiceBookingModel,
+              border: const OutlineInputBorder(),
             ),
             items: [
               for (final m in PatientAiSettings.liveModels)
@@ -382,7 +382,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
             controller: _keyCtrl,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: 'Gemini API key',
+              labelText: l.voiceBookingApiKey,
               border: const OutlineInputBorder(),
               hintText: 'AIza…',
               suffixIcon: IconButton(
@@ -394,7 +394,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
           const Gap(12),
           FilledButton(
             onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Saving…' : 'Save voice settings'),
+            child: Text(_saving ? l.voiceBookingSaving : l.voiceBookingSave),
           ),
           if (_savedNote != null) ...[
             const Gap(8),

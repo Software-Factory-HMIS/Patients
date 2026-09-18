@@ -55,7 +55,7 @@ dependencies:
   geolocator: ^13.0.4
   share_plus: ^10.1.4
   record: ^6.2.1
-  audioplayers: ^6.1.0
+  flutter_pcm_sound: ^3.3.2
   web_socket_channel: ^3.0.2
 
 dev_dependencies:

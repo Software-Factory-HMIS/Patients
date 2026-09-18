@@ -1014,6 +1014,34 @@ class EmrApiClient {
     }
   }
 
+  /// Short-lived Gemini Live token. HMIS keeps the API key.
+  Future<({String token, String model})?> fetchPatientLiveToken() async {
+    final uri = Uri.parse('$baseUrl/api/patient-ai/live-token');
+    try {
+      final res = await _authenticatedPost(uri, body: <String, dynamic>{})
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final decoded = json.decode(res.body);
+      Map<String, dynamic>? data;
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final inner = map['data'] ?? map['Data'];
+        if (inner is Map) {
+          data = Map<String, dynamic>.from(inner);
+        } else {
+          data = map;
+        }
+      }
+      if (data == null) return null;
+      final token = (data['token'] ?? data['Token'] ?? '').toString().trim();
+      if (token.isEmpty) return null;
+      final model = (data['model'] ?? data['Model'] ?? '').toString().trim();
+      return (token: token, model: model);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Lookup patient by CNIC and get masked phone number.
   /// This is the first step in OTP-only authentication flow.
   /// Returns: {found, maskedPhone, patientName, message}

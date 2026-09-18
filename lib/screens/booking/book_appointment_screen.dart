@@ -372,7 +372,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   subtitle: l.bookVisitSubtitle,
                 ),
                 PunjabPrimaryButton(
-                  label: 'Speak to book',
+                  label: l.speakToBook,
                   icon: Icons.mic_rounded,
                   onPressed: () => VoiceAppointmentSheet.show(
                     context,

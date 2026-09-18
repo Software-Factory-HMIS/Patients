@@ -358,14 +358,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         Gap(metrics.isCompact ? 8 : 12),
                         _QuickActionTile(
                           icon: Icons.mic_rounded,
-                          label: 'Speak to book',
+                          label: l.speakToBook,
                           iconColor: PunjabColors.primary,
                           onTap: () => VoiceAppointmentSheet.show(
                             context,
                             patientId: widget.patientId,
                             patient: widget.patient,
                             savedUserData: widget.savedUserData,
-                            onGoHome: () {},
                           ),
                           dark: dark,
                           compact: metrics.isCompact,

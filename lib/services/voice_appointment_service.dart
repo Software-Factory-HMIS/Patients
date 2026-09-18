@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_pcm_sound/flutter_pcm_sound.dart';
 import 'package:record/record.dart';
 
 import '../models/appointment_models.dart';
@@ -18,6 +16,7 @@ enum VoiceBookStep {
   idle,
   connecting,
   askHospital,
+  confirmHospital,
   askDate,
   rejectFutureDate,
   askComplaint,
@@ -41,11 +40,9 @@ class VoiceAppointmentService extends ChangeNotifier {
 
   final _api = EmrApiClient();
   final _pcm = AudioRecorder();
-  final _player = AudioPlayer();
 
   GeminiLiveBookingSession? _live;
   StreamSubscription<Uint8List>? _micSub;
-  final BytesBuilder _replyPcm = BytesBuilder(copy: false);
 
   VoiceBookStep step = VoiceBookStep.idle;
   String status = '';
@@ -58,6 +55,11 @@ class VoiceAppointmentService extends ChangeNotifier {
   List<HospitalDepartment> _depts = [];
   AppointmentDetails? booked;
   String? error;
+
+  bool _busy = false;
+  bool _playing = false;
+  bool _disposed = false;
+  bool _pcmReady = false;
 
   bool get isLive => _live?.isOpen == true;
 
@@ -74,13 +76,26 @@ class VoiceAppointmentService extends ChangeNotifier {
     notifyListeners();
 
     final settings = await PatientAiSettings.load();
-    if (!settings.isReady) {
-      step = VoiceBookStep.failed;
-      error = 'Add a Gemini API key in Settings → Voice booking.';
-      status = error!;
+    var apiKey = settings.apiKey.trim();
+    String? accessToken;
+    var model = settings.model;
+
+    if (apiKey.isEmpty) {
+      status = 'Connecting via HMIS…';
       notifyListeners();
-      return;
+      final tok = await _api.fetchPatientLiveToken();
+      if (tok == null) {
+        step = VoiceBookStep.failed;
+        error =
+            'Add a Gemini API key in Settings → Voice booking, or ask admin to save a Gemini hospital key.';
+        status = error!;
+        notifyListeners();
+        return;
+      }
+      accessToken = tok.token;
+      if (tok.model.isNotEmpty) model = tok.model;
     }
+
     if (!await _pcm.hasPermission()) {
       step = VoiceBookStep.failed;
       error = 'Microphone permission is required.';
@@ -90,22 +105,30 @@ class VoiceAppointmentService extends ChangeNotifier {
     }
 
     final live = GeminiLiveBookingSession(
-      apiKey: settings.apiKey,
-      model: settings.model,
+      apiKey: apiKey.isEmpty ? null : apiKey,
+      accessToken: accessToken,
+      model: model,
     );
     live.onUserTranscript = _onUser;
     live.onAssistantTranscript = (t) {
+      if (_disposed) return;
       lastSaid = t;
       notifyListeners();
     };
-    live.onAssistantAudio = (pcm) => _replyPcm.add(pcm);
-    live.onTurnComplete = _playReply;
+    live.onAssistantAudio = (pcm) {
+      unawaited(_streamReply(pcm));
+    };
     live.onError = (e) {
+      if (_disposed) return;
       error = e;
       status = e;
       notifyListeners();
     };
     final ok = await live.connect();
+    if (_disposed) {
+      await live.close();
+      return;
+    }
     if (!ok) {
       step = VoiceBookStep.failed;
       error = 'Could not start Gemini Live. Check the key and model in Settings.';
@@ -114,7 +137,12 @@ class VoiceAppointmentService extends ChangeNotifier {
       return;
     }
     _live = live;
+    await _configureAudio();
     await _startMic();
+    if (_disposed) {
+      await stop(resetStep: false);
+      return;
+    }
     step = VoiceBookStep.askHospital;
     status = 'Which hospital?';
     live.sendAppText(
@@ -123,47 +151,43 @@ class VoiceAppointmentService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _playReply() async {
-    final bytes = _replyPcm.takeBytes();
-    if (bytes.isEmpty) return;
+  Future<void> _configureAudio() async {
     try {
-      final wav = _pcm16ToWav(bytes, sampleRate: 24000);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/gemini_live_reply.wav');
-      await file.writeAsBytes(wav, flush: true);
-      await _player.stop();
-      await _player.play(DeviceFileSource(file.path));
+      await FlutterPcmSound.setup(
+        sampleRate: 24000,
+        channelCount: 1,
+        iosAudioCategory: IosAudioCategory.playAndRecord,
+      );
+      await FlutterPcmSound.setFeedThreshold(2400);
+      FlutterPcmSound.setFeedCallback((remaining) {
+        if (remaining <= 0) _playing = false;
+      });
+      FlutterPcmSound.start();
+      _pcmReady = true;
+    } catch (_) {
+      _pcmReady = false;
+    }
+  }
+
+  Future<void> _streamReply(Uint8List pcm) async {
+    if (pcm.isEmpty || _disposed) return;
+    _playing = true;
+    if (!_pcmReady) await _configureAudio();
+    if (!_pcmReady || _disposed) {
+      _playing = false;
+      return;
+    }
+    try {
+      final n = pcm.lengthInBytes ~/ 2;
+      if (n <= 0) return;
+      final bd = ByteData.sublistView(pcm);
+      final samples = List<int>.generate(
+        n,
+        (i) => bd.getInt16(i * 2, Endian.little),
+      );
+      await FlutterPcmSound.feed(PcmArrayInt16.fromList(samples));
     } catch (_) {}
   }
-
-  static Uint8List _pcm16ToWav(List<int> pcm, {required int sampleRate}) {
-    final data = Uint8List.fromList(pcm);
-    final header = BytesBuilder();
-    final byteRate = sampleRate * 2;
-    header.add('RIFF'.codeUnits);
-    header.add(_le32(36 + data.length));
-    header.add('WAVE'.codeUnits);
-    header.add('fmt '.codeUnits);
-    header.add(_le32(16));
-    header.add(_le16(1));
-    header.add(_le16(1));
-    header.add(_le32(sampleRate));
-    header.add(_le32(byteRate));
-    header.add(_le16(2));
-    header.add(_le16(16));
-    header.add('data'.codeUnits);
-    header.add(_le32(data.length));
-    header.add(data);
-    return header.takeBytes();
-  }
-
-  static List<int> _le16(int v) => [v & 0xff, (v >> 8) & 0xff];
-  static List<int> _le32(int v) => [
-        v & 0xff,
-        (v >> 8) & 0xff,
-        (v >> 16) & 0xff,
-        (v >> 24) & 0xff,
-      ];
 
   Future<void> _startMic() async {
     final stream = await _pcm.startStream(
@@ -171,60 +195,99 @@ class VoiceAppointmentService extends ChangeNotifier {
         encoder: AudioEncoder.pcm16bits,
         numChannels: 1,
         sampleRate: 16000,
+        echoCancel: true,
+        noiseSuppress: true,
+        autoGain: true,
       ),
     );
     _micSub = stream.listen((chunk) {
+      if (_playing || _disposed) return;
       _live?.sendPcm16k(chunk);
     });
   }
 
   Future<void> _onUser(String raw) async {
+    if (_disposed || _busy || _playing) return;
     lastHeard = raw;
     notifyListeners();
     final text = raw.trim();
     if (text.isEmpty) return;
+    if (step == VoiceBookStep.booking ||
+        step == VoiceBookStep.done ||
+        step == VoiceBookStep.failed ||
+        step == VoiceBookStep.connecting ||
+        step == VoiceBookStep.idle) {
+      return;
+    }
 
-    switch (step) {
-      case VoiceBookStep.askHospital:
-        await _resolveHospital(text);
-      case VoiceBookStep.askDate:
-      case VoiceBookStep.rejectFutureDate:
-        await _resolveDate(text);
-      case VoiceBookStep.askComplaint:
-        await _resolveComplaint(text);
-      case VoiceBookStep.askDepartment:
-        await _resolveDepartmentSpoken(text);
-      case VoiceBookStep.confirm:
-        await _resolveConfirm(text);
-      default:
-        break;
+    _busy = true;
+    try {
+      switch (step) {
+        case VoiceBookStep.askHospital:
+          await _resolveHospital(text);
+        case VoiceBookStep.confirmHospital:
+          await _resolveHospitalConfirm(text);
+        case VoiceBookStep.askDate:
+        case VoiceBookStep.rejectFutureDate:
+          await _resolveDate(text);
+        case VoiceBookStep.askComplaint:
+          await _resolveComplaint(text);
+        case VoiceBookStep.askDepartment:
+          await _resolveDepartmentSpoken(text);
+        case VoiceBookStep.confirm:
+          await _resolveConfirm(text);
+        default:
+          break;
+      }
+    } finally {
+      _busy = false;
     }
   }
 
   Future<void> _resolveHospital(String text) async {
     final cleaned = text
-        .replaceAll(RegExp(r'(i want|please|appointment|visit|hospital|ke liye|ka|ki|mein|me)', caseSensitive: false), ' ')
+        .replaceAll(
+          RegExp(
+            r'\b(i want|please|appointment|visit|hospital|ke liye|ka|ki|mein)\b',
+            caseSensitive: false,
+          ),
+          ' ',
+        )
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     final q = cleaned.isEmpty ? text : cleaned;
+    if (q.trim().length < 3) {
+      _live?.sendAppText(
+        'Hospital name was too short. Ask them to say the full hospital name.',
+      );
+      status = 'Say the hospital name again.';
+      notifyListeners();
+      return;
+    }
     try {
       final rows = await _api.searchHospitals(q, limit: 20);
       final hospitals = rows
           .map((e) => Hospital.fromJson(Map<String, dynamic>.from(e as Map)))
-          .where((h) => h.isActive && h.hospitalID > 0)
+          .where((h) => h.isActive && h.hospitalID > 0 && h.name.isNotEmpty)
           .toList();
-      Hospital? match;
       final needle = q.toLowerCase();
+      Hospital? match;
       for (final h in hospitals) {
         if (h.name.toLowerCase() == needle) {
           match = h;
           break;
         }
       }
-      match ??= hospitals.cast<Hospital?>().firstWhere(
-        (h) => h!.name.toLowerCase().contains(needle) || needle.contains(h.name.toLowerCase()),
-        orElse: () => hospitals.isNotEmpty ? hospitals.first : null,
-      );
+      if (match == null) {
+        final partial = hospitals
+            .where(
+              (h) =>
+                  h.name.toLowerCase().contains(needle) ||
+                  needle.contains(h.name.toLowerCase()),
+            )
+            .toList();
+        if (partial.isNotEmpty) match = partial.first;
+      }
       if (match == null) {
         _live?.sendAppText(
           'No hospital matched "$text". Ask them to say the hospital name again, slowly.',
@@ -233,16 +296,43 @@ class VoiceAppointmentService extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      hospital = match;
-      step = VoiceBookStep.askDate;
-      status = 'Hospital: ${match.name}. What date?';
-      _live?.sendAppText(
-        'Hospital found: ${match.name}. Ask what date they want. Remind them we can only book today\'s token.',
-      );
-      notifyListeners();
+      await _offerHospital(match);
     } catch (e) {
       _live?.sendAppText('Hospital search failed. Ask them to repeat the hospital name.');
     }
+  }
+
+  Future<void> _offerHospital(Hospital match) async {
+    hospital = match;
+    step = VoiceBookStep.confirmHospital;
+    status = 'Confirm: ${match.name}?';
+    _live?.sendAppText(
+      'Ask: I heard ${match.name}. Is that right? They should say yes or no.',
+    );
+    notifyListeners();
+  }
+
+  Future<void> _resolveHospitalConfirm(String text) async {
+    if (_heardNo(text)) {
+      hospital = null;
+      step = VoiceBookStep.askHospital;
+      status = 'Which hospital?';
+      _live?.sendAppText('They said no. Ask which hospital they want.');
+      notifyListeners();
+      return;
+    }
+    if (!_heardYes(text)) {
+      _live?.sendAppText(
+        'Ask again: I heard ${hospital?.name ?? "that hospital"}. Yes or no?',
+      );
+      return;
+    }
+    step = VoiceBookStep.askDate;
+    status = 'Hospital: ${hospital!.name}. What date?';
+    _live?.sendAppText(
+      'Hospital confirmed: ${hospital!.name}. Ask what date they want. Remind them we can only book today\'s token.',
+    );
+    notifyListeners();
   }
 
   Future<void> _resolveDate(String text) async {
@@ -335,11 +425,7 @@ class VoiceAppointmentService extends ChangeNotifier {
   }
 
   Future<void> _resolveConfirm(String text) async {
-    final t = text.toLowerCase();
-    final yes = RegExp(r'\b(yes|yeah|ok|okay|haan|han|ji|theek|book|confirm|sahi)\b')
-        .hasMatch(t);
-    final no = RegExp(r'\b(no|nah|nahi|cancel|mat|stop)\b').hasMatch(t);
-    if (no) {
+    if (_heardNo(text)) {
       step = VoiceBookStep.failed;
       status = 'Cancelled.';
       _live?.sendAppText('They cancelled. Say goodbye briefly.');
@@ -347,12 +433,19 @@ class VoiceAppointmentService extends ChangeNotifier {
       await stop();
       return;
     }
-    if (!yes) {
+    if (!_heardYes(text)) {
       _live?.sendAppText('Ask again: say yes to book, or no to cancel.');
       return;
     }
     await _book();
   }
+
+  static bool _heardYes(String text) =>
+      RegExp(r'\b(yes|yeah|ok|okay|haan|han|ji|theek|book|confirm|sahi)\b')
+          .hasMatch(text.toLowerCase());
+
+  static bool _heardNo(String text) =>
+      RegExp(r'\b(no|nah|nahi|cancel|mat|stop)\b').hasMatch(text.toLowerCase());
 
   Future<void> _book() async {
     step = VoiceBookStep.booking;
@@ -407,14 +500,16 @@ class VoiceAppointmentService extends ChangeNotifier {
       );
       await UserStorage.addKnownHospitalId(hospital!.hospitalID);
       PatientPortalService.notifyVisitsChanged();
-      step = VoiceBookStep.done;
       status = 'Booked. Token $tokenNumber';
+      notifyListeners();
       _live?.sendAppText(
         'Booking succeeded. Token $tokenNumber at ${hospital!.name}. Tell them briefly. Do not ask more questions.',
       );
+      await _waitForSpeech();
+      await stop(resetStep: false);
+      if (_disposed) return;
+      step = VoiceBookStep.done;
       notifyListeners();
-      await Future<void>.delayed(const Duration(seconds: 4));
-      await stop();
     } catch (e) {
       step = VoiceBookStep.failed;
       error = e.toString().replaceFirst('Exception: ', '');
@@ -424,7 +519,7 @@ class VoiceAppointmentService extends ChangeNotifier {
     }
   }
 
-  Future<void> stop() async {
+  Future<void> stop({bool resetStep = true}) async {
     await _micSub?.cancel();
     _micSub = null;
     try {
@@ -432,17 +527,35 @@ class VoiceAppointmentService extends ChangeNotifier {
     } catch (_) {}
     await _live?.close();
     _live = null;
-    await _player.stop();
-    if (step != VoiceBookStep.done && step != VoiceBookStep.failed) {
+    _playing = false;
+    try {
+      await FlutterPcmSound.release();
+    } catch (_) {}
+    _pcmReady = false;
+    if (resetStep &&
+        step != VoiceBookStep.done &&
+        step != VoiceBookStep.failed) {
       step = VoiceBookStep.idle;
     }
-    notifyListeners();
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<void> _waitForSpeech() async {
+    final deadline = DateTime.now().add(const Duration(seconds: 6));
+    while (!_disposed && DateTime.now().isBefore(deadline)) {
+      if (!_playing) {
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        if (!_playing) return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+    }
   }
 
   @override
   void dispose() {
-    stop();
-    _player.dispose();
+    _disposed = true;
+    stop(resetStep: false);
+    _pcm.dispose();
     super.dispose();
   }
 
@@ -500,10 +613,10 @@ class VoiceAppointmentService extends ChangeNotifier {
     if (depts.isEmpty) return null;
     final c = complaint.toLowerCase();
     final rules = <RegExp, List<String>>{
-      RegExp(r'emerg|accident|hadsa|zakhm|bleeding|blood'): ['emergency', 'er', 'casualty'],
+      RegExp(r'emerg|accident|hadsa|zakhm|bleeding'): ['emergency', 'er', 'casualty'],
       RegExp(r'pregnan|haml|gyne|lady|delivery'): ['gynae', 'gyne', 'obstetric', 'lady'],
-      RegExp(r'child|bach|pead|pedia|infant'): ['pead', 'pedia', 'child'],
-      RegExp(r'bone|fracture|orth|jore|had'): ['orth'],
+      RegExp(r'child|bachch|pead|pedia|infant'): ['pead', 'pedia', 'child'],
+      RegExp(r'bone|fracture|orth|\bjore\b|\bhaddi\b'): ['orth'],
       RegExp(r'eye|aankh|ophthal'): ['eye', 'ophthal'],
       RegExp(r'tooth|dant|dental'): ['dental'],
       RegExp(r'chest|dil|heart|bp|blood pressure|saans|cough|bukhar|fever|pet|stomach'):
