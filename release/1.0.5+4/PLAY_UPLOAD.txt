@@ -1,0 +1,42 @@
+My Health Record — release 1.0.5+4
+====================================
+
+Package:     pk.gov.pshealthpunjab.hmis.patients
+Version:     1.0.5 (versionCode 4)
+Built:       2026-09-01
+APIs:        https://hmis-api.pshealthpunjab.gov.pk
+             https://hmis-authapi.pshealthpunjab.gov.pk
+Signed with: existing upload keystore
+
+Artifacts
+---------
+Play Store upload (AAB):
+  pk.gov.pshealthpunjab.hmis.patients-1.0.5+4.aab
+
+Direct install / sideload (APK):
+  pk.gov.pshealthpunjab.hmis.patients-1.0.5+4.apk
+
+Checksums (SHA-256)
+-------------------
+AAB: fc79afc310cd02d91e0d94813f4d2382fe75e2d8654a8bd9a7ccf16c75a5d73f
+APK: see pk.gov.pshealthpunjab.hmis.patients-1.0.5+4.apk.sha256
+
+Play Console
+------------
+1. Open the app listing → Production (or Internal testing first).
+2. Create a new release → Upload the .aab above.
+3. Confirm version name 1.0.5 and version code 4.
+
+Release notes (suggested)
+-------------------------
+- Add Patient Complaint and History fields when booking a visit.
+- Fix sign-in required errors when loading hospital departments.
+- Fix authenticated queue booking and receipt download.
+
+Backend note
+------------
+Deploy PatientQueue DB migration and updated stored procedures before promoting
+this release if not already on production:
+  Database/PatientQueue_PatientComplaint_History.sql
+  StoredProcedures/sp_AddPatientToQueue.sql
+  StoredProcedures/sp_GetQueueWithReferrals.sql
