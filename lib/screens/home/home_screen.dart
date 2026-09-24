@@ -365,6 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             patientId: widget.patientId,
                             patient: widget.patient,
                             savedUserData: widget.savedUserData,
+                            onTypeInstead: widget.onBookVisit,
                           ),
                           dark: dark,
                           compact: metrics.isCompact,

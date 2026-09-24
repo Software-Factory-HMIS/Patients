@@ -142,10 +142,10 @@ class AppLocalizationsUr extends AppLocalizations {
   String get bookVisit => 'وزٹ بک کریں';
 
   @override
-  String get speakToBook => 'بول کر بک کریں';
+  String get speakToBook => 'آواز سے وزٹ لیں';
 
   @override
-  String get speakToBookTitle => 'بول کر وزٹ بک کریں';
+  String get speakToBookTitle => 'آواز سے وزٹ لیں';
 
   @override
   String get voiceBookingSettings => 'آواز سے بک (Gemini)';
@@ -187,6 +187,37 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get voiceBookingLoading => 'لوڈ ہو رہا ہے…';
+
+  @override
+  String get voiceNearestOnly =>
+      'آپ صرف ان قریبی تحصیل/ضلع ہسپتالوں میں سے ایک کا وزٹ لے سکتے ہیں:';
+
+  @override
+  String get voiceNeedLocation => 'آواز سے بک کرنے کے لیے لوکیشن آن کریں۔';
+
+  @override
+  String get voiceYourToken => 'آپ کا ٹوکن';
+
+  @override
+  String get voiceAiNotice => 'میں کمپیوٹر کلرک ہوں۔ صرف آج کا ٹوکن۔';
+
+  @override
+  String get voiceTypeInstead => 'لکھیں';
+
+  @override
+  String get voiceTapHospital => 'نام بولیں یا دبائیں';
+
+  @override
+  String get voiceExistingToken => 'آج کا ٹوکن پہلے سے ہے';
+
+  @override
+  String get voiceUseThisToken => 'یہی ٹوکن رکھیں';
+
+  @override
+  String get voiceBookAnother => 'دوسرا ہسپتال';
+
+  @override
+  String get voiceFixHint => 'غلط ہو تو یہ لائن دبائیں';
 
   @override
   String get bookAppointment => 'اپائنٹمنٹ بک کریں';

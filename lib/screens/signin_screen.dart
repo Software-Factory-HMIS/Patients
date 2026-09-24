@@ -15,6 +15,7 @@ import '../services/patient_location_service.dart';
 import '../utils/app_localizations_ext.dart';
 import '../widgets/auth/signin_auth_layout.dart';
 import '../widgets/auth/signin_auth_theme.dart';
+import '../widgets/server_selector.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -98,6 +99,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                             CrossAxisAlignment.stretch,
                                         children: [
                                           SignInAuthHeader(metrics: metrics),
+                                          const HiddenServerGate(),
                                           Gap(metrics.mediumGap),
                                           _buildSignInContent(
                                             context,

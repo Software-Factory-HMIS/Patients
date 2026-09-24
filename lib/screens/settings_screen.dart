@@ -297,7 +297,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
     if (!mounted) return;
     setState(() {
       _provider = s.provider;
-      _model = PatientAiSettings.liveModels.contains(s.model)
+      _model = PatientAiSettings.liveModels.containsKey(s.model)
           ? s.model
           : PatientAiSettings.defaultModel;
       _keyCtrl.text = s.apiKey;
@@ -362,16 +362,20 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
           ),
           const Gap(12),
           DropdownButtonFormField<String>(
-            value: PatientAiSettings.liveModels.contains(_model)
+            value: PatientAiSettings.liveModels.containsKey(_model)
                 ? _model
                 : PatientAiSettings.defaultModel,
             decoration: InputDecoration(
               labelText: l.voiceBookingModel,
               border: const OutlineInputBorder(),
             ),
+            isExpanded: true,
             items: [
-              for (final m in PatientAiSettings.liveModels)
-                DropdownMenuItem(value: m, child: Text(m)),
+              for (final e in PatientAiSettings.liveModels.entries)
+                DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.value, overflow: TextOverflow.ellipsis),
+                ),
             ],
             onChanged: (v) {
               if (v != null) setState(() => _model = v);

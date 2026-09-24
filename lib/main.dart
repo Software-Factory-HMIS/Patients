@@ -17,6 +17,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  await ApiConfig.load();
   logResolvedApiEndpoints();
   await AuthService.instance.init();
   await ThemeService.instance.init();

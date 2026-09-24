@@ -189,6 +189,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceBookingLoading => 'Loading…';
 
   @override
+  String get voiceNearestOnly =>
+      'You can only book one of these nearest THQ/DHQ hospitals:';
+
+  @override
+  String get voiceNeedLocation => 'Turn on location to book by voice.';
+
+  @override
+  String get voiceYourToken => 'Your token';
+
+  @override
+  String get voiceAiNotice => 'I am a computer clerk. Today’s token only.';
+
+  @override
+  String get voiceTypeInstead => 'Type';
+
+  @override
+  String get voiceTapHospital => 'Say the name or tap one';
+
+  @override
+  String get voiceExistingToken => 'You already have today’s token';
+
+  @override
+  String get voiceUseThisToken => 'Keep this token';
+
+  @override
+  String get voiceBookAnother => 'Another hospital';
+
+  @override
+  String get voiceFixHint => 'Wrong? Tap that line';
+
+  @override
   String get bookAppointment => 'Book an Appointment';
 
   @override

@@ -5,6 +5,7 @@ class Hospital {
   final String name;
   final String? type;
   final String? subtype;
+  final String? hospitalLevel;
   final bool isActive;
   final String? division;
   final String? district;
@@ -17,6 +18,7 @@ class Hospital {
     required this.name,
     this.type,
     this.subtype,
+    this.hospitalLevel,
     required this.isActive,
     this.division,
     this.district,
@@ -26,6 +28,17 @@ class Hospital {
   });
 
   bool get hasCoordinates => latitude != null && longitude != null;
+
+  /// Booking list is THQ/DHQ only (HospitalLevel, Subtype, Type, or name).
+  bool get isThqOrDhq {
+    final blob = [
+      hospitalLevel,
+      subtype,
+      type,
+      name,
+    ].whereType<String>().join(' ').toUpperCase();
+    return RegExp(r'\bTHQ\b').hasMatch(blob) || RegExp(r'\bDHQ\b').hasMatch(blob);
+  }
 
   /// Hospital coordinates from API, or an approximate district centroid fallback.
   (double, double)? get resolvedCoordinates {
@@ -43,6 +56,8 @@ class Hospital {
       name: json['Name'] as String? ?? json['name'] as String? ?? '',
       type: json['Type'] as String? ?? json['type'] as String?,
       subtype: json['Subtype'] as String? ?? json['subtype'] as String?,
+      hospitalLevel:
+          json['HospitalLevel'] as String? ?? json['hospitalLevel'] as String?,
       isActive: json['IsActive'] as bool? ?? json['isActive'] as bool? ?? true,
       division:
           json['Division'] as String? ??

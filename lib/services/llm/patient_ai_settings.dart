@@ -9,14 +9,20 @@ class PatientAiSettings {
 
   /// Test default — replace in Settings. Do not ship a real production key.
   static const defaultProvider = 'gemini';
-  static const defaultModel = 'gemini-3.1-flash-live-preview';
-  static const fallbackLiveModel = 'gemini-live-2.5-flash-native-audio';
+  static const defaultModel = 'gemini-3.8-live';
+  static const fallbackLiveModel =
+      'gemini-2.5-flash-native-audio-preview-12-2025';
   static const defaultTestApiKey = '';
 
-  static const liveModels = [
-    defaultModel,
-    fallbackLiveModel,
-  ];
+  /// Live API models that can hold a spoken conversation and call tools, best
+  /// first. Transcribe and translate Live models are excluded: they do not
+  /// speak a reply, so they cannot run the booking flow.
+  static const liveModels = <String, String>{
+    defaultModel: 'Gemini 3.8 Live (recommended)',
+    'gemini-3.8-live-extended-thinking': 'Gemini 3.8 Live — extended thinking',
+    'gemini-3.1-flash-live-preview': 'Gemini 3.1 Flash Live (legacy)',
+    fallbackLiveModel: 'Gemini 2.5 Flash Live',
+  };
 
   final String provider;
   final String model;

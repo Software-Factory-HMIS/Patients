@@ -452,6 +452,66 @@ abstract class AppLocalizations {
   /// **'Loading…'**
   String get voiceBookingLoading;
 
+  /// No description provided for @voiceNearestOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only book one of these nearest THQ/DHQ hospitals:'**
+  String get voiceNearestOnly;
+
+  /// No description provided for @voiceNeedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on location to book by voice.'**
+  String get voiceNeedLocation;
+
+  /// No description provided for @voiceYourToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Your token'**
+  String get voiceYourToken;
+
+  /// No description provided for @voiceAiNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'I am a computer clerk. Today’s token only.'**
+  String get voiceAiNotice;
+
+  /// No description provided for @voiceTypeInstead.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get voiceTypeInstead;
+
+  /// No description provided for @voiceTapHospital.
+  ///
+  /// In en, this message translates to:
+  /// **'Say the name or tap one'**
+  String get voiceTapHospital;
+
+  /// No description provided for @voiceExistingToken.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have today’s token'**
+  String get voiceExistingToken;
+
+  /// No description provided for @voiceUseThisToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this token'**
+  String get voiceUseThisToken;
+
+  /// No description provided for @voiceBookAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Another hospital'**
+  String get voiceBookAnother;
+
+  /// No description provided for @voiceFixHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong? Tap that line'**
+  String get voiceFixHint;
+
   /// No description provided for @bookAppointment.
   ///
   /// In en, this message translates to:

@@ -12,27 +12,52 @@ import 'emr_api_client_io.dart'
     as platform_client;
 
 class EmrApiClient {
-  final String baseUrl;
-  final http.Client _client;
-
-  /// Base URL for HMIS_AuthServer (patient lookup + OTP delivery only).
-  final String authServerUrl;
-  final http.Client _authClient;
-
   EmrApiClient({
     String? baseUrl,
     http.Client? client,
     String? authServerUrl,
     http.Client? authClient,
-  }) : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
-       _client = VersionedHttpClient(
-         client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl()),
-       ),
-       authServerUrl = authServerUrl ?? resolveAuthServerBaseUrl(),
-       _authClient = VersionedHttpClient(
-         authClient ??
-             _createHttpClient(authServerUrl ?? resolveAuthServerBaseUrl()),
-       );
+  })  : _baseUrlOverride = baseUrl,
+        _authOverride = authServerUrl,
+        _injectedClient = client,
+        _injectedAuthClient = authClient;
+
+  final String? _baseUrlOverride;
+  final String? _authOverride;
+  final http.Client? _injectedClient;
+  final http.Client? _injectedAuthClient;
+
+  http.Client? _emrClient;
+  String? _emrClientUrl;
+  http.Client? _authHttp;
+  String? _authHttpUrl;
+
+  String get baseUrl => _baseUrlOverride ?? resolveEmrBaseUrl();
+  String get authServerUrl => _authOverride ?? resolveAuthServerBaseUrl();
+
+  http.Client get _client {
+    if (_injectedClient != null) {
+      return _emrClient ??= VersionedHttpClient(_injectedClient!);
+    }
+    final url = baseUrl;
+    if (_emrClient == null || _emrClientUrl != url) {
+      _emrClient = VersionedHttpClient(_createHttpClient(url));
+      _emrClientUrl = url;
+    }
+    return _emrClient!;
+  }
+
+  http.Client get _authClient {
+    if (_injectedAuthClient != null) {
+      return _authHttp ??= VersionedHttpClient(_injectedAuthClient!);
+    }
+    final url = authServerUrl;
+    if (_authHttp == null || _authHttpUrl != url) {
+      _authHttp = VersionedHttpClient(_createHttpClient(url));
+      _authHttpUrl = url;
+    }
+    return _authHttp!;
+  }
 
   /// Creates an HTTP client with appropriate SSL certificate handling
   /// - For development URLs (localhost, private IPs): Bypasses SSL validation (native only)
@@ -1037,6 +1062,27 @@ class EmrApiClient {
       if (token.isEmpty) return null;
       final model = (data['model'] ?? data['Model'] ?? '').toString().trim();
       return (token: token, model: model);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Display-only: Roman / mixed line → Pakistani Urdu script.
+  Future<String?> toUrduScript(String text) async {
+    final raw = text.trim();
+    if (raw.isEmpty) return raw;
+    final uri = Uri.parse('$baseUrl/api/patient-ai/urdu-script');
+    try {
+      final res = await _authenticatedPost(uri, body: {'text': raw})
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final decoded = json.decode(res.body);
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      final inner = map['data'] ?? map['Data'];
+      final data = inner is Map ? Map<String, dynamic>.from(inner) : map;
+      final out = (data['text'] ?? data['Text'] ?? '').toString().trim();
+      return out.isEmpty ? null : out;
     } catch (_) {
       return null;
     }
