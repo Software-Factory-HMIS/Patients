@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:gap/gap.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -11,33 +10,27 @@ import '../services/pharmacy_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../utils/app_date_format.dart';
 import '../utils/app_snackbar.dart';
-
-// ponytail: legacy diagnostics stay available in debug without leaking PHI
-// from release builds; replace call sites with structured redacted logging if
-// production diagnostics are introduced.
-void print(Object? message) {
-  if (kDebugMode) debugPrint(message?.toString());
-}
+import '../utils/clinical_history_assembler.dart';
+import '../utils/lab_order_presenter.dart';
 
 class PatientHistoryDashboardScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
 
-  const PatientHistoryDashboardScreen({Key? key, required this.patient})
-    : super(key: key);
+  const PatientHistoryDashboardScreen({
+    Key? key,
+    required this.patient,
+  }) : super(key: key);
 
   @override
-  State<PatientHistoryDashboardScreen> createState() =>
-      _PatientHistoryDashboardScreenState();
+  State<PatientHistoryDashboardScreen> createState() => _PatientHistoryDashboardScreenState();
 }
 
-class _PatientHistoryDashboardScreenState
-    extends State<PatientHistoryDashboardScreen>
-    with SingleTickerProviderStateMixin {
+class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final PatientService _patientService = PatientService();
   final EncounterService _encounterService = EncounterService();
   final PregnancyService _pregnancyService = PregnancyService();
-
+  
   // Data storage (encounter-driven: same as ipd_file_screen)
   Map<String, dynamic>? _patientDetails;
   List<Map<String, dynamic>> _encounterDataList = [];
@@ -49,31 +42,32 @@ class _PatientHistoryDashboardScreenState
   List<dynamic>? _riskFactors;
   List<dynamic>? _allergies;
   Map<String, dynamic>? _activePregnancy;
-
+  
   bool _loading = false;
   String? _error;
   bool _showOverlay = false;
   String? _selectedSection;
   bool _isMedicalCardsExpanded = false;
+  DateTime _fromDate = DateTime.now().subtract(const Duration(days: 15));
+  DateTime _toDate = DateTime.now();
+  bool _activeMedsLoaded = false;
+  bool _surgeryLoaded = false;
+  bool _pregnancyLoaded = false;
+  List<dynamic> _labResultsFromApi = [];
+  List<dynamic> _radiologyFromApi = [];
 
   // Search controllers for each section
   final TextEditingController _vitalsSearchController = TextEditingController();
-  final TextEditingController _medicationsSearchController =
-      TextEditingController();
+  final TextEditingController _medicationsSearchController = TextEditingController();
   final TextEditingController _opdSearchController = TextEditingController();
   final TextEditingController _ipdSearchController = TextEditingController();
   final TextEditingController _labsSearchController = TextEditingController();
-  final TextEditingController _radiologySearchController =
-      TextEditingController();
-  final TextEditingController _surgerySearchController =
-      TextEditingController();
-  final TextEditingController _pregnancySearchController =
-      TextEditingController();
+  final TextEditingController _radiologySearchController = TextEditingController();
+  final TextEditingController _surgerySearchController = TextEditingController();
+  final TextEditingController _pregnancySearchController = TextEditingController();
 
   bool get _isMale {
-    final gender = (widget.patient['gender'] ?? widget.patient['Gender'] ?? '')
-        .toString()
-        .toLowerCase();
+    final gender = (widget.patient['gender'] ?? widget.patient['Gender'] ?? '').toString().toLowerCase();
     return gender == 'male' || gender == 'm';
   }
 
@@ -81,21 +75,14 @@ class _PatientHistoryDashboardScreenState
     if (_isMale) return false;
     final ageRaw = widget.patient['age'] ?? widget.patient['Age'];
     if (ageRaw == null) return false;
-    final age = ageRaw is num
-        ? ageRaw.toInt()
-        : int.tryParse(ageRaw.toString().replaceAll(RegExp(r'[^\d]'), ''));
+    final age = ageRaw is num ? ageRaw.toInt() : int.tryParse(ageRaw.toString().replaceAll(RegExp(r'[^\d]'), ''));
     return age != null && age >= 15;
   }
 
   /// OPD encounters from _encounterDataList (encounterType OPD)
   List<Map<String, dynamic>> get _opdEncounters {
     return _encounterDataList.where((e) {
-      final t =
-          (e['encounter'] as Map<String, dynamic>)['encounterType']
-              ?.toString() ??
-          (e['encounter'] as Map<String, dynamic>)['EncounterType']
-              ?.toString() ??
-          '';
+      final t = (e['encounter'] as Map<String, dynamic>)['encounterType']?.toString() ?? (e['encounter'] as Map<String, dynamic>)['EncounterType']?.toString() ?? '';
       return t.toUpperCase() == 'OPD';
     }).toList();
   }
@@ -103,40 +90,32 @@ class _PatientHistoryDashboardScreenState
   /// IPD encounters from _encounterDataList (encounterType IPD)
   List<Map<String, dynamic>> get _ipdEncounters {
     return _encounterDataList.where((e) {
-      final t =
-          (e['encounter'] as Map<String, dynamic>)['encounterType']
-              ?.toString() ??
-          (e['encounter'] as Map<String, dynamic>)['EncounterType']
-              ?.toString() ??
-          '';
+      final t = (e['encounter'] as Map<String, dynamic>)['encounterType']?.toString() ?? (e['encounter'] as Map<String, dynamic>)['EncounterType']?.toString() ?? '';
       return t.toUpperCase() == 'IPD';
     }).toList();
   }
 
-  /// Flattened lab orders from all encounters (package/test expansion like ipd_file_screen)
+  String _labDedupeKey(Map<String, dynamic> m) => LabOrderPresenter.dedupeKey(m);
+
+  /// Flattened labs: encounter orders + top-level clinical-history labs (Gap 4A merge).
   List<Map<String, dynamic>> get _aggregatedLabOrders {
     final List<Map<String, dynamic>> out = [];
+    final seen = <String>{};
+
     for (final data in _encounterDataList) {
       final encounter = data['encounter'] as Map<String, dynamic>? ?? {};
-      final encounterDate =
-          encounter['encounterDate'] ??
-          encounter['EncounterDate'] ??
-          encounter['checkInTime'] ??
-          '';
+      final encounterDate = encounter['encounterDate'] ?? encounter['EncounterDate'] ?? encounter['checkInTime'] ?? '';
       final dateStr = _formatDateDDMMYYYY(encounterDate);
       final labOrdersRaw = data['labOrders'] as List<dynamic>? ?? [];
       final packageMap = <String, Map<String, dynamic>>{};
       final testItems = <Map<String, dynamic>>[];
       for (final order in labOrdersRaw) {
+        if (order is! Map) continue;
         final packageId = order['packageId'];
         final isPackage = packageId != null;
         if (isPackage) {
           final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
           if (!packageMap.containsKey(packageKey)) {
-            final rateValue = order['rate'];
-            final rate = rateValue is num
-                ? rateValue.toDouble()
-                : double.tryParse(rateValue?.toString() ?? '') ?? 0;
             packageMap[packageKey] = {
               'type': 'package',
               'packageId': packageId,
@@ -180,44 +159,90 @@ class _PatientHistoryDashboardScreenState
           m['packageName'] = pkg['packageName'];
           m['testName'] = m['testName'] ?? 'N/A';
           m['encounterDate'] = dateStr;
-          out.add(m);
+          final key = _labDedupeKey(m);
+          if (seen.add(key)) out.add(m);
         }
       }
       for (final t in testItems) {
         final m = Map<String, dynamic>.from(t);
         m['encounterDate'] = dateStr;
-        out.add(m);
+        final key = _labDedupeKey(m);
+        if (seen.add(key)) out.add(m);
       }
+    }
+
+    // Merge top-level labs from clinical-history (may include results without encounter link)
+    for (final raw in _labResultsFromApi) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      final dateRaw = m['sampleDate'] ?? m['date'] ?? m['Date'] ?? m['SampleDate'];
+      final mapped = <String, dynamic>{
+        'type': 'api_lab',
+        'packageName': m['packageName'] ?? 'Lab Results',
+        'testName': m['test'] ?? m['Test'] ?? m['testName'] ?? 'N/A',
+        'resultId': m['resultId'] ?? m['ResultID'],
+        'resultValue': m['result'] ?? m['Result'] ?? m['resultValue'],
+        'resultNumeric': m['resultNumeric'],
+        'units': m['units'],
+        'referenceRange': m['normalRange'] ?? m['Normal Range'] ?? m['referenceRange'],
+        'abnormalFlags': m['abnormalFlags'],
+        'resultStatus': m['status'] ?? m['Status'],
+        'isCritical': m['isCritical'],
+        'encounterDate': dateRaw != null ? _formatDateDDMMYYYY(dateRaw) : (m['date'] ?? m['Date'] ?? '').toString(),
+        'orderedBy': m['orderedBy'] ?? m['Ordered By'],
+        'reportedBy': m['reportedBy'] ?? m['Reported By'],
+      };
+      final key = _labDedupeKey(mapped);
+      if (seen.add(key)) out.add(mapped);
     }
     return out;
   }
 
   /// Count of lab packages + standalone test orders (for tile display), not total test rows.
   int get _labPackageCount {
-    int count = 0;
+    var count = 0;
     for (final data in _encounterDataList) {
-      final labOrdersRaw = data['labOrders'] as List<dynamic>? ?? [];
-      final packageKeys = <String>{};
-      int standalone = 0;
-      for (final order in labOrdersRaw) {
-        final packageId = order['packageId'];
-        if (packageId != null) {
-          final packageKey = 'package_${packageId}_${order['orderId'] ?? ''}';
-          packageKeys.add(packageKey);
-        } else {
-          standalone++;
-        }
-      }
-      count += packageKeys.length + standalone;
+      count += LabOrderPresenter.countPackagesAndStandalone(
+        data['labOrders'] as List<dynamic>? ?? [],
+      );
     }
     return count;
   }
 
-  /// Flattened radiology orders from all encounters
+  String _radDedupeKey(Map<String, dynamic> m) {
+    final detailId = m['orderDetailId'] ?? m['OrderDetailID'];
+    if (detailId != null && detailId.toString().isNotEmpty) return 'od:$detailId';
+    final reportId = m['reportId'] ?? m['ReportID'];
+    if (reportId != null && reportId.toString().isNotEmpty) return 'rp:$reportId';
+    final name = (m['testName'] ?? m['procedure'] ?? '').toString().trim().toLowerCase();
+    final date = (m['orderDate'] ?? m['date'] ?? '').toString().trim().toLowerCase();
+    return 'n:$name|d:$date';
+  }
+
+  /// Flattened radiology: encounter orders + top-level clinical-history radiology (Gap 4A merge).
   List<dynamic> get _aggregatedRadiologyOrders {
     final List<dynamic> out = [];
+    final seen = <String>{};
+
     for (final data in _encounterDataList) {
-      out.addAll(data['radiologyOrders'] as List<dynamic>? ?? []);
+      for (final raw in (data['radiologyOrders'] as List<dynamic>? ?? const [])) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        final key = _radDedupeKey(m);
+        if (seen.add(key)) out.add(m);
+      }
+    }
+
+    for (final raw in _radiologyFromApi) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      // Normalize display fields used by Labs/Rad tables
+      m.putIfAbsent('testName', () => m['procedure'] ?? m['TestName']);
+      m.putIfAbsent('finalFindings', () => m['findings'] ?? m['FinalFindings']);
+      m.putIfAbsent('radiologist_Name', () => m['radiologist'] ?? m['Radiologist_Name']);
+      m.putIfAbsent('orderDate', () => m['date'] ?? m['OrderDate']);
+      final key = _radDedupeKey(m);
+      if (seen.add(key)) out.add(m);
     }
     return out;
   }
@@ -225,17 +250,40 @@ class _PatientHistoryDashboardScreenState
   @override
   void initState() {
     super.initState();
+    _fromDate = DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
+    _toDate = DateTime(_toDate.year, _toDate.month, _toDate.day);
     // Use 7 tabs if no pregnancy (male or female < 15), 8 tabs if female 15+
     _tabController = TabController(length: _showPregnancy ? 8 : 7, vsync: this);
+    _tabController.addListener(_onHistoryTabChanged);
     _loadPatientHistory();
   }
 
-  Widget _pill({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  void _onHistoryTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    _loadHistoryTab(_tabController.index);
+    _prefetchNeighborHistoryTab(_tabController.index);
+  }
+
+  void _loadHistoryTab(int i) {
+    if (i == 1) _ensureActiveMedicinesLoaded();
+    if (i == 6) _ensureSurgeryLoaded();
+    if (i == 7) _ensurePregnancyLoaded();
+  }
+
+  void _prefetchNeighborHistoryTab(int i) {
+    _loadHistoryTab(i + 1);
+  }
+
+  void _prefetchUpcomingHistoryTabs() {
+    _ensureActiveMedicinesLoaded();
+    Future<void>.delayed(const Duration(milliseconds: 400), () {
+      if (!mounted || _loading) return;
+      _ensureSurgeryLoaded();
+      if (_showPregnancy) _ensurePregnancyLoaded();
+    });
+  }
+
+  Widget _pill({required IconData icon, required String label, required String value, required Color color}) {
     final text = value.isNotEmpty ? value : 'None';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -251,22 +299,14 @@ class _PatientHistoryDashboardScreenState
           const SizedBox(width: 6),
           Text(
             '$label: ',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 12),
           ),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 200),
             child: Text(
               text,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -276,6 +316,7 @@ class _PatientHistoryDashboardScreenState
 
   @override
   void dispose() {
+    _tabController.removeListener(_onHistoryTabChanged);
     _tabController.dispose();
     _vitalsSearchController.dispose();
     _medicationsSearchController.dispose();
@@ -292,6 +333,13 @@ class _PatientHistoryDashboardScreenState
     setState(() {
       _loading = true;
       _error = null;
+      _activeMedsLoaded = false;
+      _surgeryLoaded = false;
+      _pregnancyLoaded = false;
+      _activeMedicines = [];
+      _surgery = null;
+      _pregnancyRecords = null;
+      _activePregnancy = null;
     });
 
     try {
@@ -300,43 +348,27 @@ class _PatientHistoryDashboardScreenState
         setState(() => _loading = false);
         return;
       }
-      final parsedPatientId = patientId is int
-          ? patientId
-          : int.parse(patientId.toString());
+      final parsedPatientId = patientId is int ? patientId : int.parse(patientId.toString());
 
-      // Phase 1: parallel load (same as ipd_file_screen + pharmacy active meds)
+      final days = _toDate.difference(_fromDate).inDays;
+      if (days > 90 && mounted) {
+        AppSnackBar.showInfo(
+          context,
+          'Large range ($days days). Results capped (50 encounters / 100 labs / 50 radiology).',
+        );
+      }
+
       final results = await Future.wait([
+        _encounterService.getPatientClinicalHistory(
+          parsedPatientId,
+          fromDate: _fromDate,
+          toDate: _toDate,
+        ),
         _patientService.getPatientDetails(patientId).catchError((e) {
           print('Error loading patient details: $e');
           return null;
         }),
-        _encounterService.getAllPatientEncounters(parsedPatientId).catchError((
-          e,
-        ) {
-          print('Error loading encounters: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _encounterService.getPatientVitals(parsedPatientId).catchError((e) {
-          print('Error loading vitals: $e');
-          return <dynamic>[];
-        }),
-        PharmacyService.getActivePatientMedicines(
-          patientId: parsedPatientId,
-        ).catchError((e) {
-          print('Error loading active medicines: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _pregnancyService.getPatientSurgeries(parsedPatientId).catchError((e) {
-          print('Error loading surgeries: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _pregnancyService.getPregnancyHistory(parsedPatientId).catchError((e) {
-          print('Error loading pregnancy history: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        _encounterService.getPatientChronicConditions(patientId).catchError((
-          e,
-        ) {
+        _encounterService.getPatientChronicConditions(patientId).catchError((e) {
           print('Error loading chronic conditions: $e');
           return <dynamic>[];
         }),
@@ -348,91 +380,24 @@ class _PatientHistoryDashboardScreenState
           print('Error loading allergies: $e');
           return <Map<String, dynamic>>[];
         }),
-        _pregnancyService.getActivePregnancy(parsedPatientId).catchError((e) {
-          print('Error loading active pregnancy: $e');
-          return null;
-        }),
       ]);
 
-      _patientDetails = results[0] as Map<String, dynamic>?;
-      final encounters = results[1] as List<Map<String, dynamic>>;
-      _allVitals = results[2] as List<dynamic>;
-      _activeMedicines = (results[3] as List<Map<String, dynamic>>?) ?? [];
-      _surgery = results[4] as List<dynamic>?;
-      _pregnancyRecords = results[5] as List<dynamic>?;
-      _chronicConditions = results[6] as List<dynamic>?;
-      _riskFactors = results[7] as List<dynamic>?;
-      _allergies = results[8] as List<dynamic>?;
-      _activePregnancy = results[9] as Map<String, dynamic>?;
-
-      // Phase 2: build _encounterDataList (getEncounterConsultationData per encounter, like ipd_file_screen)
-      final Map<int, List<dynamic>> vitalsByEncounterId = {};
-      for (final vital in _allVitals) {
-        final encounterId =
-            vital['encounterId'] ??
-            vital['EncounterID'] ??
-            vital['encounterID'];
-        if (encounterId != null) {
-          final id = encounterId is int
-              ? encounterId
-              : int.tryParse(encounterId.toString());
-          if (id != null) {
-            vitalsByEncounterId.putIfAbsent(id, () => []).add(vital);
-          }
-        }
+      final history = results[0] as Map<String, dynamic>;
+      _patientDetails = results[1] as Map<String, dynamic>?;
+      final header = history['header'];
+      if (header is Map) {
+        _patientDetails = {
+          ...?_patientDetails,
+          ...Map<String, dynamic>.from(header),
+        };
       }
-
-      final List<Map<String, dynamic>> encounterDataList = [];
-      for (final encounter in encounters) {
-        final encounterId =
-            encounter['encounterId'] ??
-            encounter['EncounterID'] ??
-            encounter['encounterID'];
-        if (encounterId == null) continue;
-        final parsedEncounterId = encounterId is int
-            ? encounterId
-            : int.tryParse(encounterId.toString());
-        if (parsedEncounterId == null) continue;
-        try {
-          final consultationData = await _encounterService
-              .getEncounterConsultationData(
-                parsedEncounterId,
-                patientId: parsedPatientId,
-              );
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitalsByEncounterId[parsedEncounterId] ?? [],
-            'complaints': consultationData['complaints'] ?? [],
-            'symptoms': consultationData['symptoms'] ?? [],
-            'diagnoses': consultationData['diagnoses'] ?? [],
-            'labOrders': consultationData['labOrders'] ?? [],
-            'radiologyOrders': consultationData['radiologyOrders'] ?? [],
-            'medicines': consultationData['medicines'] ?? [],
-            'notes':
-                consultationData['notes'] ??
-                consultationData['patientNotes'] ??
-                [],
-            'clinicalNotes':
-                consultationData['clinicalNotes'] ??
-                consultationData['clinicalNote'] ??
-                '',
-          });
-        } catch (e) {
-          print('Error loading encounter data for $parsedEncounterId: $e');
-          encounterDataList.add({
-            'encounter': encounter,
-            'vitals': vitalsByEncounterId[parsedEncounterId] ?? [],
-            'complaints': [],
-            'symptoms': [],
-            'diagnoses': [],
-            'labOrders': [],
-            'radiologyOrders': [],
-            'medicines': [],
-            'notes': [],
-            'clinicalNotes': '',
-          });
-        }
-      }
+      _chronicConditions = results[2] as List<dynamic>?;
+      _riskFactors = results[3] as List<dynamic>?;
+      _allergies = results[4] as List<dynamic>?;
+      _allVitals = List<dynamic>.from(history['vitals'] as List? ?? const []);
+      _labResultsFromApi = List<dynamic>.from(history['labs'] as List? ?? const []);
+      _radiologyFromApi = List<dynamic>.from(history['radiology'] as List? ?? const []);
+      final encounterDataList = ClinicalHistoryAssembler.fromHistory(history);
 
       if (mounted) {
         setState(() {
@@ -440,6 +405,7 @@ class _PatientHistoryDashboardScreenState
           _loading = false;
           _error = null;
         });
+        _prefetchUpcomingHistoryTabs();
       }
     } catch (e) {
       print('Unexpected error loading patient history: $e');
@@ -449,6 +415,62 @@ class _PatientHistoryDashboardScreenState
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _ensureActiveMedicinesLoaded() async {
+    if (_activeMedsLoaded || _loading) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _activeMedsLoaded = true;
+    try {
+      final meds = await PharmacyService.getActivePatientMedicines(patientId: parsed);
+      if (mounted) setState(() => _activeMedicines = meds);
+    } catch (e) {
+      print('Error lazy-loading active medicines: $e');
+      _activeMedsLoaded = false;
+    }
+  }
+
+  Future<void> _ensureSurgeryLoaded() async {
+    if (_surgeryLoaded || _loading) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _surgeryLoaded = true;
+    try {
+      final s = await _pregnancyService.getPatientSurgeries(parsed);
+      if (mounted) setState(() => _surgery = s);
+    } catch (e) {
+      print('Error lazy-loading surgery: $e');
+      _surgeryLoaded = false;
+    }
+  }
+
+  Future<void> _ensurePregnancyLoaded() async {
+    if (_pregnancyLoaded || _loading || !_showPregnancy) return;
+    final patientId = widget.patient['patientId'];
+    if (patientId == null) return;
+    final parsed = patientId is int ? patientId : int.tryParse(patientId.toString());
+    if (parsed == null) return;
+    _pregnancyLoaded = true;
+    try {
+      final results = await Future.wait([
+        _pregnancyService.getPregnancyHistory(parsed).catchError((_) => <Map<String, dynamic>>[]),
+        _pregnancyService.getActivePregnancy(parsed).catchError((_) => null),
+      ]);
+      if (mounted) {
+        setState(() {
+          _pregnancyRecords = results[0] as List<dynamic>?;
+          _activePregnancy = results[1] as Map<String, dynamic>?;
+        });
+      }
+    } catch (e) {
+      print('Error lazy-loading pregnancy: $e');
+      _pregnancyLoaded = false;
     }
   }
 
@@ -462,126 +484,110 @@ class _PatientHistoryDashboardScreenState
     final isMobileLandscape = !isTablet && !isPortrait;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF1F5F9),
       body: SafeArea(
         child: Stack(
           children: [
             _loading
-                ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 36,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: CircularProgressIndicator(strokeWidth: 3),
-                          ),
-                          const Gap(20),
-                          Text(
-                            'Loading patient history...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+              ? Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                  )
-                : _error != null
-                ? Center(
-                    child: Container(
-                      margin: const EdgeInsets.all(32),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 36,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                        const Gap(20),
+                        Text(
+                          'Loading patient history...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.error_outline_rounded,
-                            size: 56,
-                            color: Colors.red.shade400,
-                          ),
-                          const Gap(20),
-                          Text(
-                            'Error loading patient history',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey.shade800,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const Gap(10),
-                          Text(
-                            _error!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                              height: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const Gap(24),
-                          ElevatedButton.icon(
-                            onPressed: _loadPatientHistory,
-                            icon: const Icon(Icons.refresh_rounded, size: 20),
-                            label: const Text('Retry'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF5B6B9E),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 28,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 0,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  )
-                : isTablet
-                ? _buildTabletLayout()
-                : _buildMobileLayout(
-                    isPortrait: isPortrait,
-                    isLandscape: isMobileLandscape,
                   ),
-
+                )
+              : _error != null
+                  ? Center(
+                      child: Container(
+                        margin: const EdgeInsets.all(32),
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline_rounded, size: 56, color: Colors.red.shade400),
+                            const Gap(20),
+                            Text(
+                              'Error loading patient history',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade800,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const Gap(10),
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                                height: 1.4,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const Gap(24),
+                            ElevatedButton.icon(
+                              onPressed: _loadPatientHistory,
+                              icon: const Icon(Icons.refresh_rounded, size: 20),
+                              label: const Text('Retry'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF5B6B9E),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : isTablet
+                      ? _buildTabletLayout()
+                      : _buildMobileLayout(isPortrait: isPortrait, isLandscape: isMobileLandscape),
+          
             // Overlay for section details
             if (_showOverlay) _buildSectionOverlay(),
           ],
@@ -607,10 +613,7 @@ class _PatientHistoryDashboardScreenState
   }
 
   // Mobile layout: adapts to portrait and landscape
-  Widget _buildMobileLayout({
-    required bool isPortrait,
-    required bool isLandscape,
-  }) {
+  Widget _buildMobileLayout({required bool isPortrait, required bool isLandscape}) {
     final gap = isLandscape ? 10.0 : 16.0;
     return SingleChildScrollView(
       child: Column(
@@ -632,47 +635,29 @@ class _PatientHistoryDashboardScreenState
       final list = items.where((e) => e.trim().isNotEmpty).toList();
       if (list.isEmpty) return 'None';
       if (list.length > max) {
-        return list.sublist(0, max).join(', ') +
-            ' +' +
-            (list.length - max).toString();
+        return list.sublist(0, max).join(', ') + ' +' + (list.length - max).toString();
       }
       return list.join(', ');
     }
 
-    final String name =
-        widget.patient['fullName'] ??
-        widget.patient['name'] ??
-        'Unknown Patient';
+    final String name = widget.patient['fullName'] ?? widget.patient['name'] ?? 'Unknown Patient';
     final String mrn = widget.patient['mrn']?.toString() ?? 'N/A';
     final String gender = widget.patient['gender']?.toString() ?? '';
-    final String age = (widget.patient['age'] != null)
-        ? '${widget.patient['age']}y'
-        : '';
+    final String age = (widget.patient['age'] != null) ? '${widget.patient['age']}y' : '';
     final String blood = _patientDetails?['bloodType']?.toString() ?? '';
 
     final allergiesText = joinWithComma(
       (_allergies ?? [])
-          .map(
-            (a) =>
-                '${a['allergyName'] ?? ''}${a['severity'] != null ? ' (${a['severity']})' : ''}',
-          )
+          .map((a) => '${a['allergyName'] ?? ''}${a['severity'] != null ? ' (${a['severity']})' : ''}')
           .cast<String>(),
     );
     final chronicText = joinWithComma(
       (_chronicConditions ?? [])
-          .map(
-            (c) =>
-                '${c['conditionName'] ?? ''}${c['conditionCode'] != null ? ' (${c['conditionCode']})' : ''}',
-          )
+          .map((c) => '${c['conditionName'] ?? ''}${c['conditionCode'] != null ? ' (${c['conditionCode']})' : ''}')
           .cast<String>(),
     );
     final medsText = joinWithComma(
-      _activeMedicines
-          .map(
-            (m) => (m['medication'] ?? m['medicationName'] ?? m['name'] ?? '')
-                .toString(),
-          )
-          .cast<String>(),
+      _activeMedicines.map((m) => (m['medication'] ?? m['medicationName'] ?? m['name'] ?? '').toString()).cast<String>(),
       max: 6,
     );
     final risksText = joinWithComma(
@@ -687,16 +672,16 @@ class _PatientHistoryDashboardScreenState
     final hPad = isCompact ? 16.0 : 24.0;
     final topGap = isCompact ? 12.0 : 20.0;
     return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: isCompact ? 6 : 12,
-      ),
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: isCompact ? 6 : 12),
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [const Color(0xFF5B6B9E), const Color(0xFF4A5568)],
+          colors: [
+            const Color(0xFF5B6B9E),
+            const Color(0xFF4A5568),
+          ],
         ),
         borderRadius: BorderRadius.circular(isCompact ? 14 : 20),
         boxShadow: [
@@ -719,11 +704,7 @@ class _PatientHistoryDashboardScreenState
                   color: Colors.white.withOpacity(0.18),
                   borderRadius: BorderRadius.circular(isCompact ? 10 : 14),
                 ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: isCompact ? 22 : 28,
-                ),
+                child: Icon(Icons.person_rounded, color: Colors.white, size: isCompact ? 22 : 28),
               ),
               Gap(isCompact ? 12 : 20),
               Expanded(
@@ -762,30 +743,10 @@ class _PatientHistoryDashboardScreenState
             spacing: isCompact ? 6 : 10,
             runSpacing: isCompact ? 6 : 10,
             children: [
-              _pill(
-                icon: Icons.warning_amber_rounded,
-                label: 'Allergies',
-                value: allergiesText,
-                color: Colors.orangeAccent,
-              ),
-              _pill(
-                icon: Icons.healing,
-                label: 'Chronic',
-                value: chronicText,
-                color: Colors.lightBlueAccent,
-              ),
-              _pill(
-                icon: Icons.local_pharmacy,
-                label: 'Current Meds',
-                value: medsText,
-                color: Colors.pinkAccent,
-              ),
-              _pill(
-                icon: Icons.report_problem,
-                label: 'Risk Factors',
-                value: risksText,
-                color: Colors.redAccent,
-              ),
+              _pill(icon: Icons.warning_amber_rounded, label: 'Allergies', value: allergiesText, color: Colors.orangeAccent),
+              _pill(icon: Icons.healing, label: 'Chronic', value: chronicText, color: Colors.lightBlueAccent),
+              _pill(icon: Icons.local_pharmacy, label: 'Current Meds', value: medsText, color: Colors.pinkAccent),
+              _pill(icon: Icons.report_problem, label: 'Risk Factors', value: risksText, color: Colors.redAccent),
             ],
           ),
         ],
@@ -896,8 +857,7 @@ class _PatientHistoryDashboardScreenState
             iconColor: Colors.red,
             label: 'Allergies:',
             items: _allergies!,
-            getItemText: (item) =>
-                '${item['allergyName'] ?? 'Unknown'} (${item['severity'] ?? 'Unknown'})',
+            getItemText: (item) => '${item['allergyName'] ?? 'Unknown'} (${item['severity'] ?? 'Unknown'})',
           ),
         // Chronic Conditions
         if (_chronicConditions != null && _chronicConditions!.isNotEmpty)
@@ -906,8 +866,7 @@ class _PatientHistoryDashboardScreenState
             iconColor: Colors.purple,
             label: 'Chronic:',
             items: _chronicConditions!,
-            getItemText: (item) =>
-                '${item['conditionName'] ?? 'Unknown'} (${item['conditionCode'] ?? ''})',
+            getItemText: (item) => '${item['conditionName'] ?? 'Unknown'} (${item['conditionCode'] ?? ''})',
           ),
         // Current Medications
         if (_activeMedicines.isNotEmpty)
@@ -916,8 +875,7 @@ class _PatientHistoryDashboardScreenState
             iconColor: Colors.red,
             label: 'Current Meds:',
             items: _activeMedicines,
-            getItemText: (item) =>
-                '${item['medication'] ?? item['medicationName'] ?? item['name'] ?? 'Unknown'} ${item['dosage'] ?? item['strength'] ?? ''}',
+            getItemText: (item) => '${item['medication'] ?? item['medicationName'] ?? item['name'] ?? 'Unknown'} ${item['dosage'] ?? item['strength'] ?? ''}',
           ),
       ],
     );
@@ -949,7 +907,10 @@ class _PatientHistoryDashboardScreenState
           Expanded(
             child: Text(
               items.map((item) => getItemText(item)).join(', '),
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -967,8 +928,7 @@ class _PatientHistoryDashboardScreenState
             icon: Icons.health_and_safety,
             color: Colors.red,
             data: _chronicConditions,
-            getItemName: (item) =>
-                item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
+            getItemName: (item) => item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
             getItemCode: (item) => item['conditionCode'] ?? item['code'] ?? '',
           ),
         ),
@@ -980,8 +940,7 @@ class _PatientHistoryDashboardScreenState
             icon: Icons.warning,
             color: Colors.orange,
             data: _riskFactors,
-            getItemName: (item) =>
-                item['riskFactorName'] ?? 'Unknown Risk Factor',
+            getItemName: (item) => item['riskFactorName'] ?? 'Unknown Risk Factor',
             getItemCode: (item) => item['severityLevel'] ?? '',
           ),
         ),
@@ -1010,8 +969,7 @@ class _PatientHistoryDashboardScreenState
           icon: Icons.health_and_safety,
           color: Colors.red,
           data: _chronicConditions,
-          getItemName: (item) =>
-              item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
+          getItemName: (item) => item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
           getItemCode: (item) => item['conditionCode'] ?? item['code'] ?? '',
         ),
         const Gap(6),
@@ -1021,8 +979,7 @@ class _PatientHistoryDashboardScreenState
           icon: Icons.warning,
           color: Colors.orange,
           data: _riskFactors,
-          getItemName: (item) =>
-              item['riskFactorName'] ?? 'Unknown Risk Factor',
+          getItemName: (item) => item['riskFactorName'] ?? 'Unknown Risk Factor',
           getItemCode: (item) => item['severityLevel'] ?? '',
         ),
         const Gap(6),
@@ -1050,8 +1007,7 @@ class _PatientHistoryDashboardScreenState
             icon: Icons.health_and_safety,
             color: Colors.red,
             data: _chronicConditions,
-            getItemName: (item) =>
-                item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
+            getItemName: (item) => item['conditionName'] ?? item['name'] ?? 'Unknown Condition',
             getItemCode: (item) => item['conditionCode'] ?? item['code'] ?? '',
           ),
           const Gap(8),
@@ -1061,8 +1017,7 @@ class _PatientHistoryDashboardScreenState
             icon: Icons.warning,
             color: Colors.orange,
             data: _riskFactors,
-            getItemName: (item) =>
-                item['riskFactorName'] ?? 'Unknown Risk Factor',
+            getItemName: (item) => item['riskFactorName'] ?? 'Unknown Risk Factor',
             getItemCode: (item) => item['severityLevel'] ?? '',
           ),
           const Gap(8),
@@ -1097,7 +1052,11 @@ class _PatientHistoryDashboardScreenState
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(
+            icon,
+            size: 16,
+            color: color,
+          ),
           const Gap(6),
           Text(
             '$title:',
@@ -1109,12 +1068,7 @@ class _PatientHistoryDashboardScreenState
           ),
           const Gap(6),
           Expanded(
-            child: _buildCompactMedicalInfoList(
-              data,
-              getItemName,
-              getItemCode,
-              color,
-            ),
+            child: _buildCompactMedicalInfoList(data, getItemName, getItemCode, color),
           ),
         ],
       ),
@@ -1144,7 +1098,11 @@ class _PatientHistoryDashboardScreenState
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, size: 18, color: color),
+              Icon(
+                icon,
+                size: 18,
+                color: color,
+              ),
               const Gap(8),
               Text(
                 '$title:',
@@ -1156,12 +1114,7 @@ class _PatientHistoryDashboardScreenState
               ),
               const Gap(8),
               Expanded(
-                child: _buildMedicalInfoList(
-                  data,
-                  getItemName,
-                  getItemCode,
-                  color,
-                ),
+                child: _buildMedicalInfoList(data, getItemName, getItemCode, color),
               ),
             ],
           ),
@@ -1191,12 +1144,7 @@ class _PatientHistoryDashboardScreenState
       spacing: 4,
       runSpacing: 2,
       children: data.map((item) {
-        return _buildCompactMedicalInfoChip(
-          item,
-          getItemName,
-          getItemCode,
-          color,
-        );
+        return _buildCompactMedicalInfoChip(item, getItemName, getItemCode, color);
       }).toList(),
     );
   }
@@ -1235,7 +1183,7 @@ class _PatientHistoryDashboardScreenState
   ) {
     String itemName = getItemName(item);
     String itemCode = getItemCode(item);
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -1262,7 +1210,7 @@ class _PatientHistoryDashboardScreenState
   ) {
     String itemName = getItemName(item);
     String itemCode = getItemCode(item);
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1303,11 +1251,9 @@ class _PatientHistoryDashboardScreenState
   }
 
   Widget _buildConditionChip(Map<String, dynamic> condition) {
-    String conditionName =
-        condition['conditionName'] ?? condition['name'] ?? 'Unknown Condition';
-    String conditionCode =
-        condition['conditionCode'] ?? condition['code'] ?? '';
-
+    String conditionName = condition['conditionName'] ?? condition['name'] ?? 'Unknown Condition';
+    String conditionCode = condition['conditionCode'] ?? condition['code'] ?? '';
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1316,9 +1262,7 @@ class _PatientHistoryDashboardScreenState
         border: Border.all(color: Colors.red.shade200, width: 1),
       ),
       child: Text(
-        conditionCode.isNotEmpty
-            ? '$conditionName ($conditionCode)'
-            : conditionName,
+        conditionCode.isNotEmpty ? '$conditionName ($conditionCode)' : conditionName,
         style: TextStyle(
           color: Colors.red.shade800,
           fontWeight: FontWeight.w600,
@@ -1331,67 +1275,17 @@ class _PatientHistoryDashboardScreenState
   Widget _buildMedicalRecordCards() {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width > 600;
-    final isMobileLandscape =
-        media.size.width < 600 && media.orientation == Orientation.landscape;
+    final isMobileLandscape = media.size.width < 600 && media.orientation == Orientation.landscape;
 
     final sectionCards = [
-      _buildAestheticSectionCard(
-        'Vitals',
-        Icons.favorite,
-        const Color(0xFFE53E3E),
-        _allVitals.length,
-        'vitals',
-      ),
-      _buildAestheticSectionCard(
-        'OPD',
-        Icons.meeting_room_outlined,
-        const Color(0xFF3182CE),
-        _opdEncounters.length,
-        'opd',
-      ),
-      _buildAestheticSectionCard(
-        'IPD',
-        Icons.local_hospital_outlined,
-        const Color(0xFF38B2AC),
-        _ipdEncounters.length,
-        'ipd',
-      ),
-      _buildAestheticSectionCard(
-        'Labs',
-        Icons.biotech_outlined,
-        const Color(0xFFDD6B20),
-        _labPackageCount,
-        'labs',
-      ),
-      _buildAestheticSectionCard(
-        'Radiology',
-        Icons.medical_services,
-        const Color(0xFF0BC5EA),
-        _aggregatedRadiologyOrders.length,
-        'radiology',
-      ),
-      _buildAestheticSectionCard(
-        'Surgery',
-        Icons.content_cut,
-        const Color(0xFFE53E3E),
-        _surgery?.length ?? 0,
-        'surgery',
-      ),
-      _buildAestheticSectionCard(
-        'Meds',
-        Icons.medication,
-        const Color(0xFF38A169),
-        _activeMedicines.length,
-        'medications',
-      ),
-      if (_showPregnancy)
-        _buildAestheticSectionCard(
-          'Pregnancy',
-          Icons.pregnant_woman,
-          const Color(0xFFD53F8C),
-          _pregnancyRecords?.length ?? 0,
-          'pregnancy',
-        ),
+      _buildAestheticSectionCard('Vitals', Icons.favorite, const Color(0xFFE53E3E), _allVitals.length, 'vitals'),
+      _buildAestheticSectionCard('OPD', Icons.meeting_room_outlined, const Color(0xFF3182CE), _opdEncounters.length, 'opd'),
+      _buildAestheticSectionCard('IPD', Icons.local_hospital_outlined, const Color(0xFF38B2AC), _ipdEncounters.length, 'ipd'),
+      _buildAestheticSectionCard('Labs', Icons.biotech_outlined, const Color(0xFFDD6B20), _labPackageCount, 'labs'),
+      _buildAestheticSectionCard('Radiology', Icons.medical_services, const Color(0xFF0BC5EA), _aggregatedRadiologyOrders.length, 'radiology'),
+      _buildAestheticSectionCard('Surgery', Icons.content_cut, const Color(0xFFE53E3E), _surgery?.length ?? 0, 'surgery'),
+      _buildAestheticSectionCard('Meds', Icons.medication, const Color(0xFF38A169), _activeMedicines.length, 'medications'),
+      if (_showPregnancy) _buildAestheticSectionCard('Pregnancy', Icons.pregnant_woman, const Color(0xFFD53F8C), _pregnancyRecords?.length ?? 0, 'pregnancy'),
     ];
 
     Widget cardsContent;
@@ -1400,8 +1294,7 @@ class _PatientHistoryDashboardScreenState
         builder: (context, constraints) {
           final crossCount = 4;
           final spacing = 16.0;
-          final cellWidth =
-              (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
+          final cellWidth = (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
           final cellHeight = (cellWidth / 0.92).clamp(120.0, 200.0);
           return GridView.count(
             crossAxisCount: crossCount,
@@ -1419,8 +1312,7 @@ class _PatientHistoryDashboardScreenState
         builder: (context, constraints) {
           final crossCount = 4;
           final spacing = 10.0;
-          final cellWidth =
-              (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
+          final cellWidth = (constraints.maxWidth - spacing * (crossCount - 1)) / crossCount;
           final cellHeight = (cellWidth / 0.88).clamp(100.0, 180.0);
           return GridView.count(
             crossAxisCount: crossCount,
@@ -1437,7 +1329,9 @@ class _PatientHistoryDashboardScreenState
       cardsContent = SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(children: sectionCards),
+        child: Row(
+          children: sectionCards,
+        ),
       );
     }
 
@@ -1458,27 +1352,16 @@ class _PatientHistoryDashboardScreenState
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              isMobileLandscape ? 16 : 24,
-              isMobileLandscape ? 14 : 24,
-              isMobileLandscape ? 16 : 24,
-              isMobileLandscape ? 10 : 16,
-            ),
+            padding: EdgeInsets.fromLTRB(isMobileLandscape ? 16 : 24, isMobileLandscape ? 14 : 24, isMobileLandscape ? 16 : 24, isMobileLandscape ? 10 : 16),
             child: Row(
               children: [
                 Container(
                   padding: EdgeInsets.all(isMobileLandscape ? 8 : 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFF5B6B9E).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(
-                      isMobileLandscape ? 10 : 12,
-                    ),
+                    borderRadius: BorderRadius.circular(isMobileLandscape ? 10 : 12),
                   ),
-                  child: Icon(
-                    Icons.folder_rounded,
-                    color: const Color(0xFF5B6B9E),
-                    size: isMobileLandscape ? 20 : 24,
-                  ),
+                  child: Icon(Icons.folder_rounded, color: const Color(0xFF5B6B9E), size: isMobileLandscape ? 20 : 24),
                 ),
                 SizedBox(width: isMobileLandscape ? 12 : 16),
                 Expanded(
@@ -1497,11 +1380,7 @@ class _PatientHistoryDashboardScreenState
                       const Gap(2),
                       Text(
                         '${_allVitals.length + _opdEncounters.length + _ipdEncounters.length + _labPackageCount + _aggregatedRadiologyOrders.length + (_surgery?.length ?? 0) + _activeMedicines.length + (_showPregnancy ? (_pregnancyRecords?.length ?? 0) : 0)} records',
-                        style: TextStyle(
-                          fontSize: isMobileLandscape ? 11 : 13,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: TextStyle(fontSize: isMobileLandscape ? 11 : 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1512,12 +1391,7 @@ class _PatientHistoryDashboardScreenState
             ),
           ),
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              isMobileLandscape ? 10 : 16,
-              8,
-              isMobileLandscape ? 10 : 16,
-              isMobileLandscape ? 14 : 24,
-            ),
+            padding: EdgeInsets.fromLTRB(isMobileLandscape ? 10 : 16, 8, isMobileLandscape ? 10 : 16, isMobileLandscape ? 14 : 24),
             child: cardsContent,
           ),
         ],
@@ -1525,22 +1399,12 @@ class _PatientHistoryDashboardScreenState
     );
   }
 
-  Widget _buildAestheticSectionCard(
-    String title,
-    IconData icon,
-    Color color,
-    int count,
-    String sectionKey,
-  ) {
+  Widget _buildAestheticSectionCard(String title, IconData icon, Color color, int count, String sectionKey) {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width > 600;
-    final isCompactMobile =
-        !isTablet && media.orientation == Orientation.landscape;
+    final isCompactMobile = !isTablet && media.orientation == Orientation.landscape;
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompactMobile ? 4 : 6,
-        vertical: isCompactMobile ? 4 : 6,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: isCompactMobile ? 4 : 6, vertical: isCompactMobile ? 4 : 6),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1553,32 +1417,17 @@ class _PatientHistoryDashboardScreenState
               final maxH = constraints.maxHeight;
               final maxW = constraints.maxWidth;
               final isConstrained = maxH.isFinite && maxH < 160;
-              final padding = isConstrained
-                  ? 6.0
-                  : (isCompactMobile ? 10.0 : (isTablet ? 14.0 : 18.0));
-              final iconSize = isConstrained
-                  ? 20.0
-                  : (isCompactMobile ? 18.0 : (isTablet ? 26.0 : 22.0));
-              final titleSize = isConstrained
-                  ? 11.0
-                  : (isCompactMobile ? 11.0 : (isTablet ? 13.0 : 13.0));
-              final countSize = isConstrained
-                  ? 16.0
-                  : (isCompactMobile ? 14.0 : (isTablet ? 20.0 : 18.0));
-              final gap = isConstrained
-                  ? 4.0
-                  : (isCompactMobile ? 4.0 : (isTablet ? 8.0 : 8.0));
+              final padding = isConstrained ? 6.0 : (isCompactMobile ? 10.0 : (isTablet ? 14.0 : 18.0));
+              final iconSize = isConstrained ? 20.0 : (isCompactMobile ? 18.0 : (isTablet ? 26.0 : 22.0));
+              final titleSize = isConstrained ? 11.0 : (isCompactMobile ? 11.0 : (isTablet ? 13.0 : 13.0));
+              final countSize = isConstrained ? 16.0 : (isCompactMobile ? 14.0 : (isTablet ? 20.0 : 18.0));
+              final gap = isConstrained ? 4.0 : (isCompactMobile ? 4.0 : (isTablet ? 8.0 : 8.0));
               return Container(
                 padding: EdgeInsets.all(padding),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                    isCompactMobile ? 12 : 16,
-                  ),
-                  border: Border.all(
-                    color: color.withOpacity(0.22),
-                    width: 1.2,
-                  ),
+                  borderRadius: BorderRadius.circular(isCompactMobile ? 12 : 16),
+                  border: Border.all(color: color.withOpacity(0.22), width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -1587,8 +1436,7 @@ class _PatientHistoryDashboardScreenState
                     ),
                   ],
                 ),
-                child:
-                    isConstrained || (isTablet && maxH.isFinite && maxH < 200)
+                child: isConstrained || (isTablet && maxH.isFinite && maxH < 200)
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -1631,60 +1479,19 @@ class _PatientHistoryDashboardScreenState
                         ],
                       )
                     : isTablet
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(iconSize * 0.5),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(icon, color: color, size: iconSize),
-                          ),
-                          Gap(gap),
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: titleSize,
-                              color: Colors.grey.shade800,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Gap(gap * 0.5),
-                          Text(
-                            '$count',
-                            style: TextStyle(
-                              fontSize: countSize,
-                              color: color,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(isCompactMobile ? 6 : 10),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(
-                                isCompactMobile ? 8 : 12,
-                              ),
-                            ),
-                            child: Icon(icon, color: color, size: iconSize),
-                          ),
-                          SizedBox(width: isCompactMobile ? 6 : 12),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
+                              Container(
+                                padding: EdgeInsets.all(iconSize * 0.5),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(icon, color: color, size: iconSize),
+                              ),
+                              Gap(gap),
                               Text(
                                 title,
                                 style: TextStyle(
@@ -1692,10 +1499,11 @@ class _PatientHistoryDashboardScreenState
                                   fontSize: titleSize,
                                   color: Colors.grey.shade800,
                                 ),
+                                textAlign: TextAlign.center,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Gap(isCompactMobile ? 0 : 2),
+                              Gap(gap * 0.5),
                               Text(
                                 '$count',
                                 style: TextStyle(
@@ -1705,9 +1513,47 @@ class _PatientHistoryDashboardScreenState
                                 ),
                               ),
                             ],
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(isCompactMobile ? 6 : 10),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(isCompactMobile ? 8 : 12),
+                                ),
+                                child: Icon(icon, color: color, size: iconSize),
+                              ),
+                              SizedBox(width: isCompactMobile ? 6 : 12),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: titleSize,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Gap(isCompactMobile ? 0 : 2),
+                                  Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      fontSize: countSize,
+                                      color: color,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
               );
             },
           ),
@@ -1716,45 +1562,29 @@ class _PatientHistoryDashboardScreenState
     );
   }
 
-  Widget _buildSectionCard(
-    String title,
-    IconData icon,
-    Color color,
-    int count,
-    String sectionKey,
-  ) {
+  Widget _buildSectionCard(String title, IconData icon, Color color, int count, String sectionKey) {
     return Card(
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ), // Reduced from 16 to 10 (40% reduction)
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), // Reduced from 16 to 10 (40% reduction)
       child: InkWell(
         onTap: () => _showSectionOverlay(sectionKey),
-        borderRadius: BorderRadius.circular(
-          10,
-        ), // Reduced from 16 to 10 (40% reduction)
+        borderRadius: BorderRadius.circular(10), // Reduced from 16 to 10 (40% reduction)
         child: Padding(
-          padding: const EdgeInsets.all(
-            12,
-          ), // Reduced from 20 to 12 (40% reduction)
+          padding: const EdgeInsets.all(12), // Reduced from 20 to 12 (40% reduction)
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Centered Icon
               Container(
-                padding: const EdgeInsets.all(
-                  10,
-                ), // Reduced from 16 to 10 (40% reduction)
+                padding: const EdgeInsets.all(10), // Reduced from 16 to 10 (40% reduction)
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(
-                    12,
-                  ), // Reduced from 20 to 12 (40% reduction)
+                  borderRadius: BorderRadius.circular(12), // Reduced from 20 to 12 (40% reduction)
                 ),
                 child: Icon(
-                  icon,
-                  color: color,
+                  icon, 
+                  color: color, 
                   size: 24, // Reduced from 40 to 24 (40% reduction)
                 ),
               ),
@@ -1772,15 +1602,10 @@ class _PatientHistoryDashboardScreenState
               const Gap(5), // Reduced from 8 to 5 (40% reduction)
               // Centered Count Badge
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 4,
-                ), // Reduced from 12,6 to 7,4 (40% reduction)
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4), // Reduced from 12,6 to 7,4 (40% reduction)
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ), // Reduced from 16 to 10 (40% reduction)
+                  borderRadius: BorderRadius.circular(10), // Reduced from 16 to 10 (40% reduction)
                 ),
                 child: Text(
                   '$count records',
@@ -1812,15 +1637,13 @@ class _PatientHistoryDashboardScreenState
   Widget _buildDetailedTabSection() {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width > 600;
-    final isMobileLandscape =
-        media.size.width < 600 && media.orientation == Orientation.landscape;
+    final isMobileLandscape = media.size.width < 600 && media.orientation == Orientation.landscape;
     final height = media.size.height;
     final tabBarHeight = 48.0;
     final searchBarHeight = 56.0;
     final rowHeight = 44.0;
     final minVisibleRows = 5.0;
-    final minContentHeight =
-        tabBarHeight + searchBarHeight + (rowHeight * minVisibleRows) + 24;
+    final minContentHeight = tabBarHeight + searchBarHeight + (rowHeight * minVisibleRows) + 24;
     final double sectionHeight;
     if (isTablet) {
       sectionHeight = (height * 0.55).clamp(minContentHeight, height * 0.7);
@@ -1857,8 +1680,7 @@ class _PatientHistoryDashboardScreenState
   Widget _buildCompactTabBar() {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width > 600;
-    final isMobileLandscape =
-        media.size.width < 600 && media.orientation == Orientation.landscape;
+    final isMobileLandscape = media.size.width < 600 && media.orientation == Orientation.landscape;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1902,16 +1724,14 @@ class _PatientHistoryDashboardScreenState
           _buildTab('Labs', Icons.biotech_outlined, Colors.orange),
           _buildTab('Radiology', Icons.image_search_outlined, Colors.cyan),
           _buildTab('Surgery', Icons.content_cut, Colors.red),
-          if (_showPregnancy)
-            _buildTab('Pregnancy', Icons.pregnant_woman, Colors.pink),
+          if (_showPregnancy) _buildTab('Pregnancy', Icons.pregnant_woman, Colors.pink),
         ],
       ),
     );
   }
 
   Widget _buildTab(String text, IconData icon, Color color) {
-    final isMobileLandscape =
-        MediaQuery.of(context).size.width < 600 &&
+    final isMobileLandscape = MediaQuery.of(context).size.width < 600 &&
         MediaQuery.of(context).orientation == Orientation.landscape;
     final iconSize = isMobileLandscape ? 14.0 : 16.0;
     final gap = isMobileLandscape ? 4.0 : 6.0;
@@ -1961,12 +1781,15 @@ class _PatientHistoryDashboardScreenState
       _buildRadiologyTab(),
       _buildSurgeryTab(),
     ];
-
+    
     if (_showPregnancy) {
       children.add(_buildPregnancyTab());
     }
-
-    return TabBarView(controller: _tabController, children: children);
+    
+    return TabBarView(
+      controller: _tabController,
+      children: children,
+    );
   }
 
   Widget _buildVitalsTab() {
@@ -1977,36 +1800,11 @@ class _PatientHistoryDashboardScreenState
       searchController: _vitalsSearchController,
       searchHint: 'Search vitals by date, BP, HR, temperature, or location...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Date/Time',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Blood Pressure',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Heart Rate',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Temperature',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Location',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Date/Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Blood Pressure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Heart Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Temperature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _allVitals,
       filterFunction: _filterVitals,
@@ -2020,51 +1818,15 @@ class _PatientHistoryDashboardScreenState
       icon: Icons.medication,
       heroColor: Colors.green,
       searchController: _medicationsSearchController,
-      searchHint:
-          'Search medications by name, dosage, indication, or prescriber...',
+      searchHint: 'Search medications by name, dosage, indication, or prescriber...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Start Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Salt',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Medication',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Dosage',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Duration',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Status',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Prescriber',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Start Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Salt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Medication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Dosage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Duration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Prescriber', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _activeMedicines,
       filterFunction: _filterMedications,
@@ -2080,48 +1842,13 @@ class _PatientHistoryDashboardScreenState
       searchController: _opdSearchController,
       searchHint: 'Search by date, complaint, symptoms, diagnosis...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Presenting Complaint',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Symptoms',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Diagnosis',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Clinical Notes',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Medicines',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Lab / Radiology',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Presenting Complaint', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Symptoms', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Clinical Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Medicines', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Lab / Radiology', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _opdEncounters,
       filterFunction: _filterOPD,
@@ -2137,48 +1864,13 @@ class _PatientHistoryDashboardScreenState
       searchController: _ipdSearchController,
       searchHint: 'Search by date, complaint, symptoms, diagnosis...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Presenting Complaint',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Symptoms',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Diagnosis',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Clinical Notes',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Medicines',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Lab / Radiology',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Presenting Complaint', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Symptoms', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Clinical Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Medicines', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Lab / Radiology', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _ipdEncounters,
       filterFunction: _filterIPD,
@@ -2194,36 +1886,11 @@ class _PatientHistoryDashboardScreenState
       searchController: _labsSearchController,
       searchHint: 'Search labs by test name, result, package...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Package Name',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Test Name',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Result',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Reference Range',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Package Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Test Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Result', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Reference Range', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _aggregatedLabOrders,
       filterFunction: _filterLabs,
@@ -2237,45 +1904,14 @@ class _PatientHistoryDashboardScreenState
       icon: Icons.image_search_outlined,
       heroColor: Colors.cyan,
       searchController: _radiologySearchController,
-      searchHint:
-          'Search radiology by procedure, indication, findings, impression, or radiologist...',
+      searchHint: 'Search radiology by procedure, indication, findings, impression, or radiologist...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Procedure',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Indication',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Findings',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Impression',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Radiologist',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Procedure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Indication', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Findings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Impression', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Radiologist', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _aggregatedRadiologyOrders,
       filterFunction: _filterRadiology,
@@ -2291,36 +1927,11 @@ class _PatientHistoryDashboardScreenState
       searchController: _surgerySearchController,
       searchHint: 'Search surgeries by name, category, date, or outcome...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Surgery Name',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Category',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Outcome',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Department',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Surgery Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _surgery,
       filterFunction: _filterSurgery,
@@ -2334,39 +1945,13 @@ class _PatientHistoryDashboardScreenState
       icon: Icons.pregnant_woman,
       heroColor: Colors.pink,
       searchController: _pregnancySearchController,
-      searchHint:
-          'Search pregnancy history by number, delivery mode, or outcome...',
+      searchHint: 'Search pregnancy history by number, delivery mode, or outcome...',
       columns: const [
-        DataColumn(
-          label: Text(
-            'Pregnancy #',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Weeks Gestation',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Delivery Mode',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Labor Onset',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Outcome',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
+        DataColumn(label: Text('Pregnancy #', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Weeks Gestation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Delivery Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Labor Onset', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _pregnancyRecords,
       filterFunction: _filterPregnancy,
@@ -2388,8 +1973,7 @@ class _PatientHistoryDashboardScreenState
   }) {
     final media = MediaQuery.of(context);
     final isTablet = media.size.width > 600;
-    final isMobileLandscape =
-        media.size.width < 600 && media.orientation == Orientation.landscape;
+    final isMobileLandscape = media.size.width < 600 && media.orientation == Orientation.landscape;
     return Container(
       color: const Color(0xFFF1F5F9),
       padding: EdgeInsets.all(isMobileLandscape ? 10 : (isTablet ? 20 : 16)),
@@ -2406,19 +1990,10 @@ class _PatientHistoryDashboardScreenState
               decoration: InputDecoration(
                 hintText: searchHint,
                 hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  size: 22,
-                  color: Colors.grey.shade500,
-                ),
-                suffixIcon:
-                    searchController != null && searchController.text.isNotEmpty
+                prefixIcon: Icon(Icons.search_rounded, size: 22, color: Colors.grey.shade500),
+                suffixIcon: searchController != null && searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(
-                          Icons.clear_rounded,
-                          size: 20,
-                          color: Colors.grey.shade500,
-                        ),
+                        icon: Icon(Icons.clear_rounded, size: 20, color: Colors.grey.shade500),
                         onPressed: () {
                           searchController.clear();
                           setState(() {});
@@ -2435,17 +2010,11 @@ class _PatientHistoryDashboardScreenState
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF5B6B9E),
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF5B6B9E), width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: isMobileLandscape ? 14 : 18,
-                  vertical: isMobileLandscape ? 12 : 14,
-                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: isMobileLandscape ? 14 : 18, vertical: isMobileLandscape ? 12 : 14),
               ),
             ),
           ),
@@ -2454,9 +2023,7 @@ class _PatientHistoryDashboardScreenState
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(
-                  isMobileLandscape ? 12 : 14,
-                ),
+                borderRadius: BorderRadius.circular(isMobileLandscape ? 12 : 14),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
@@ -2470,32 +2037,14 @@ class _PatientHistoryDashboardScreenState
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   child: DataTable(
-                    columnSpacing: isMobileLandscape
-                        ? 14
-                        : (isTablet ? 24 : 18),
-                    horizontalMargin: isMobileLandscape
-                        ? 10
-                        : (isTablet ? 20 : 16),
-                    headingRowHeight: isMobileLandscape
-                        ? 44
-                        : (isTablet ? 52 : 48),
-                    dataRowMinHeight: isMobileLandscape
-                        ? 38
-                        : (isTablet ? 46 : 42),
-                    dataRowMaxHeight: isMobileLandscape
-                        ? 48
-                        : (isTablet ? 56 : 52),
-                    headingRowColor: MaterialStateProperty.all(
-                      const Color(0xFFF1F5F9),
-                    ),
+                    columnSpacing: isMobileLandscape ? 14 : (isTablet ? 24 : 18),
+                    horizontalMargin: isMobileLandscape ? 10 : (isTablet ? 20 : 16),
+                    headingRowHeight: isMobileLandscape ? 44 : (isTablet ? 52 : 48),
+                    dataRowMinHeight: isMobileLandscape ? 38 : (isTablet ? 46 : 42),
+                    dataRowMaxHeight: isMobileLandscape ? 48 : (isTablet ? 56 : 52),
+                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F5F9)),
                     columns: _buildOptimizedColumns(columns),
-                    rows: _buildDataRows(
-                      data,
-                      filterFunction,
-                      searchController,
-                      noDataMessage,
-                      title,
-                    ),
+                    rows: _buildDataRows(data, filterFunction, searchController, noDataMessage, title),
                   ),
                 ),
               ),
@@ -2506,13 +2055,7 @@ class _PatientHistoryDashboardScreenState
     );
   }
 
-  List<DataRow> _buildDataRows(
-    List<dynamic>? data,
-    List<dynamic> Function(String)? filterFunction,
-    TextEditingController? searchController,
-    String? noDataMessage,
-    String? title,
-  ) {
+  List<DataRow> _buildDataRows(List<dynamic>? data, List<dynamic> Function(String)? filterFunction, TextEditingController? searchController, String? noDataMessage, String? title) {
     if (data == null || data.isEmpty) {
       // Get the correct number of columns based on the tab
       int columnCount = _getColumnCountForTab(title);
@@ -2548,10 +2091,7 @@ class _PatientHistoryDashboardScreenState
       final index = entry.key;
       final item = entry.value;
       List<String> rowData = _getRowDataForTab(item, title);
-      final isLabResultOutOfRange =
-          title == 'Lab Results' &&
-          rowData.length >= 5 &&
-          _isResultOutOfReferenceRange(rowData[3], rowData[4]);
+      final isLabResultOutOfRange = title == 'Lab Results' && rowData.length >= 5 && _isResultOutOfReferenceRange(rowData[3], rowData[4]);
       return DataRow(
         color: MaterialStateProperty.all(
           index.isEven ? Colors.white : const Color(0xFFFAFBFC),
@@ -2587,18 +2127,10 @@ class _PatientHistoryDashboardScreenState
 
   /// True if result value is outside the reference range (e.g. "4.5-11" or "12-16").
   bool _isResultOutOfReferenceRange(String resultStr, String refRangeStr) {
-    if (resultStr.isEmpty ||
-        resultStr == '-' ||
-        refRangeStr.isEmpty ||
-        refRangeStr == '-')
-      return false;
-    final resultNum = double.tryParse(
-      resultStr.trim().replaceAll(RegExp(r'[^\d.]'), ''),
-    );
+    if (resultStr.isEmpty || resultStr == '-' || refRangeStr.isEmpty || refRangeStr == '-') return false;
+    final resultNum = double.tryParse(resultStr.trim().replaceAll(RegExp(r'[^\d.]'), ''));
     if (resultNum == null) return false;
-    final rangeMatch = RegExp(
-      r'([\d.]+)\s*-\s*([\d.]+)',
-    ).firstMatch(refRangeStr);
+    final rangeMatch = RegExp(r'([\d.]+)\s*-\s*([\d.]+)').firstMatch(refRangeStr);
     if (rangeMatch == null) return false;
     final low = double.tryParse(rangeMatch.group(1) ?? '');
     final high = double.tryParse(rangeMatch.group(2) ?? '');
@@ -2613,46 +2145,32 @@ class _PatientHistoryDashboardScreenState
             ? DateTime.tryParse(item['recordedDate'].toString())
             : null;
         final dateStr = _formatDateDDMMYYYY(item['recordedDate']);
-        final timeStr =
-            recordedDate != null && recordedDate.toString().length > 11
+        final timeStr = recordedDate != null && recordedDate.toString().length > 11
             ? recordedDate.toString().substring(11, 16)
             : '';
         final dateTimeStr = timeStr.isNotEmpty ? '$dateStr\n$timeStr' : dateStr;
-
+        
         final systolic = item['bpSystolic'] != null
-            ? (item['bpSystolic'] is num
-                  ? item['bpSystolic'].toInt()
-                  : int.tryParse(item['bpSystolic'].toString()))
+            ? (item['bpSystolic'] is num ? item['bpSystolic'].toInt() : int.tryParse(item['bpSystolic'].toString()))
             : null;
         final diastolic = item['bpDiastolic'] != null
-            ? (item['bpDiastolic'] is num
-                  ? item['bpDiastolic'].toInt()
-                  : int.tryParse(item['bpDiastolic'].toString()))
+            ? (item['bpDiastolic'] is num ? item['bpDiastolic'].toInt() : int.tryParse(item['bpDiastolic'].toString()))
             : null;
-        final bpStr = (systolic != null && diastolic != null)
-            ? '$systolic/$diastolic'
-            : '-';
-
+        final bpStr = (systolic != null && diastolic != null) ? '$systolic/$diastolic' : '-';
+        
         final pulse = item['pulse'] != null
-            ? (item['pulse'] is num
-                  ? item['pulse'].toInt()
-                  : int.tryParse(item['pulse'].toString()))
+            ? (item['pulse'] is num ? item['pulse'].toInt() : int.tryParse(item['pulse'].toString()))
             : null;
         final pulseStr = pulse != null ? pulse.toString() : '-';
-
+        
         final tempC = item['temperature'] != null
-            ? (item['temperature'] is num
-                  ? item['temperature'].toDouble()
-                  : double.tryParse(item['temperature'].toString()))
+            ? (item['temperature'] is num ? item['temperature'].toDouble() : double.tryParse(item['temperature'].toString()))
             : null;
-        final tempF = tempC != null
-            ? ((tempC * 9 / 5) + 32).toStringAsFixed(1)
-            : null;
+        final tempF = tempC != null ? ((tempC * 9 / 5) + 32).toStringAsFixed(1) : null;
         final tempStr = tempF != null ? '${tempF}°F' : '-';
-
-        final location = (item['position'] ?? item['location'] ?? '')
-            .toString();
-
+        
+        final location = (item['position'] ?? item['location'] ?? '').toString();
+        
         return [dateTimeStr, bpStr, pulseStr, tempStr, location];
       case 'OPD Visits':
       case 'IPD Admissions':
@@ -2684,35 +2202,19 @@ class _PatientHistoryDashboardScreenState
         ];
       case 'Medications':
         return [
-          _formatDateDDMMYYYY(
-            item['startDate'] ?? item['start_date'] ?? item['orderDate'],
-          ),
+          _formatDateDDMMYYYY(item['startDate'] ?? item['start_date'] ?? item['orderDate']),
           (item['salt'] ?? item['saltName'] ?? '').toString(),
-          (item['medication'] ?? item['medicationName'] ?? item['name'] ?? '')
-              .toString(),
+          (item['medication'] ?? item['medicationName'] ?? item['name'] ?? '').toString(),
           (item['dosage'] ?? item['strength'] ?? item['dose'] ?? '').toString(),
           (item['duration'] ?? item['frequency'] ?? '').toString(),
           (item['status'] ?? 'Active').toString(),
-          (item['prescriber'] ??
-                  item['doctorName'] ??
-                  item['prescribedBy'] ??
-                  '')
-              .toString(),
+          (item['prescriber'] ?? item['doctorName'] ?? item['prescribedBy'] ?? '').toString(),
         ];
       case 'Lab Results':
-        final resultVal =
-            (item['resultValue'] ??
-                    item['result'] ??
-                    item['resultNumeric'] ??
-                    '')
-                .toString();
-        final refRange = (item['normalRange'] ?? item['referenceRange'] ?? '')
-            .toString();
+        final resultVal = (item['resultValue'] ?? item['result'] ?? item['resultNumeric'] ?? '').toString();
+        final refRange = (item['normalRange'] ?? item['referenceRange'] ?? '').toString();
         final pkgName = (item['packageName'] ?? '').toString();
-        final dateVal =
-            (item['encounterDate'] ??
-                    _formatDateDDMMYYYY(item['date'] ?? item['sampleDate']))
-                .toString();
+        final dateVal = (item['encounterDate'] ?? _formatDateDDMMYYYY(item['date'] ?? item['sampleDate'])).toString();
         return [
           dateVal,
           pkgName,
@@ -2739,7 +2241,7 @@ class _PatientHistoryDashboardScreenState
       if (column.label is Text) {
         labelText = (column.label as Text).data ?? '';
       }
-
+      
       return DataColumn(
         label: Container(
           constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
@@ -2764,7 +2266,7 @@ class _PatientHistoryDashboardScreenState
     if (cell.isEmpty || cell == '-') {
       return Colors.grey.shade400;
     }
-
+    
     // Color coding for vitals
     if (title == 'Vitals') {
       switch (index) {
@@ -2786,10 +2288,10 @@ class _PatientHistoryDashboardScreenState
           return Colors.grey.shade700;
       }
     }
-
+    
     return Colors.grey.shade700;
   }
-
+  
   Color _getVitalColor(String value, double min, double max) {
     try {
       double numValue = double.parse(value.replaceAll(RegExp(r'[^\d.]'), ''));
@@ -2833,57 +2335,16 @@ class _PatientHistoryDashboardScreenState
   /// Build [date, complaint, symptoms, diagnosis, commaMedicines, commaLabRadiology] from encounter data map.
   List<String> _encounterRowData(Map<String, dynamic> data) {
     final encounter = data['encounter'] as Map<String, dynamic>? ?? {};
-    final encounterDate =
-        encounter['encounterDate'] ??
-        encounter['EncounterDate'] ??
-        encounter['checkInTime'] ??
-        '';
+    final encounterDate = encounter['encounterDate'] ?? encounter['EncounterDate'] ?? encounter['checkInTime'] ?? '';
     final dateStr = _formatDateDDMMYYYY(encounterDate);
     final complaints = (data['complaints'] as List<dynamic>?) ?? [];
-    final complaintStr = complaints
-        .map(
-          (c) =>
-              (c['diagnosisName'] ??
-                      c['icd10Description'] ??
-                      c['ICD10Description'] ??
-                      'N/A')
-                  .toString(),
-        )
-        .join(', ');
+    final complaintStr = complaints.map((c) => (c['diagnosisName'] ?? c['icd10Description'] ?? c['ICD10Description'] ?? 'N/A').toString()).join(', ');
     final symptoms = (data['symptoms'] as List<dynamic>?) ?? [];
-    final symptomStr = symptoms
-        .map(
-          (s) =>
-              (s['diagnosisName'] ??
-                      s['icd10Description'] ??
-                      s['ICD10Description'] ??
-                      'N/A')
-                  .toString(),
-        )
-        .join(', ');
+    final symptomStr = symptoms.map((s) => (s['diagnosisName'] ?? s['icd10Description'] ?? s['ICD10Description'] ?? 'N/A').toString()).join(', ');
     final diagnoses = (data['diagnoses'] as List<dynamic>?) ?? [];
-    final diagnosisStr = diagnoses
-        .map(
-          (d) =>
-              (d['diagnosisName'] ??
-                      d['icd10Description'] ??
-                      d['ICD10Description'] ??
-                      'N/A')
-                  .toString(),
-        )
-        .join(', ');
+    final diagnosisStr = diagnoses.map((d) => (d['diagnosisName'] ?? d['icd10Description'] ?? d['ICD10Description'] ?? 'N/A').toString()).join(', ');
     final medicines = (data['medicines'] as List<dynamic>?) ?? [];
-    final medStr = medicines
-        .map(
-          (m) =>
-              (m['medicineName'] ??
-                      m['medication'] ??
-                      m['medicationName'] ??
-                      m['name'] ??
-                      'N/A')
-                  .toString(),
-        )
-        .join(', ');
+    final medStr = medicines.map((m) => (m['medicineName'] ?? m['medication'] ?? m['medicationName'] ?? m['name'] ?? 'N/A').toString()).join(', ');
     final labOrders = (data['labOrders'] as List<dynamic>?) ?? [];
     final radOrders = (data['radiologyOrders'] as List<dynamic>?) ?? [];
     final seenLab = <String>{};
@@ -2891,23 +2352,12 @@ class _PatientHistoryDashboardScreenState
     for (final l in labOrders) {
       final pkg = (l['packageName'] ?? '').toString();
       final name = pkg.isNotEmpty ? pkg : (l['testName'] ?? 'N/A').toString();
-      if (name.isNotEmpty && name != 'N/A' && seenLab.add(name))
-        labNames.add(name);
+      if (name.isNotEmpty && name != 'N/A' && seenLab.add(name)) labNames.add(name);
     }
-    final radNames = radOrders.map(
-      (r) => (r['testName'] ?? r['clinicalDisplayName'] ?? 'N/A').toString(),
-    );
+    final radNames = radOrders.map((r) => (r['testName'] ?? r['clinicalDisplayName'] ?? 'N/A').toString());
     final labRadStr = [...labNames, ...radNames].join(', ');
     final clinicalNotes = (data['clinicalNotes'] ?? '').toString().trim();
-    return [
-      dateStr,
-      complaintStr,
-      symptomStr,
-      diagnosisStr,
-      clinicalNotes,
-      medStr,
-      labRadStr,
-    ];
+    return [dateStr, complaintStr, symptomStr, diagnosisStr, clinicalNotes, medStr, labRadStr];
   }
 
   List<String> _getRowData(dynamic item) {
@@ -2932,17 +2382,15 @@ class _PatientHistoryDashboardScreenState
       final bp = '$systolic/$diastolic';
       final pulse = vital['pulse'] ?? '';
       final tempC = vital['temperature'] ?? '';
-      final tempF = tempC != null && tempC is num
-          ? ((tempC * 9 / 5) + 32).toStringAsFixed(1)
-          : '';
+      final tempF = tempC != null && tempC is num ? ((tempC * 9 / 5) + 32).toStringAsFixed(1) : '';
       final position = vital['position'] ?? vital['location'] ?? '';
-
+      
       return recordedDate.toString().toLowerCase().contains(searchText) ||
-          bp.toLowerCase().contains(searchText) ||
-          pulse.toString().toLowerCase().contains(searchText) ||
-          tempF.toLowerCase().contains(searchText) ||
-          tempC.toString().toLowerCase().contains(searchText) ||
-          position.toString().toLowerCase().contains(searchText);
+             bp.toLowerCase().contains(searchText) ||
+             pulse.toString().toLowerCase().contains(searchText) ||
+             tempF.toLowerCase().contains(searchText) ||
+             tempC.toString().toLowerCase().contains(searchText) ||
+             position.toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -2950,31 +2398,13 @@ class _PatientHistoryDashboardScreenState
     if (query.isEmpty) return _activeMedicines;
     return _activeMedicines.where((med) {
       final searchText = query.toLowerCase();
-      return (med['medication'] ?? med['medicationName'] ?? med['name'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (med['salt'] ?? med['saltName'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (med['dosage'] ?? med['strength'] ?? med['dose'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (med['duration'] ?? med['frequency'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (med['status'] ?? '').toString().toLowerCase().contains(searchText) ||
-          (med['prescriber'] ?? med['doctorName'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (med['startDate'] ?? med['orderDate'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText);
+      return (med['medication'] ?? med['medicationName'] ?? med['name'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['salt'] ?? med['saltName'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['dosage'] ?? med['strength'] ?? med['dose'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['duration'] ?? med['frequency'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['status'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['prescriber'] ?? med['doctorName'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (med['startDate'] ?? med['orderDate'] ?? '').toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -3000,22 +2430,11 @@ class _PatientHistoryDashboardScreenState
     if (query.isEmpty) return _aggregatedLabOrders;
     return _aggregatedLabOrders.where((lab) {
       final searchText = query.toLowerCase();
-      return (lab['testName'] ?? lab['test'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (lab['resultValue'] ?? lab['resultNumeric'] ?? lab['result'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (lab['referenceRange'] ?? lab['normalRange'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (lab['resultStatus'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (lab['units'] ?? '').toString().toLowerCase().contains(searchText);
+      return (lab['testName'] ?? lab['test'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['resultValue'] ?? lab['resultNumeric'] ?? lab['result'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['referenceRange'] ?? lab['normalRange'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['resultStatus'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (lab['units'] ?? '').toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -3024,26 +2443,11 @@ class _PatientHistoryDashboardScreenState
     return _aggregatedRadiologyOrders.where((record) {
       final searchText = query.toLowerCase();
       final r = record as Map<String, dynamic>? ?? {};
-      return (r['testName'] ?? r['clinicalDisplayName'] ?? r['procedure'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (r['reportStatus'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (r['finalFindings'] ??
-                  r['findings'] ??
-                  r['preliminaryFindings'] ??
-                  '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (r['impression'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (r['recommendations'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          );
+      return (r['testName'] ?? r['clinicalDisplayName'] ?? r['procedure'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (r['reportStatus'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (r['finalFindings'] ?? r['findings'] ?? r['preliminaryFindings'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (r['impression'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (r['recommendations'] ?? '').toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -3051,21 +2455,11 @@ class _PatientHistoryDashboardScreenState
     if (query.isEmpty) return _surgery ?? [];
     return (_surgery ?? []).where((record) {
       final searchText = query.toLowerCase();
-      return (record['surgeryName'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['surgeryCategory'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['surgeryDate'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['procedureOutcome'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['department'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          );
+      return (record['surgeryName'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['surgeryCategory'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['surgeryDate'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['procedureOutcome'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['department'] ?? '').toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -3073,22 +2467,11 @@ class _PatientHistoryDashboardScreenState
     if (query.isEmpty) return _pregnancyRecords ?? [];
     return (_pregnancyRecords ?? []).where((record) {
       final searchText = query.toLowerCase();
-      return (record['pregnancyNumber'] ?? '')
-              .toString()
-              .toLowerCase()
-              .contains(searchText) ||
-          (record['weeksOfGestation'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['modeOfDelivery'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['laborOnsetType'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          ) ||
-          (record['stillAlive'] ?? '').toString().toLowerCase().contains(
-            searchText,
-          );
+      return (record['pregnancyNumber'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['weeksOfGestation'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['modeOfDelivery'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['laborOnsetType'] ?? '').toString().toLowerCase().contains(searchText) ||
+             (record['stillAlive'] ?? '').toString().toLowerCase().contains(searchText);
     }).toList();
   }
 
@@ -3111,12 +2494,8 @@ class _PatientHistoryDashboardScreenState
     final sectionColor = _getSectionColor(_selectedSection!);
     final isMobile = media.size.width < 600;
     final isLandscape = media.orientation == Orientation.landscape;
-    final width = isMobile
-        ? media.size.width * (isLandscape ? 0.96 : 0.94)
-        : media.size.width * 0.92;
-    final height = isMobile
-        ? media.size.height * (isLandscape ? 0.88 : 0.86)
-        : media.size.height * 0.82;
+    final width = isMobile ? media.size.width * (isLandscape ? 0.96 : 0.94) : media.size.width * 0.92;
+    final height = isMobile ? media.size.height * (isLandscape ? 0.88 : 0.86) : media.size.height * 0.82;
     final margin = isMobile ? (isLandscape ? 8.0 : 12.0) : 24.0;
     return Container(
       color: Colors.black.withOpacity(0.4),
@@ -3127,117 +2506,106 @@ class _PatientHistoryDashboardScreenState
             height: height,
             margin: EdgeInsets.all(margin),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 28,
-                  offset: const Offset(0, 12),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 28,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: isMobile ? 14 : 20),
+                decoration: BoxDecoration(
+                  color: sectionColor.withOpacity(0.1),
+                  border: Border(bottom: BorderSide(color: sectionColor.withOpacity(0.2), width: 1)),
                 ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                // Header
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 16 : 24,
-                    vertical: isMobile ? 14 : 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: sectionColor.withOpacity(0.1),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: sectionColor.withOpacity(0.2),
-                        width: 1,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: sectionColor,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: sectionColor.withOpacity(0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _getSectionIcon(_selectedSection!),
+                        color: Colors.white,
+                        size: isMobile ? 22 : 26,
                       ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: sectionColor,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: sectionColor.withOpacity(0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                    Gap(isMobile ? 12 : 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _getSectionTitle(_selectedSection!),
+                            style: TextStyle(
+                              fontSize: isMobile ? 17 : 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey.shade800,
+                              letterSpacing: -0.2,
                             ),
-                          ],
-                        ),
-                        child: Icon(
-                          _getSectionIcon(_selectedSection!),
-                          color: Colors.white,
-                          size: isMobile ? 22 : 26,
-                        ),
-                      ),
-                      Gap(isMobile ? 12 : 18),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _getSectionTitle(_selectedSection!),
-                              style: TextStyle(
-                                fontSize: isMobile ? 17 : 20,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.grey.shade800,
-                                letterSpacing: -0.2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const Gap(4),
+                          Text(
+                            '${_getDataCount(_selectedSection!)} records found',
+                            style: TextStyle(
+                              fontSize: isMobile ? 12 : 14,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
                             ),
-                            const Gap(4),
-                            Text(
-                              '${_getDataCount(_selectedSection!)} records found',
-                              style: TextStyle(
-                                fontSize: isMobile ? 12 : 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: _hideOverlay,
-                        icon: Icon(
-                          Icons.close_rounded,
-                          size: isMobile ? 22 : 24,
-                        ),
-                        tooltip: 'Close',
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.grey.shade200,
-                          foregroundColor: Colors.grey.shade700,
-                          padding: EdgeInsets.all(isMobile ? 8 : 12),
-                        ),
+                    ),
+                    IconButton(
+                      onPressed: _hideOverlay,
+                      icon: Icon(Icons.close_rounded, size: isMobile ? 22 : 24),
+                      tooltip: 'Close',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.grey.shade200,
+                        foregroundColor: Colors.grey.shade700,
+                        padding: EdgeInsets.all(isMobile ? 8 : 12),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                // Content - scrollable for all section panels
-                Expanded(
+              ),
+              // Content - scrollable for all section panels
+              Expanded(
+                child: SingleChildScrollView(
                   child: SingleChildScrollView(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        margin: EdgeInsets.all(isMobile ? 12 : 24),
-                        child: _buildSectionContent(_selectedSection!),
-                      ),
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      margin: EdgeInsets.all(isMobile ? 12 : 24),
+                      child: _buildSectionContent(_selectedSection!),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -3262,71 +2630,30 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 52,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF1F5F9)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Date/Time',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Blood Pressure',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Heart Rate',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Temperature',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Location',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
+              DataColumn(label: Text('Date/Time', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Blood Pressure', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Heart Rate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Temperature', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
             ],
             rows: _allVitals.asMap().entries.map((entry) {
               final idx = entry.key;
               final v = entry.value;
               final cells = _getRowDataForTab(v, 'Vital Signs');
               return DataRow(
-                color: MaterialStateProperty.all(
-                  idx.isEven ? Colors.white : const Color(0xFFFAFBFC),
-                ),
-                cells: cells
-                    .map(
-                      (cell) => DataCell(
-                        Container(
-                          constraints: const BoxConstraints(
-                            minWidth: 100,
-                            maxWidth: 200,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 12,
-                          ),
-                          child: Text(
-                            cell.isEmpty ? '-' : cell,
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.25,
-                              color: Colors.grey.shade800,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                color: MaterialStateProperty.all(idx.isEven ? Colors.white : const Color(0xFFFAFBFC)),
+                cells: cells.map((cell) => DataCell(
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    child: Text(
+                      cell.isEmpty ? '-' : cell,
+                      style: TextStyle(fontSize: 13, height: 1.25, color: Colors.grey.shade800),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )).toList(),
               );
             }).toList(),
           ),
@@ -3354,42 +2681,15 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 40,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Package Name',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Test Name',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Result',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Reference Range',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Package Name', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Test Name', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Result', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Reference Range', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _aggregatedLabOrders.map((lab) {
               final cells = _getRowDataForTab(lab, 'Lab Results');
-              final outOfRange =
-                  cells.length >= 5 &&
-                  _isResultOutOfReferenceRange(cells[3], cells[4]);
+              final outOfRange = cells.length >= 5 && _isResultOutOfReferenceRange(cells[3], cells[4]);
               return DataRow(
                 cells: cells.asMap().entries.map((entry) {
                   final i = entry.key;
@@ -3397,23 +2697,15 @@ class _PatientHistoryDashboardScreenState
                   final isResultCell = i == 3;
                   return DataCell(
                     Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 90,
-                        maxWidth: 180,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 8,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 90, maxWidth: 180),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                       child: Text(
                         cell.isEmpty ? '-' : cell,
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.1,
                           color: isResultCell && outOfRange ? Colors.red : null,
-                          fontWeight: isResultCell && outOfRange
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                          fontWeight: isResultCell && outOfRange ? FontWeight.bold : FontWeight.normal,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -3449,96 +2741,32 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 40,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Start Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Salt',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Medication',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Dosage',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Duration',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Status',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Prescriber',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Start Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Salt', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Medication', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Dosage', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Duration', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Prescriber', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _activeMedicines.map((m) {
-              final startDate = _formatDateDDMMYYYY(
-                m['startDate'] ?? m['start_date'] ?? m['orderDate'],
-              );
+              final startDate = _formatDateDDMMYYYY(m['startDate'] ?? m['start_date'] ?? m['orderDate']);
               final salt = (m['salt'] ?? m['saltName'] ?? '').toString();
-              final medName =
-                  (m['medication'] ?? m['medicationName'] ?? m['name'] ?? '')
-                      .toString();
-              final doseAmt = (m['dosage'] ?? m['strength'] ?? m['dose'] ?? '')
-                  .toString();
-              final doseUnit = (m['strength_unit'] ?? m['dosageUnit'] ?? '')
-                  .toString();
-              final dosage = [
-                doseAmt,
-                doseUnit,
-              ].where((e) => e.toString().trim().isNotEmpty).join(' ');
-              final duration = (m['duration'] ?? m['frequency'] ?? '')
-                  .toString();
+              final medName = (m['medication'] ?? m['medicationName'] ?? m['name'] ?? '').toString();
+              final doseAmt = (m['dosage'] ?? m['strength'] ?? m['dose'] ?? '').toString();
+              final doseUnit = (m['strength_unit'] ?? m['dosageUnit'] ?? '').toString();
+              final dosage = [doseAmt, doseUnit].where((e) => e.toString().trim().isNotEmpty).join(' ');
+              final duration = (m['duration'] ?? m['frequency'] ?? '').toString();
               final status = (m['status'] ?? 'Active').toString();
-              final prescriber =
-                  (m['prescriber'] ??
-                          m['doctorName'] ??
-                          m['prescribedBy'] ??
-                          '')
-                      .toString();
+              final prescriber = (m['prescriber'] ?? m['doctorName'] ?? m['prescribedBy'] ?? '').toString();
 
-              List<String> cells = [
-                startDate,
-                salt,
-                medName,
-                dosage,
-                duration,
-                status,
-                prescriber,
-              ];
+              List<String> cells = [startDate, salt, medName, dosage, duration, status, prescriber];
               return DataRow(
                 cells: cells.map((cell) {
                   return DataCell(
                     Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 90,
-                        maxWidth: 180,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 8,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 90, maxWidth: 180),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                       child: Text(
                         cell.isEmpty ? '-' : cell,
                         style: const TextStyle(fontSize: 12, height: 1.1),
@@ -3576,84 +2804,29 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 80,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Procedure',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Indication',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Findings',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Impression',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Radiologist',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Procedure', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Indication', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Findings', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Impression', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Radiologist', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _aggregatedRadiologyOrders.map((r) {
               final rad = r as Map<String, dynamic>? ?? {};
               final date = _formatDateDDMMYYYY(rad['orderDate'] ?? rad['date']);
-              final procedure =
-                  (rad['testName'] ??
-                          rad['clinicalDisplayName'] ??
-                          rad['procedure'] ??
-                          '')
-                      .toString();
+              final procedure = (rad['testName'] ?? rad['clinicalDisplayName'] ?? rad['procedure'] ?? '').toString();
               final indication = (rad['indication'] ?? '').toString();
-              final findings =
-                  (rad['finalFindings'] ??
-                          rad['findings'] ??
-                          rad['preliminaryFindings'] ??
-                          '')
-                      .toString();
+              final findings = (rad['finalFindings'] ?? rad['findings'] ?? rad['preliminaryFindings'] ?? '').toString();
               final impression = (rad['impression'] ?? '').toString();
-              final radiologist =
-                  (rad['radiologist_Name'] ?? rad['radiologist'] ?? '')
-                      .toString();
+              final radiologist = (rad['radiologist_Name'] ?? rad['radiologist'] ?? '').toString();
 
-              List<String> cells = [
-                date,
-                procedure,
-                indication,
-                findings,
-                impression,
-                radiologist,
-              ];
+              List<String> cells = [date, procedure, indication, findings, impression, radiologist];
               return DataRow(
                 cells: cells.map((cell) {
                   return DataCell(
                     Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 100,
-                        maxWidth: 250,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 8,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 100, maxWidth: 250),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                       child: Text(
                         cell.isEmpty ? '-' : cell,
                         style: const TextStyle(fontSize: 12, height: 1.2),
@@ -3672,12 +2845,7 @@ class _PatientHistoryDashboardScreenState
 
     if (section == 'opd') {
       if (_opdEncounters.isEmpty) {
-        return Center(
-          child: Text(
-            'No OPD encounters found',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        );
+        return Center(child: Text('No OPD encounters found', style: Theme.of(context).textTheme.bodyLarge));
       }
       return Padding(
         padding: const EdgeInsets.all(12.0),
@@ -3690,76 +2858,22 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 80,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Presenting Complaint',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Symptoms',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Diagnosis',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Clinical Notes',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Medicines',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Lab / Radiology',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Presenting Complaint', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Symptoms', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Clinical Notes', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Medicines', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Lab / Radiology', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _opdEncounters.map((e) {
-              final cells = _encounterRowData(
-                Map<String, dynamic>.from(e as Map),
-              );
+              final cells = _encounterRowData(Map<String, dynamic>.from(e as Map));
               return DataRow(
-                cells: cells
-                    .map(
-                      (cell) => DataCell(
-                        Container(
-                          constraints: const BoxConstraints(
-                            minWidth: 100,
-                            maxWidth: 220,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 6,
-                            horizontal: 8,
-                          ),
-                          child: Text(
-                            cell.isEmpty ? '-' : cell,
-                            style: const TextStyle(fontSize: 12, height: 1.2),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                cells: cells.map((cell) => DataCell(Container(
+                  constraints: const BoxConstraints(minWidth: 100, maxWidth: 220),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text(cell.isEmpty ? '-' : cell, style: const TextStyle(fontSize: 12, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ))).toList(),
               );
             }).toList(),
           ),
@@ -3768,12 +2882,7 @@ class _PatientHistoryDashboardScreenState
     }
     if (section == 'ipd') {
       if (_ipdEncounters.isEmpty) {
-        return Center(
-          child: Text(
-            'No IPD encounters found',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        );
+        return Center(child: Text('No IPD encounters found', style: Theme.of(context).textTheme.bodyLarge));
       }
       return Padding(
         padding: const EdgeInsets.all(12.0),
@@ -3786,76 +2895,22 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 80,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Presenting Complaint',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Symptoms',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Diagnosis',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Clinical Notes',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Medicines',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Lab / Radiology',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Presenting Complaint', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Symptoms', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Clinical Notes', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Medicines', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Lab / Radiology', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: _ipdEncounters.map((e) {
-              final cells = _encounterRowData(
-                Map<String, dynamic>.from(e as Map),
-              );
+              final cells = _encounterRowData(Map<String, dynamic>.from(e as Map));
               return DataRow(
-                cells: cells
-                    .map(
-                      (cell) => DataCell(
-                        Container(
-                          constraints: const BoxConstraints(
-                            minWidth: 100,
-                            maxWidth: 220,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 6,
-                            horizontal: 8,
-                          ),
-                          child: Text(
-                            cell.isEmpty ? '-' : cell,
-                            style: const TextStyle(fontSize: 12, height: 1.2),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
+                cells: cells.map((cell) => DataCell(Container(
+                  constraints: const BoxConstraints(minWidth: 100, maxWidth: 220),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  child: Text(cell.isEmpty ? '-' : cell, style: const TextStyle(fontSize: 12, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ))).toList(),
               );
             }).toList(),
           ),
@@ -3884,69 +2939,26 @@ class _PatientHistoryDashboardScreenState
             dataRowMaxHeight: 40,
             headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
             columns: const [
-              DataColumn(
-                label: Text(
-                  'Surgery Name',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Category',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Date',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Outcome',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              DataColumn(
-                label: Text(
-                  'Department',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+              DataColumn(label: Text('Surgery Name', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Outcome', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: surgeries.map((s) {
-              final surgeryName = (s['surgeryName'] ?? s['name'] ?? '')
-                  .toString();
-              final category = (s['surgeryCategory'] ?? s['category'] ?? '')
-                  .toString();
-              final surgeryDate = _formatDateDDMMYYYY(
-                s['surgeryDate'] ?? s['date'],
-              );
-              final outcome = (s['procedureOutcome'] ?? s['outcome'] ?? '')
-                  .toString();
-              final department = (s['department'] ?? s['departmentName'] ?? '')
-                  .toString();
+              final surgeryName = (s['surgeryName'] ?? s['name'] ?? '').toString();
+              final category = (s['surgeryCategory'] ?? s['category'] ?? '').toString();
+              final surgeryDate = _formatDateDDMMYYYY(s['surgeryDate'] ?? s['date']);
+              final outcome = (s['procedureOutcome'] ?? s['outcome'] ?? '').toString();
+              final department = (s['department'] ?? s['departmentName'] ?? '').toString();
 
-              List<String> cells = [
-                surgeryName,
-                category,
-                surgeryDate,
-                outcome,
-                department,
-              ];
+              List<String> cells = [surgeryName, category, surgeryDate, outcome, department];
               return DataRow(
                 cells: cells.map((cell) {
                   return DataCell(
                     Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 100,
-                        maxWidth: 200,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 8,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                       child: Text(
                         cell.isEmpty ? '-' : cell,
                         style: const TextStyle(fontSize: 12, height: 1.1),
@@ -4067,7 +3079,7 @@ class _PatientHistoryDashboardScreenState
   Future<void> _generateAndPrintPDF(String section) async {
     try {
       final pdf = pw.Document();
-
+      
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -4096,8 +3108,7 @@ class _PatientHistoryDashboardScreenState
       // Print the PDF
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
-        name:
-            '${widget.patient['fullName'] ?? 'Patient'}_History_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        name: '${widget.patient['fullName'] ?? 'Patient'}_History_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } catch (e) {
       if (mounted) AppSnackBar.showError(context, 'Error generating PDF: $e');

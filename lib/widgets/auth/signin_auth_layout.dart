@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import '../../utils/api_config.dart';
 import '../../utils/app_localizations_ext.dart';
 import '../../utils/brand_assets.dart';
+import '../server_selector.dart';
 import 'signin_auth_theme.dart';
 
 /// Responsive sizing for sign-in flow screens.
@@ -162,6 +164,7 @@ class SignInAuthLayout extends StatelessWidget {
                                     ),
                                   ),
                                 SignInAuthHeader(metrics: metrics),
+                                const HiddenServerGate(),
                                 Gap(metrics.mediumGap),
                                 SizedBox(
                                   width: double.infinity,
@@ -195,8 +198,9 @@ class SignInAuthLayout extends StatelessWidget {
 
 class SignInAuthHeader extends StatelessWidget {
   final SignInMetrics? metrics;
+  final VoidCallback? onLogoDoubleTap;
 
-  const SignInAuthHeader({super.key, this.metrics});
+  const SignInAuthHeader({super.key, this.metrics, this.onLogoDoubleTap});
 
   @override
   Widget build(BuildContext context) {
@@ -215,17 +219,21 @@ class SignInAuthHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Image.asset(
-          BrandAssets.logo,
-          width: logoSize,
-          height: logoSize,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          filterQuality: FilterQuality.high,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.health_and_safety_rounded,
-            size: logoSize * 0.85,
-            color: SignInAuthTheme.primary,
+        GestureDetector(
+          onDoubleTap: onLogoDoubleTap ?? ApiConfig.unlock,
+          behavior: HitTestBehavior.opaque,
+          child: Image.asset(
+            BrandAssets.logo,
+            width: logoSize,
+            height: logoSize,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.health_and_safety_rounded,
+              size: logoSize * 0.85,
+              color: SignInAuthTheme.primary,
+            ),
           ),
         ),
         const Gap(10),

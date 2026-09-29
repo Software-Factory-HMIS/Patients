@@ -142,6 +142,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookVisit => 'Book Visit';
 
   @override
+  String get speakToBook => 'Speak to book';
+
+  @override
+  String get speakToBookTitle => 'Speak to book a visit';
+
+  @override
+  String get voiceBookingSettings => 'Voice booking (Gemini)';
+
+  @override
+  String get voiceBookingSettingsSubtitle =>
+      'Used when you tap Speak. Phone key is tried first. If empty, the app asks HMIS for a short Live token (same idea as hospital AI keys).';
+
+  @override
+  String get voiceBookingProvider => 'Provider';
+
+  @override
+  String get voiceBookingModel => 'Live model';
+
+  @override
+  String get voiceBookingApiKey => 'Gemini API key (optional)';
+
+  @override
+  String get voiceBookingSave => 'Save voice settings';
+
+  @override
+  String get voiceBookingSaving => 'Saving…';
+
+  @override
+  String get voiceBookingSaved =>
+      'Saved on this phone. If empty, HMIS hospital Gemini key is used.';
+
+  @override
+  String get voiceBookingStop => 'Stop';
+
+  @override
+  String get voiceBookingOpenSettings => 'Open Settings';
+
+  @override
+  String get voiceBookingYou => 'You';
+
+  @override
+  String get voiceBookingAssistant => 'Assistant';
+
+  @override
+  String get voiceBookingLoading => 'Loading…';
+
+  @override
+  String get voiceNearestOnly =>
+      'You can only book one of these nearest THQ/DHQ hospitals:';
+
+  @override
+  String get voiceNeedLocation => 'Turn on location to book by voice.';
+
+  @override
+  String get voiceYourToken => 'Your token';
+
+  @override
+  String get voiceAiNotice => 'I am a computer clerk. Today’s token only.';
+
+  @override
+  String get voiceTypeInstead => 'Type';
+
+  @override
+  String get voiceTapHospital => 'Say the name or tap one';
+
+  @override
+  String get voiceExistingToken => 'You already have today’s token';
+
+  @override
+  String get voiceUseThisToken => 'Keep this token';
+
+  @override
+  String get voiceBookAnother => 'Another hospital';
+
+  @override
+  String get voiceFixHint => 'Wrong? Tap that line';
+
+  @override
   String get bookAppointment => 'Book an Appointment';
 
   @override

@@ -12,27 +12,52 @@ import 'emr_api_client_io.dart'
     as platform_client;
 
 class EmrApiClient {
-  final String baseUrl;
-  final http.Client _client;
-
-  /// Base URL for HMIS_AuthServer (patient lookup + OTP delivery only).
-  final String authServerUrl;
-  final http.Client _authClient;
-
   EmrApiClient({
     String? baseUrl,
     http.Client? client,
     String? authServerUrl,
     http.Client? authClient,
-  }) : baseUrl = baseUrl ?? resolveEmrBaseUrl(),
-       _client = VersionedHttpClient(
-         client ?? _createHttpClient(baseUrl ?? resolveEmrBaseUrl()),
-       ),
-       authServerUrl = authServerUrl ?? resolveAuthServerBaseUrl(),
-       _authClient = VersionedHttpClient(
-         authClient ??
-             _createHttpClient(authServerUrl ?? resolveAuthServerBaseUrl()),
-       );
+  })  : _baseUrlOverride = baseUrl,
+        _authOverride = authServerUrl,
+        _injectedClient = client,
+        _injectedAuthClient = authClient;
+
+  final String? _baseUrlOverride;
+  final String? _authOverride;
+  final http.Client? _injectedClient;
+  final http.Client? _injectedAuthClient;
+
+  http.Client? _emrClient;
+  String? _emrClientUrl;
+  http.Client? _authHttp;
+  String? _authHttpUrl;
+
+  String get baseUrl => _baseUrlOverride ?? resolveEmrBaseUrl();
+  String get authServerUrl => _authOverride ?? resolveAuthServerBaseUrl();
+
+  http.Client get _client {
+    if (_injectedClient != null) {
+      return _emrClient ??= VersionedHttpClient(_injectedClient!);
+    }
+    final url = baseUrl;
+    if (_emrClient == null || _emrClientUrl != url) {
+      _emrClient = VersionedHttpClient(_createHttpClient(url));
+      _emrClientUrl = url;
+    }
+    return _emrClient!;
+  }
+
+  http.Client get _authClient {
+    if (_injectedAuthClient != null) {
+      return _authHttp ??= VersionedHttpClient(_injectedAuthClient!);
+    }
+    final url = authServerUrl;
+    if (_authHttp == null || _authHttpUrl != url) {
+      _authHttp = VersionedHttpClient(_createHttpClient(url));
+      _authHttpUrl = url;
+    }
+    return _authHttp!;
+  }
 
   /// Creates an HTTP client with appropriate SSL certificate handling
   /// - For development URLs (localhost, private IPs): Bypasses SSL validation (native only)
@@ -363,6 +388,60 @@ class EmrApiClient {
     if (res.body.trim().isEmpty) return [];
     final data = json.decode(res.body);
     return List<Map<String, dynamic>>.from(data['encounters'] ?? []);
+  }
+
+  /// GET /api/encounters/patient/{patientId}/clinical-history
+  Future<Map<String, dynamic>> getPatientClinicalHistory(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/clinical-history')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) throw Exception('Failed to load clinical history (${res.statusCode})');
+    if (res.body.trim().isEmpty) return {};
+    final data = json.decode(res.body);
+    return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
+  }
+
+  /// GET /api/encounters/patient/{id}/safe-extras — patient-safe extras (no staff-only rows).
+  Future<Map<String, dynamic>> getPatientSafeExtras(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/safe-extras')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) return {};
+    if (res.body.trim().isEmpty) return {};
+    final data = json.decode(res.body);
+    return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);
+  }
+
+  /// GET /api/fhir/Patient/{id}/ips — FHIR R4 IPS JSON (audited).
+  Future<String> getPatientIpsFhir(
+    int patientId, {
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
+    if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    final uri = Uri.parse('$baseUrl/api/fhir/Patient/$patientId/ips')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    final res = await _authenticatedGet(uri);
+    if (res.statusCode != 200) {
+      throw Exception('Failed to export FHIR (${res.statusCode})');
+    }
+    return res.body;
   }
 
   /// GET /api/encounters/{encounterId}
@@ -867,7 +946,6 @@ class EmrApiClient {
           // Wait a bit before retrying to allow any concurrent operations to complete
           await Future.delayed(Duration(milliseconds: 300 * attempt));
         }
-
         final res = await _authenticatedPost(
           uri,
           body: body,
@@ -942,7 +1020,6 @@ class EmrApiClient {
       final res = await _authenticatedPost(uri).timeout(
         const Duration(seconds: 15),
       );
-
       if (res.statusCode >= 200 && res.statusCode < 300) {
         // Parse and return the receipt data
         try {
@@ -959,6 +1036,55 @@ class EmrApiClient {
     } catch (e) {
       // Return empty map instead of throwing - allows UI to still show appointment details
       return {};
+    }
+  }
+
+  /// Short-lived Gemini Live token. HMIS keeps the API key.
+  Future<({String token, String model})?> fetchPatientLiveToken() async {
+    final uri = Uri.parse('$baseUrl/api/patient-ai/live-token');
+    try {
+      final res = await _authenticatedPost(uri, body: <String, dynamic>{})
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final decoded = json.decode(res.body);
+      Map<String, dynamic>? data;
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        final inner = map['data'] ?? map['Data'];
+        if (inner is Map) {
+          data = Map<String, dynamic>.from(inner);
+        } else {
+          data = map;
+        }
+      }
+      if (data == null) return null;
+      final token = (data['token'] ?? data['Token'] ?? '').toString().trim();
+      if (token.isEmpty) return null;
+      final model = (data['model'] ?? data['Model'] ?? '').toString().trim();
+      return (token: token, model: model);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Display-only: Roman / mixed line → Pakistani Urdu script.
+  Future<String?> toUrduScript(String text) async {
+    final raw = text.trim();
+    if (raw.isEmpty) return raw;
+    final uri = Uri.parse('$baseUrl/api/patient-ai/urdu-script');
+    try {
+      final res = await _authenticatedPost(uri, body: {'text': raw})
+          .timeout(const Duration(seconds: 10));
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final decoded = json.decode(res.body);
+      if (decoded is! Map) return null;
+      final map = Map<String, dynamic>.from(decoded);
+      final inner = map['data'] ?? map['Data'];
+      final data = inner is Map ? Map<String, dynamic>.from(inner) : map;
+      final out = (data['text'] ?? data['Text'] ?? '').toString().trim();
+      return out.isEmpty ? null : out;
+    } catch (_) {
+      return null;
     }
   }
 

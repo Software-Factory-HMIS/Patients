@@ -362,6 +362,156 @@ abstract class AppLocalizations {
   /// **'Book Visit'**
   String get bookVisit;
 
+  /// No description provided for @speakToBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak to book'**
+  String get speakToBook;
+
+  /// No description provided for @speakToBookTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak to book a visit'**
+  String get speakToBookTitle;
+
+  /// No description provided for @voiceBookingSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice booking (Gemini)'**
+  String get voiceBookingSettings;
+
+  /// No description provided for @voiceBookingSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Used when you tap Speak. Phone key is tried first. If empty, the app asks HMIS for a short Live token (same idea as hospital AI keys).'**
+  String get voiceBookingSettingsSubtitle;
+
+  /// No description provided for @voiceBookingProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get voiceBookingProvider;
+
+  /// No description provided for @voiceBookingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Live model'**
+  String get voiceBookingModel;
+
+  /// No description provided for @voiceBookingApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemini API key (optional)'**
+  String get voiceBookingApiKey;
+
+  /// No description provided for @voiceBookingSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save voice settings'**
+  String get voiceBookingSave;
+
+  /// No description provided for @voiceBookingSaving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get voiceBookingSaving;
+
+  /// No description provided for @voiceBookingSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone. If empty, HMIS hospital Gemini key is used.'**
+  String get voiceBookingSaved;
+
+  /// No description provided for @voiceBookingStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get voiceBookingStop;
+
+  /// No description provided for @voiceBookingOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get voiceBookingOpenSettings;
+
+  /// No description provided for @voiceBookingYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get voiceBookingYou;
+
+  /// No description provided for @voiceBookingAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get voiceBookingAssistant;
+
+  /// No description provided for @voiceBookingLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get voiceBookingLoading;
+
+  /// No description provided for @voiceNearestOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'You can only book one of these nearest THQ/DHQ hospitals:'**
+  String get voiceNearestOnly;
+
+  /// No description provided for @voiceNeedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on location to book by voice.'**
+  String get voiceNeedLocation;
+
+  /// No description provided for @voiceYourToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Your token'**
+  String get voiceYourToken;
+
+  /// No description provided for @voiceAiNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'I am a computer clerk. Today’s token only.'**
+  String get voiceAiNotice;
+
+  /// No description provided for @voiceTypeInstead.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get voiceTypeInstead;
+
+  /// No description provided for @voiceTapHospital.
+  ///
+  /// In en, this message translates to:
+  /// **'Say the name or tap one'**
+  String get voiceTapHospital;
+
+  /// No description provided for @voiceExistingToken.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have today’s token'**
+  String get voiceExistingToken;
+
+  /// No description provided for @voiceUseThisToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this token'**
+  String get voiceUseThisToken;
+
+  /// No description provided for @voiceBookAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Another hospital'**
+  String get voiceBookAnother;
+
+  /// No description provided for @voiceFixHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong? Tap that line'**
+  String get voiceFixHint;
+
   /// No description provided for @bookAppointment.
   ///
   /// In en, this message translates to:

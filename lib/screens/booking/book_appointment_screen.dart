@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import '../../models/appointment_models.dart';
+import '../../services/hospital_catalog_cache.dart';
 import '../../services/nearest_hospital_service.dart';
 import '../../services/patient_location_service.dart';
 import '../../services/patient_portal_service.dart';
@@ -9,6 +10,7 @@ import '../../utils/user_storage.dart';
 import '../../utils/app_localizations_ext.dart';
 import '../../widgets/punjab_ui.dart';
 import '../../widgets/searchable_hospital_select.dart';
+import '../../widgets/voice_appointment_sheet.dart';
 import '../appointment_success_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
@@ -52,6 +54,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     _api = EmrApiClient();
     _loadRecentAppointments();
     PatientLocationService.instance.warmUp();
+    HospitalCatalogCache.instance.warmUp();
     PatientPortalService.visitRevision.addListener(_loadRecentAppointments);
   }
 
@@ -100,10 +103,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   String _patientCnic() => _patientCnicDigits();
 
   Future<List<Hospital>> _searchHospitals(String searchTerm) async {
-    final hospitalsData = await _api!.searchHospitals(searchTerm, limit: 50);
-    return hospitalsData
-        .map((json) => Hospital.fromJson(json as Map<String, dynamic>))
-        .where((h) => h.isActive && h.hospitalID > 0 && h.name.isNotEmpty)
+    final hospitals = await HospitalCatalogCache.instance.thqDhqHospitals();
+    final q = searchTerm.trim().toLowerCase();
+    if (q.isEmpty) return hospitals.take(50).toList();
+    return hospitals
+        .where((h) => h.name.toLowerCase().contains(q))
         .toList();
   }
 
@@ -134,16 +138,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       _appointmentError = null;
     });
     try {
-      final data = await _api!.fetchHospitalDepartments(hospitalId);
-      final departments = <HospitalDepartment>[];
-      for (final item in data) {
-        try {
-          final dept = HospitalDepartment.fromJson(
-            item as Map<String, dynamic>,
-          );
-          if (dept.hospitalDepartmentID > 0) departments.add(dept);
-        } catch (_) {}
-      }
+      final departments =
+          await HospitalCatalogCache.instance.departments(hospitalId);
       setState(() {
         _hospitalDepartments = departments;
         _loadingHospitalDepartments = false;
@@ -370,6 +366,19 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   title: l.bookAppointment,
                   subtitle: l.bookVisitSubtitle,
                 ),
+                PunjabPrimaryButton(
+                  label: l.speakToBook,
+                  icon: Icons.mic_rounded,
+                  onPressed: () => VoiceAppointmentSheet.show(
+                    context,
+                    patientId: widget.patientId,
+                    patient: widget.patient,
+                    savedUserData: widget.savedUserData,
+                    onGoHome: widget.onGoHome,
+                    onTypeInstead: () {},
+                  ),
+                ),
+                const Gap(16),
                 PunjabCard(
                   padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
                   child: PunjabBookingStepper(currentStep: _currentStep),

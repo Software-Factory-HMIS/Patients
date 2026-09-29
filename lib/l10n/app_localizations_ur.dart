@@ -142,6 +142,84 @@ class AppLocalizationsUr extends AppLocalizations {
   String get bookVisit => 'وزٹ بک کریں';
 
   @override
+  String get speakToBook => 'آواز سے وزٹ لیں';
+
+  @override
+  String get speakToBookTitle => 'آواز سے وزٹ لیں';
+
+  @override
+  String get voiceBookingSettings => 'آواز سے بک (Gemini)';
+
+  @override
+  String get voiceBookingSettingsSubtitle =>
+      'جب آپ بول کر بک دبائیں تو یہ استعمال ہوتا ہے۔ پہلے فون کی کلید۔ اگر خالی ہو تو ایپ HMIS سے مختصر Live ٹوکن لیتی ہے (ہسپتال AI کلیدوں کی طرح).';
+
+  @override
+  String get voiceBookingProvider => 'فراہم کنندہ';
+
+  @override
+  String get voiceBookingModel => 'Live ماڈل';
+
+  @override
+  String get voiceBookingApiKey => 'Gemini API کلید (اختیاری)';
+
+  @override
+  String get voiceBookingSave => 'آواز کی ترتیبات محفوظ کریں';
+
+  @override
+  String get voiceBookingSaving => 'محفوظ ہو رہا ہے…';
+
+  @override
+  String get voiceBookingSaved =>
+      'اس فون پر محفوظ ہو گئی۔ اگر خالی ہو تو HMIS کی ہسپتال Gemini کلید استعمال ہو گی۔';
+
+  @override
+  String get voiceBookingStop => 'روکیں';
+
+  @override
+  String get voiceBookingOpenSettings => 'ترتیبات کھولیں';
+
+  @override
+  String get voiceBookingYou => 'آپ';
+
+  @override
+  String get voiceBookingAssistant => 'معاون';
+
+  @override
+  String get voiceBookingLoading => 'لوڈ ہو رہا ہے…';
+
+  @override
+  String get voiceNearestOnly =>
+      'آپ صرف ان قریبی تحصیل/ضلع ہسپتالوں میں سے ایک کا وزٹ لے سکتے ہیں:';
+
+  @override
+  String get voiceNeedLocation => 'آواز سے بک کرنے کے لیے لوکیشن آن کریں۔';
+
+  @override
+  String get voiceYourToken => 'آپ کا ٹوکن';
+
+  @override
+  String get voiceAiNotice => 'میں کمپیوٹر کلرک ہوں۔ صرف آج کا ٹوکن۔';
+
+  @override
+  String get voiceTypeInstead => 'لکھیں';
+
+  @override
+  String get voiceTapHospital => 'نام بولیں یا دبائیں';
+
+  @override
+  String get voiceExistingToken => 'آج کا ٹوکن پہلے سے ہے';
+
+  @override
+  String get voiceUseThisToken => 'یہی ٹوکن رکھیں';
+
+  @override
+  String get voiceBookAnother => 'دوسرا ہسپتال';
+
+  @override
+  String get voiceFixHint => 'غلط ہو تو یہ لائن دبائیں';
+
+  @override
   String get bookAppointment => 'اپائنٹمنٹ بک کریں';
 
   @override

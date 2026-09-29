@@ -1,6 +1,7 @@
 import '../models/appointment_models.dart';
 import '../utils/emr_api_client.dart';
 import '../utils/geo_utils.dart';
+import 'hospital_catalog_cache.dart';
 
 class NearestHospitalResult {
   final Hospital hospital;
@@ -36,11 +37,7 @@ class NearestHospitalService {
     required double longitude,
     int limit = 5,
   }) async {
-    final hospitalsData = await _api.searchHospitals('', limit: 200);
-    final hospitals = hospitalsData
-        .map((json) => Hospital.fromJson(json as Map<String, dynamic>))
-        .where((h) => h.isActive && h.hospitalID > 0 && h.name.isNotEmpty)
-        .toList();
+    final hospitals = await HospitalCatalogCache.instance.thqDhqHospitals();
 
     final ranked = <NearestHospitalResult>[];
 

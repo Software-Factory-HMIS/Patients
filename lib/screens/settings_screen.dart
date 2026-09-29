@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import '../services/locale_service.dart';
 import '../services/theme_service.dart';
+import '../services/llm/patient_ai_settings.dart';
 import '../utils/app_localizations_ext.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -105,6 +106,8 @@ class SettingsScreen extends StatelessWidget {
                         },
                       ),
                     ),
+                    const Gap(16),
+                    const _VoiceAiSettingsCard(),
                   ],
                 ),
               ),
@@ -262,6 +265,146 @@ class _OptionCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VoiceAiSettingsCard extends StatefulWidget {
+  const _VoiceAiSettingsCard();
+
+  @override
+  State<_VoiceAiSettingsCard> createState() => _VoiceAiSettingsCardState();
+}
+
+class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
+  final _keyCtrl = TextEditingController();
+  String _provider = PatientAiSettings.defaultProvider;
+  String _model = PatientAiSettings.defaultModel;
+  bool _loading = true;
+  bool _saving = false;
+  bool _obscure = true;
+  String? _savedNote;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final s = await PatientAiSettings.load();
+    if (!mounted) return;
+    setState(() {
+      _provider = s.provider;
+      _model = PatientAiSettings.liveModels.containsKey(s.model)
+          ? s.model
+          : PatientAiSettings.defaultModel;
+      _keyCtrl.text = s.apiKey;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _savedNote = null;
+    });
+    await PatientAiSettings.save(
+      provider: _provider,
+      model: _model,
+      apiKey: _keyCtrl.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _savedNote = context.l10n.voiceBookingSaved;
+    });
+  }
+
+  @override
+  void dispose() {
+    _keyCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    if (_loading) {
+      return _SettingsCard(
+        icon: Icons.mic_rounded,
+        title: l.voiceBookingSettings,
+        subtitle: l.voiceBookingLoading,
+        child: const LinearProgressIndicator(),
+      );
+    }
+
+    return _SettingsCard(
+      icon: Icons.mic_rounded,
+      title: l.voiceBookingSettings,
+      subtitle: l.voiceBookingSettingsSubtitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            value: _provider,
+            decoration: InputDecoration(
+              labelText: l.voiceBookingProvider,
+              border: const OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'gemini', child: Text('Google Gemini')),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _provider = v);
+            },
+          ),
+          const Gap(12),
+          DropdownButtonFormField<String>(
+            value: PatientAiSettings.liveModels.containsKey(_model)
+                ? _model
+                : PatientAiSettings.defaultModel,
+            decoration: InputDecoration(
+              labelText: l.voiceBookingModel,
+              border: const OutlineInputBorder(),
+            ),
+            isExpanded: true,
+            items: [
+              for (final e in PatientAiSettings.liveModels.entries)
+                DropdownMenuItem(
+                  value: e.key,
+                  child: Text(e.value, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (v) {
+              if (v != null) setState(() => _model = v);
+            },
+          ),
+          const Gap(12),
+          TextField(
+            controller: _keyCtrl,
+            obscureText: _obscure,
+            decoration: InputDecoration(
+              labelText: l.voiceBookingApiKey,
+              border: const OutlineInputBorder(),
+              hintText: 'AIza…',
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+          const Gap(12),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? l.voiceBookingSaving : l.voiceBookingSave),
+          ),
+          if (_savedNote != null) ...[
+            const Gap(8),
+            Text(_savedNote!, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ],
       ),
     );
   }

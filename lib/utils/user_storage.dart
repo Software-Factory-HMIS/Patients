@@ -103,6 +103,7 @@ class UserStorage {
   }
 
   static const String _knownHospitalIdsKey = 'known_hospital_ids';
+  static const String _lastBookedHospitalIdKey = 'last_booked_hospital_id';
 
   /// Remember hospitals the patient has visited so live queue APIs can be queried.
   static Future<void> addKnownHospitalId(int hospitalId) async {
@@ -115,7 +116,18 @@ class UserStorage {
         _knownHospitalIdsKey,
         ids.map((id) => id.toString()).toList(),
       );
+      await prefs.setInt(_lastBookedHospitalIdKey, hospitalId);
     } catch (_) {}
+  }
+
+  static Future<int?> getLastBookedHospitalId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getInt(_lastBookedHospitalIdKey);
+      return (id == null || id <= 0) ? null : id;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<List<int>> getKnownHospitalIds() async {
