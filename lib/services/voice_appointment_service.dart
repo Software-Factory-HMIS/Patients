@@ -108,7 +108,10 @@ class VoiceAppointmentService extends ChangeNotifier {
     notifyListeners();
 
     final settings = await PatientAiSettings.load();
-    var apiKey = settings.apiKey.trim();
+    // Release never uses a device Gemini key — HMIS issues a short Live token.
+    final apiKey = PatientAiSettings.allowDeviceApiKey
+        ? settings.apiKey.trim()
+        : '';
     String? accessToken;
     var model = settings.model;
 
@@ -116,11 +119,29 @@ class VoiceAppointmentService extends ChangeNotifier {
       status = 'جڑ رہا ہے…';
       notifyListeners();
       final tok = await _api.fetchPatientLiveToken();
-      if (tok == null) {
+      if (tok.token == null || tok.token!.isEmpty) {
         step = VoiceBookStep.failed;
         missingVoiceKey = true;
-        error =
-            'ترتیبات میں Gemini کلید لکھیں، یا منتظم سے ہسپتال کی Gemini کلید محفوظ کروانے کو کہیں۔';
+        final server = (tok.error ?? '').trim();
+        final http = tok.statusCode;
+        final detail = [
+          if (server.isNotEmpty) server,
+          if (http != null) 'HTTP $http',
+        ].join(' · ');
+        if (PatientAiSettings.allowDeviceApiKey) {
+          error = detail.isNotEmpty
+              ? detail
+              : 'ترتیبات میں Gemini کلید لکھیں، یا منتظم سے ہسپتال کی Gemini کلید محفوظ کروانے کو کہیں۔';
+        } else if (http == 401 || http == 403) {
+          error = detail.isNotEmpty
+              ? 'دوبارہ سائن ان کریں، پھر آواز سے بک آزمائیں۔\n$detail'
+              : 'دوبارہ سائن ان کریں، پھر آواز سے بک آزمائیں۔';
+        } else {
+          // Keep Urdu guidance; always append server detail so support can copy it.
+          const urdu =
+              'آواز سے بک اس وقت دستیاب نہیں۔ منتظم سے HMIS میں Gemini کلید محفوظ کروانے کو کہیں۔';
+          error = detail.isNotEmpty ? '$urdu\n$detail' : urdu;
+        }
         status = error!;
         notifyListeners();
         return;
@@ -187,8 +208,10 @@ class VoiceAppointmentService extends ChangeNotifier {
     }
     if (!ok) {
       step = VoiceBookStep.failed;
-      missingVoiceKey = true;
-      error = 'آواز والا معاون شروع نہیں ہوا۔ ترتیبات میں کلید اور ماڈل چیک کریں۔';
+      missingVoiceKey = PatientAiSettings.allowDeviceApiKey;
+      error = PatientAiSettings.allowDeviceApiKey
+          ? 'آواز والا معاون شروع نہیں ہوا۔ ترتیبات میں کلید اور ماڈل چیک کریں۔'
+          : 'آواز والا معاون شروع نہیں ہوا۔ دوبارہ کوشش کریں۔';
       status = error!;
       notifyListeners();
       return;

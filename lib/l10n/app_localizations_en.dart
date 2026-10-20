@@ -152,7 +152,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceBookingSettingsSubtitle =>
-      'Used when you tap Speak. Phone key is tried first. If empty, the app asks HMIS for a short Live token (same idea as hospital AI keys).';
+      'Debug only. Production apps get a short Live token from HMIS — never put a real Gemini key in a patient build.';
 
   @override
   String get voiceBookingProvider => 'Provider';
@@ -161,7 +161,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceBookingModel => 'Live model';
 
   @override
-  String get voiceBookingApiKey => 'Gemini API key (optional)';
+  String get voiceBookingApiKey => 'Gemini API key (debug only)';
 
   @override
   String get voiceBookingSave => 'Save voice settings';
@@ -171,7 +171,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceBookingSaved =>
-      'Saved on this phone. If empty, HMIS hospital Gemini key is used.';
+      'Saved on this phone for debug. Release builds ignore this key and use HMIS.';
 
   @override
   String get voiceBookingStop => 'Stop';

@@ -152,7 +152,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get voiceBookingSettingsSubtitle =>
-      'جب آپ بول کر بک دبائیں تو یہ استعمال ہوتا ہے۔ پہلے فون کی کلید۔ اگر خالی ہو تو ایپ HMIS سے مختصر Live ٹوکن لیتی ہے (ہسپتال AI کلیدوں کی طرح).';
+      'صرف ڈیبگ۔ پروڈکشن ایپ HMIS سے مختصر Live ٹوکن لیتی ہے — مریض کی بلڈ میں اصلی Gemini کلید نہ رکھیں۔';
 
   @override
   String get voiceBookingProvider => 'فراہم کنندہ';
@@ -161,7 +161,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get voiceBookingModel => 'Live ماڈل';
 
   @override
-  String get voiceBookingApiKey => 'Gemini API کلید (اختیاری)';
+  String get voiceBookingApiKey => 'Gemini API کلید (صرف ڈیبگ)';
 
   @override
   String get voiceBookingSave => 'آواز کی ترتیبات محفوظ کریں';
@@ -171,7 +171,7 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get voiceBookingSaved =>
-      'اس فون پر محفوظ ہو گئی۔ اگر خالی ہو تو HMIS کی ہسپتال Gemini کلید استعمال ہو گی۔';
+      'ڈیبگ کے لیے اس فون پر محفوظ۔ ریلیز بلڈ اس کلید کو نظر انداز کر کے HMIS استعمال کرتی ہے۔';
 
   @override
   String get voiceBookingStop => 'روکیں';

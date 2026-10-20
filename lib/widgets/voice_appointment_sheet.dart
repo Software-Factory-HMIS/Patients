@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations_ur.dart';
 import '../screens/appointment_success_screen.dart';
 import '../screens/settings_screen.dart';
+import '../services/llm/patient_ai_settings.dart';
 import '../services/voice_appointment_service.dart';
+import '../utils/app_snackbar.dart';
 
 class VoiceAppointmentSheet extends StatefulWidget {
   final int patientId;
@@ -55,6 +58,7 @@ class VoiceAppointmentSheet extends StatefulWidget {
 class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
   late final VoiceAppointmentService _svc;
   bool _openedSuccess = false;
+  String? _flashedError;
 
   @override
   void initState() {
@@ -70,6 +74,21 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
   void _onSvc() {
     if (!mounted) return;
     setState(() {});
+    final err = _svc.error;
+    if (err != null &&
+        err.isNotEmpty &&
+        err != _flashedError &&
+        _svc.step == VoiceBookStep.failed) {
+      _flashedError = err;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        AppSnackBar.showError(
+          context,
+          err,
+          duration: const Duration(seconds: 20),
+        );
+      });
+    }
     // Wait for the session to close, not just for the booking to land: the
     // token is still being read out while the step is already done.
     if (_openedSuccess || _svc.step != VoiceBookStep.done || _svc.isLive) {
@@ -103,7 +122,9 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
     super.dispose();
   }
 
-  bool get _needsApiKey => _svc.missingVoiceKey;
+  /// Offer Settings only in debug, where a device Gemini key is allowed.
+  bool get _needsApiKey =>
+      _svc.missingVoiceKey && PatientAiSettings.allowDeviceApiKey;
 
   Future<void> _typeInstead() async {
     await _svc.stop();
@@ -237,12 +258,7 @@ class _VoiceAppointmentSheetState extends State<VoiceAppointmentSheet> {
             ],
             if (_svc.error != null) ...[
               const SizedBox(height: 10),
-              Text(
-                _svc.error!,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.error, fontSize: 13),
-              ),
+              _CopyableError(message: _svc.error!),
             ],
             const SizedBox(height: 16),
             if (_needsApiKey)
@@ -299,6 +315,44 @@ class _FixLine extends StatelessWidget {
       title: Text(label, style: const TextStyle(fontSize: 13)),
       trailing: const Icon(Icons.edit_outlined, size: 16),
       onTap: onTap,
+    );
+  }
+}
+
+class _CopyableError extends StatelessWidget {
+  const _CopyableError({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: cs.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: SelectableText(
+              message,
+              style: TextStyle(color: cs.error, fontSize: 13, height: 1.35),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copy error',
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: message));
+              if (!context.mounted) return;
+              AppSnackBar.showInfo(context, 'Error copied');
+            },
+            icon: Icon(Icons.copy, size: 18, color: cs.error),
+          ),
+        ],
+      ),
     );
   }
 }

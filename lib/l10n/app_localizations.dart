@@ -383,7 +383,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceBookingSettingsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Used when you tap Speak. Phone key is tried first. If empty, the app asks HMIS for a short Live token (same idea as hospital AI keys).'**
+  /// **'Debug only. Production apps get a short Live token from HMIS — never put a real Gemini key in a patient build.'**
   String get voiceBookingSettingsSubtitle;
 
   /// No description provided for @voiceBookingProvider.
@@ -401,7 +401,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceBookingApiKey.
   ///
   /// In en, this message translates to:
-  /// **'Gemini API key (optional)'**
+  /// **'Gemini API key (debug only)'**
   String get voiceBookingApiKey;
 
   /// No description provided for @voiceBookingSave.
@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// No description provided for @voiceBookingSaved.
   ///
   /// In en, this message translates to:
-  /// **'Saved on this phone. If empty, HMIS hospital Gemini key is used.'**
+  /// **'Saved on this phone for debug. Release builds ignore this key and use HMIS.'**
   String get voiceBookingSaved;
 
   /// No description provided for @voiceBookingStop.

@@ -15,7 +15,7 @@ class AppSnackBar {
     BuildContext context,
     String message, {
     VoidCallback? onRetry,
-    Duration duration = const Duration(seconds: 8),
+    Duration duration = const Duration(seconds: 12),
   }) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -25,21 +25,22 @@ class AppSnackBar {
         behavior: SnackBarBehavior.floating,
         duration: duration,
         content: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 22),
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.error_outline, color: Colors.white, size: 22),
+            ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
+              child: SelectableText(
                 message,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                   height: 1.35,
                 ),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 4),
@@ -111,15 +112,15 @@ class _CopyButtonState extends State<_CopyButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _copy,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          _copied ? Icons.check : Icons.copy,
-          color: Colors.white70,
-          size: 16,
-        ),
+    return IconButton(
+      onPressed: _copy,
+      tooltip: _copied ? 'Copied' : 'Copy error',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      icon: Icon(
+        _copied ? Icons.check : Icons.copy,
+        color: Colors.white,
+        size: 20,
       ),
     );
   }

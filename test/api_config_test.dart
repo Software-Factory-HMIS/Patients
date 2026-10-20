@@ -16,4 +16,11 @@ void main() {
     expect(resolveEmrBaseUrl(), productionEmrBaseUrl);
     expect(resolveAuthServerBaseUrl(), productionAuthServerBaseUrl);
   });
+
+  test('release cannot switch off production backends', () {
+    // ApiConfig.canSwitchBackend is !kReleaseMode; test process is debug.
+    expect(ApiConfig.canSwitchBackend, isTrue);
+    expect(ApiConfig.prod.emrBaseUrl, productionEmrBaseUrl);
+    expect(ApiConfig.prod.authBaseUrl, productionAuthServerBaseUrl);
+  });
 }

@@ -1040,12 +1040,41 @@ class EmrApiClient {
   }
 
   /// Short-lived Gemini Live token. HMIS keeps the API key.
-  Future<({String token, String model})?> fetchPatientLiveToken() async {
+  ///
+  /// On failure [error] is a short user-facing reason (and includes HTTP status
+  /// when useful). Callers should not show raw HTML.
+  Future<({String? token, String model, String? error, int? statusCode})>
+      fetchPatientLiveToken() async {
     final uri = Uri.parse('$baseUrl/api/patient-ai/live-token');
     try {
       final res = await _authenticatedPost(uri, body: <String, dynamic>{})
           .timeout(const Duration(seconds: 20));
-      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        var msg = 'Voice booking is not available.';
+        try {
+          final decoded = json.decode(res.body);
+          if (decoded is Map) {
+            final map = Map<String, dynamic>.from(decoded);
+            msg = (map['message'] ?? map['Message'] ?? msg).toString().trim();
+            if (msg.isEmpty) msg = 'Voice booking is not available.';
+          }
+        } catch (_) {
+          if (res.statusCode == 401 || res.statusCode == 403) {
+            msg = 'Please sign in again.';
+          } else {
+            final body = res.body.trim();
+            if (body.isNotEmpty && body.length < 240 && !body.startsWith('<')) {
+              msg = body;
+            }
+          }
+        }
+        return (
+          token: null,
+          model: '',
+          error: msg,
+          statusCode: res.statusCode,
+        );
+      }
       final decoded = json.decode(res.body);
       Map<String, dynamic>? data;
       if (decoded is Map) {
@@ -1057,13 +1086,32 @@ class EmrApiClient {
           data = map;
         }
       }
-      if (data == null) return null;
+      if (data == null) {
+        return (
+          token: null,
+          model: '',
+          error: 'Voice booking is not available.',
+          statusCode: res.statusCode,
+        );
+      }
       final token = (data['token'] ?? data['Token'] ?? '').toString().trim();
-      if (token.isEmpty) return null;
+      if (token.isEmpty) {
+        return (
+          token: null,
+          model: '',
+          error: 'Voice booking is not available.',
+          statusCode: res.statusCode,
+        );
+      }
       final model = (data['model'] ?? data['Model'] ?? '').toString().trim();
-      return (token: token, model: model);
-    } catch (_) {
-      return null;
+      return (token: token, model: model, error: null, statusCode: res.statusCode);
+    } catch (e) {
+      return (
+        token: null,
+        model: '',
+        error: 'Could not reach the server. Try again.',
+        statusCode: null,
+      );
     }
   }
 

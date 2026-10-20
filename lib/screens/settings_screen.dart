@@ -10,7 +10,6 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l = context.l10n;
 
     return Scaffold(
@@ -106,8 +105,10 @@ class SettingsScreen extends StatelessWidget {
                         },
                       ),
                     ),
-                    const Gap(16),
-                    const _VoiceAiSettingsCard(),
+                    if (PatientAiSettings.allowDeviceApiKey) ...[
+                      const Gap(16),
+                      const _VoiceAiSettingsCard(),
+                    ],
                   ],
                 ),
               ),
