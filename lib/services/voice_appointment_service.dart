@@ -61,6 +61,9 @@ class VoiceAppointmentService extends ChangeNotifier {
   HospitalDepartment? department;
   List<HospitalDepartment> _depts = [];
   List<Hospital> nearby = [];
+  List<Hospital> _pool = [];
+  bool _needsBigHospital = false;
+  bool _forceEmergency = false;
   AppointmentDetails? booked;
   Map<String, dynamic>? existingVisit;
   String? error;
@@ -101,6 +104,9 @@ class VoiceAppointmentService extends ChangeNotifier {
     department = null;
     _depts = [];
     nearby = [];
+    _pool = [];
+    _needsBigHospital = false;
+    _forceEmergency = false;
     existingVisit = null;
     missingVoiceKey = false;
     step = VoiceBookStep.connecting;
@@ -265,18 +271,6 @@ class VoiceAppointmentService extends ChangeNotifier {
   Future<bool> _loadNearbyBookable() async {
     status = 'ہسپتال…';
     notifyListeners();
-    final all = await HospitalCatalogCache.instance.thqDhqHospitals();
-    final lastId = await UserStorage.getLastBookedHospitalId();
-    Hospital? last;
-    if (lastId != null) {
-      for (final h in all) {
-        if (h.hospitalID == lastId) {
-          last = h;
-          break;
-        }
-      }
-    }
-
     final position =
         await PatientLocationService.instance.requestCurrentPosition();
     final picked = <Hospital>[];
@@ -284,32 +278,17 @@ class VoiceAppointmentService extends ChangeNotifier {
       final results = await NearestHospitalService(api: _api).findNearestHospitals(
         latitude: position.latitude,
         longitude: position.longitude,
-        limit: 5,
+        limit: 30,
       );
       picked.addAll(results.map((e) => e.hospital));
     }
-    if (last != null && !picked.any((h) => h.hospitalID == last!.hospitalID)) {
-      picked.insert(0, last);
-    }
-    if (picked.isEmpty && last != null) picked.add(last);
-    if (picked.isEmpty) {
-      final known = await UserStorage.getKnownHospitalIds();
-      for (final id in known) {
-        for (final h in all) {
-          if (h.hospitalID == id &&
-              !picked.any((x) => x.hospitalID == id)) {
-            picked.add(h);
-          }
-        }
-        if (picked.length >= 5) break;
-      }
-    }
-    nearby = picked;
+    _pool = picked;
+    _refreshNearby();
     if (nearby.isEmpty) {
       step = VoiceBookStep.failed;
       error = position == null
-          ? 'لوکیشن آن کریں، یا لکھ کر بک کریں۔ پہلے والا ہسپتال نہیں ملا۔'
-          : 'قریب کوئی تحصیل یا ضلع ہسپتال نہیں ملا۔';
+          ? 'لوکیشن آن کریں، پھر دوبارہ بول کر بک کریں۔'
+          : 'قریب کوئی THQ، DHQ، MNH یا MNHC نہیں ملا۔';
       status = error!;
       notifyListeners();
       return false;
@@ -471,17 +450,22 @@ class VoiceAppointmentService extends ChangeNotifier {
           return 'Not a listed hospital. Ask again and call pick_hospital with '
               'one of these HospitalIDs:\n${_hospitalToolList()}';
         }
+        if (_needsBigHospital && match.isMnhc) {
+          return 'MNHC is too small for this patient. Do not offer it. '
+              'Call pick_hospital with one of:\n${_hospitalToolList()}';
+        }
         hospital = match;
         department = null;
         complaint = '';
         _depts = [];
-        step = VoiceBookStep.confirmHospital;
-        status = '${match.name}؟';
+        step = VoiceBookStep.askComplaint;
+        status = 'شکایت؟';
         notifyListeners();
-        return 'Hospital set to ${match.name}. Ask them in Urdu to confirm it, '
-            'جی یا نہیں. If yes, ask exactly: آپ کو کیا شکایت ہے؟ '
-            'Never say مسئلہ or تکلیف. Then call set_complaint. '
-            'If no, call pick_hospital with another id.';
+        return 'Hospital set to ${match.name}. Do not ask جی یا نہیں. '
+            'Do not repeat the hospital name as a question. '
+            '${_facilityLine(match)} '
+            'Ask exactly: آپ کو کیا شکایت ہے؟ Never say مسئلہ or تکلیف. '
+            'Then call set_complaint.';
       case 'set_complaint':
         final text = (call.args['text'] ?? '').toString().trim();
         if (hospital == null) {
@@ -496,11 +480,27 @@ class VoiceAppointmentService extends ChangeNotifier {
           return 'They want a later day. Only today exists. Tell them کل آئیں '
               'اور اسی وقت بک کریں. Do not book.';
         }
+        final moved = _routeForComplaint(text);
         await _applyComplaint(text);
+        if (_forceEmergency) {
+          await _useEmergencyDepartment();
+          if (department == null) {
+            return 'No emergency clinic on the list. Tell them to go to the nearest big hospital now.';
+          }
+          await _book();
+          if (bookedToken == null) {
+            return 'Booking failed. Say a short apology and stop.';
+          }
+          return 'Booked at ${hospital!.name}. Say only: ابھی ${hospital!.name} کی ایمرجنسی میں جائیں. '
+              'Token $bookedToken. ${_closingLines()} Do not name a disease or a medicine.';
+        }
         if (department != null) {
-          return 'Saved. Department is ${department!.departmentName}. Read back '
-              '${hospital!.name}، آج، ${department!.departmentName} and ask جی '
-              'یا نہیں. If yes, call book_token.';
+          final moveLine = moved
+              ? 'MNHC is too small. Hospital is now ${hospital!.name}. ${_facilityLine(hospital!)} '
+              : _facilityLine(hospital!);
+          return 'Saved. $moveLine Department is ${department!.departmentName}. '
+              'Do not say the department name. Read back ${hospital!.name}، آج، and the شکایت. '
+              'Ask جی یا نہیں. If yes, call book_token.';
         }
         return 'Saved, but the department is unclear. Ask them to pick one of: '
             '${_departmentChoices()}. Then call pick_department.';
@@ -533,7 +533,7 @@ class VoiceAppointmentService extends ChangeNotifier {
           return 'Booking failed. Apologise in one short line and stop.';
         }
         return 'Booked. Tell them token $bookedToken at ${hospital!.name} in '
-            'Urdu, wish them well, then stop.';
+            'Urdu. ${_closingLines()} Then stop.';
       case 'keep_existing_token':
         _markKeepExisting();
         return 'Fine. Say one short goodbye in Urdu and stop.';
@@ -548,6 +548,85 @@ class VoiceAppointmentService extends ChangeNotifier {
 
   String _departmentChoices() =>
       _depts.take(6).map((d) => d.departmentName).join(', ');
+
+  void _refreshNearby() {
+    final source = _needsBigHospital
+        ? _pool.where((h) => h.isBigHospital)
+        : _pool;
+    nearby = source.take(5).toList();
+  }
+
+  /// Returns true when an MNHC was replaced by a bigger hospital.
+  bool _routeForComplaint(String text) {
+    final need = _careNeed(text);
+    if (need == _CareNeed.normal) return false;
+    _needsBigHospital = true;
+    if (need == _CareNeed.emergency) _forceEmergency = true;
+    _refreshNearby();
+    final wasSmall = hospital?.isMnhc == true;
+    final stillListed =
+        hospital != null && nearby.any((h) => h.hospitalID == hospital!.hospitalID);
+    if (!stillListed && nearby.isNotEmpty) hospital = nearby.first;
+    notifyListeners();
+    return wasSmall && hospital != null && !hospital!.isMnhc;
+  }
+
+  Future<void> _useEmergencyDepartment() async {
+    if (hospital == null) return;
+    _depts = await HospitalCatalogCache.instance.departments(hospital!.hospitalID);
+    department = _findDept(_depts, _DeptKind.emergency) ?? department;
+    _forceEmergency = true;
+  }
+
+  String _facilityLine(Hospital h) {
+    if (h.isMnhc) {
+      return 'Say one short Urdu line: اس کلینک میں ایک ڈاکٹر اور ایک ایل ایچ وی ہیں، ایمرجنسی نہیں۔';
+    }
+    if (h.bookingLevel == 'MNH') {
+      return 'Say one short Urdu line: یہاں ایمرجنسی، زچہ بچہ، سرجری، دانت، لیب اور ایکسرے ہے۔';
+    }
+    return 'Say one short Urdu line: یہ بڑا ہسپتال ہے، ایمرجنسی بھی ہے۔';
+  }
+
+  String _closingLines() =>
+      'Then three short Urdu lines: شناختی کارڈ اور پرانی دوائیں ساتھ لائیں. '
+      'راستے میں طبیعت بگڑے تو ایمرجنسی میں جائیں. یہ ٹوکن صرف آج کا ہے.';
+
+  static _CareNeed _careNeed(String text) {
+    if (_isDanger(text)) return _CareNeed.emergency;
+    if (_isChild(text) || _isPregnancy(text)) return _CareNeed.bigHospital;
+    return _CareNeed.normal;
+  }
+
+  static bool _isDanger(String text) {
+    final t = text.toLowerCase();
+    return RegExp(
+      r'chest pain|cannot breathe|unconscious|seizure|stroke|heavy bleeding',
+    ).hasMatch(t) ||
+        text.contains('سینے') ||
+        text.contains('سانس نہیں') ||
+        text.contains('بے ہوش') ||
+        text.contains('دورہ') ||
+        text.contains('منہ ٹیڑ') ||
+        text.contains('بہت خون');
+  }
+
+  static bool _isChild(String text) {
+    final t = text.toLowerCase();
+    return RegExp(r'\b(child|baby|infant|newborn)\b').hasMatch(t) ||
+        text.contains('بچہ') ||
+        text.contains('بچی') ||
+        text.contains('نوزائیدہ') ||
+        text.contains('شیرخوار');
+  }
+
+  static bool _isPregnancy(String text) {
+    final t = text.toLowerCase();
+    return RegExp(r'\b(pregnant|pregnancy|hamal)\b').hasMatch(t) ||
+        text.contains('حمل') ||
+        text.contains('حاملہ') ||
+        text.contains('زچگی');
+  }
 
   Future<void> _applyComplaint(String text) async {
     final now = DateTime.now();
@@ -576,6 +655,9 @@ class VoiceAppointmentService extends ChangeNotifier {
     department = null;
     complaint = '';
     _depts = [];
+    _needsBigHospital = false;
+    _forceEmergency = false;
+    _refreshNearby();
     step = VoiceBookStep.askHospital;
     status = 'ہسپتال چنیں';
     notifyListeners();
@@ -599,7 +681,8 @@ class VoiceAppointmentService extends ChangeNotifier {
     notifyListeners();
     _tapped(
       'They tapped ${match.name} on screen, so the hospital is settled. '
-      'Do not confirm it again. Ask exactly: آپ کو کیا شکایت ہے؟ '
+      'Do not confirm it again. ${_facilityLine(match)} '
+      'Ask exactly: آپ کو کیا شکایت ہے؟ '
       'Never say مسئلہ or تکلیف. Then call set_complaint.',
     );
   }
@@ -735,7 +818,9 @@ class VoiceAppointmentService extends ChangeNotifier {
         hospitalDepartmentId: department!.hospitalDepartmentID,
         createdBy: 1,
         priority: 'Normal',
-        queueType: deptName.contains('emergency') ? 'Emergency' : 'OPD',
+        queueType: _forceEmergency || deptName.contains('emergency')
+            ? 'Emergency'
+            : 'OPD',
         visitPurpose: 'Check-Up',
         patientSource: 'SELF_CHECKIN',
         patientComplaint: complaint,
@@ -967,6 +1052,8 @@ class VoiceAppointmentService extends ChangeNotifier {
     return name.contains(hint);
   }
 }
+
+enum _CareNeed { normal, bigHospital, emergency }
 
 enum _DeptKind { emergency, gynae, peads, ortho, eye, dental, ent, medicine }
 

@@ -29,14 +29,48 @@ class Hospital {
 
   bool get hasCoordinates => latitude != null && longitude != null;
 
-  /// Booking list is THQ/DHQ only (HospitalLevel, Subtype, Type, or name).
-  bool get isThqOrDhq {
+  /// Voice and nearby lists: THQ, DHQ, MNH, or MNHC (also written MHHC).
+  /// Demo, admin, and test sites are never offered.
+  /// MNHC (also written MHHC) is a small clinic: one doctor, one LHV, one dispenser.
+  bool get isMnhc => bookingLevel == 'MNHC';
+
+  /// MNH, THQ, and DHQ can take an emergency. MNHC cannot.
+  bool get isBigHospital {
+    const big = {'MNH', 'THQ', 'DHQ'};
+    return big.contains(bookingLevel);
+  }
+
+  String get bookingLevel {
+    final level = (hospitalLevel ?? '').trim().toUpperCase();
+    final sub = (subtype ?? '').trim().toUpperCase();
+    final raw = level.isNotEmpty ? level : sub;
+    return raw == 'MHHC' ? 'MNHC' : raw;
+  }
+
+  bool get isNearbyBookable {
+    if (_isDemoOrAdmin) return false;
+    const allowed = {'THQ', 'DHQ', 'MNH', 'MNHC', 'MHHC'};
+    final level = (hospitalLevel ?? '').trim().toUpperCase();
+    if (allowed.contains(level)) return true;
+    final sub = (subtype ?? '').trim().toUpperCase();
+    return allowed.contains(sub);
+  }
+
+  bool get _isDemoOrAdmin {
     final blob = [
-      hospitalLevel,
-      subtype,
-      type,
       name,
-    ].whereType<String>().join(' ').toUpperCase();
+      type,
+      subtype,
+      hospitalLevel,
+    ].whereType<String>().join(' ').toLowerCase();
+    return RegExp(r'\b(demo|admin|test|sandbox|training)\b').hasMatch(blob);
+  }
+
+  /// Typed search still accepts a THQ/DHQ named in the title when level is blank.
+  bool get isThqOrDhq {
+    if (_isDemoOrAdmin) return false;
+    if (isNearbyBookable) return true;
+    final blob = [type, name].whereType<String>().join(' ').toUpperCase();
     return RegExp(r'\bTHQ\b').hasMatch(blob) || RegExp(r'\bDHQ\b').hasMatch(blob);
   }
 

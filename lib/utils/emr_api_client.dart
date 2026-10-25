@@ -666,12 +666,15 @@ class EmrApiClient {
   Future<List<dynamic>> searchHospitals(
     String searchTerm, {
     int limit = 20,
+    String? hospitalLevel,
   }) async {
     final uri = Uri.parse('$baseUrl/api/hospitals').replace(
       queryParameters: {
         'page': '1',
         'pageSize': limit.toString(),
         if (searchTerm.trim().isNotEmpty) 'searchTerm': searchTerm.trim(),
+        if (hospitalLevel != null && hospitalLevel.trim().isNotEmpty)
+          'hospitalLevel': hospitalLevel.trim(),
       },
     );
 

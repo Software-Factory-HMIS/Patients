@@ -14,6 +14,8 @@ class HospitalCatalogCache {
 
   DateTime? _hospitalsAt;
   List<Hospital> _hospitals = [];
+  DateTime? _bookableAt;
+  List<Hospital> _bookable = [];
   DateTime? _deptsAt;
   final Map<int, List<HospitalDepartment>> _depts = {};
   Future<List<Hospital>>? _hospitalsInFlight;
@@ -56,6 +58,33 @@ class HospitalCatalogCache {
     return (await hospitals(force: force)).where((h) => h.isThqOrDhq).toList();
   }
 
+  /// THQ, DHQ, MNH, and MNHC only, loaded per level so a name-sorted first page
+  /// cannot hide the nearby ones behind demo or admin sites.
+  Future<List<Hospital>> nearbyBookableHospitals({bool force = false}) async {
+    if (!force &&
+        _bookable.isNotEmpty &&
+        _bookableAt != null &&
+        DateTime.now().difference(_bookableAt!) < ttl) {
+      return _bookable;
+    }
+    const levels = ['THQ', 'DHQ', 'MNH', 'MNHC', 'MHHC'];
+    final merged = <int, Hospital>{};
+    for (final level in levels) {
+      final rows = await _api.searchHospitals('', limit: 1000, hospitalLevel: level);
+      for (final row in rows) {
+        try {
+          final h = Hospital.fromJson(Map<String, dynamic>.from(row as Map));
+          if (h.isActive && h.hospitalID > 0 && h.isNearbyBookable) {
+            merged[h.hospitalID] = h;
+          }
+        } catch (_) {}
+      }
+    }
+    _bookable = merged.values.toList();
+    _bookableAt = DateTime.now();
+    return _bookable;
+  }
+
   Future<List<HospitalDepartment>> departments(int hospitalId) async {
     if (hospitalId <= 0) return const [];
     if (_deptsAt != null && DateTime.now().difference(_deptsAt!) >= ttl) {
@@ -86,6 +115,8 @@ class HospitalCatalogCache {
   void clear() {
     _hospitals = [];
     _hospitalsAt = null;
+    _bookable = [];
+    _bookableAt = null;
     _hospitalsInFlight = null;
     _depts.clear();
     _deptsAt = null;

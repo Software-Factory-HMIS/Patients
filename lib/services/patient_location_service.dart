@@ -21,12 +21,16 @@ class PatientLocationService {
       return null;
     }
 
-    return Geolocator.getCurrentPosition(
+    final position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        timeLimit: Duration(seconds: 12),
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
       ),
     );
+    // A cached city from hours ago was ranking the same five hospitals.
+    final age = DateTime.now().difference(position.timestamp.toLocal());
+    if (!age.isNegative && age > const Duration(minutes: 10)) return null;
+    return position;
   }
 
   /// Warm up location permission early in the app flow.

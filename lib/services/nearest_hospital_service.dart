@@ -37,11 +37,12 @@ class NearestHospitalService {
     required double longitude,
     int limit = 5,
   }) async {
-    final hospitals = await HospitalCatalogCache.instance.thqDhqHospitals();
+    final hospitals = await HospitalCatalogCache.instance.nearbyBookableHospitals();
 
     final ranked = <NearestHospitalResult>[];
 
     for (final hospital in hospitals) {
+      if (!hospital.isNearbyBookable) continue;
       final coords = hospital.resolvedCoordinates;
       if (coords == null) continue;
 

@@ -24,6 +24,9 @@ class PunjabGeoLookup {
   static const _centroids = <String, (double, double)>{
     'lahore': (31.5204, 74.3587),
     'rawalpindi': (33.5651, 73.0169),
+    'taxila': (33.7458, 72.7875),
+    'islamabad': (33.6844, 73.0479),
+    'wah': (33.7700, 72.7511),
     'faisalabad': (31.4504, 73.1350),
     'multan': (30.1575, 71.5249),
     'gujranwala': (32.1877, 74.1945),
