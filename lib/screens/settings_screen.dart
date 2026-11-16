@@ -4,6 +4,7 @@ import '../services/locale_service.dart';
 import '../services/theme_service.dart';
 import '../services/llm/patient_ai_settings.dart';
 import '../utils/app_localizations_ext.dart';
+import '../utils/emr_api_client.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -282,6 +283,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
   String _provider = PatientAiSettings.defaultProvider;
   String _model = PatientAiSettings.defaultModel;
   bool _loading = true;
+  bool _showBackup = false;
   bool _saving = false;
   bool _obscure = true;
   String? _savedNote;
@@ -293,6 +295,12 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
   }
 
   Future<void> _load() async {
+    final central = await EmrApiClient().patientVoiceReady();
+    if (!mounted) return;
+    if (central) {
+      setState(() => _loading = false);
+      return;
+    }
     final s = await PatientAiSettings.load();
     if (!mounted) return;
     setState(() {
@@ -301,6 +309,7 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
           ? s.model
           : PatientAiSettings.defaultModel;
       _keyCtrl.text = s.apiKey;
+      _showBackup = true;
       _loading = false;
     });
   }
@@ -331,13 +340,8 @@ class _VoiceAiSettingsCardState extends State<_VoiceAiSettingsCard> {
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    if (_loading) {
-      return _SettingsCard(
-        icon: Icons.mic_rounded,
-        title: l.voiceBookingSettings,
-        subtitle: l.voiceBookingLoading,
-        child: const LinearProgressIndicator(),
-      );
+    if (_loading || !_showBackup) {
+      return const SizedBox.shrink();
     }
 
     return _SettingsCard(

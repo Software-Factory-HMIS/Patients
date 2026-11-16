@@ -1042,6 +1042,49 @@ class EmrApiClient {
     }
   }
 
+  /// True when the Patients app key table has an active Gemini Live key.
+  /// The response does not include the key.
+  Future<bool> patientVoiceReady() async {
+    final uri = Uri.parse('$baseUrl/api/patient-ai/status');
+    try {
+      final res = await _authenticatedGet(uri).timeout(const Duration(seconds: 12));
+      if (res.statusCode < 200 || res.statusCode >= 300) return false;
+      final data = _responseData(res.body);
+      if (data == null) return false;
+      return data['hasKey'] == true || data['HasKey'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// One shared Gemini key for this voice call. Caller must not store or display it.
+  Future<({String apiKey, String model})?> fetchPatientSessionKey() async {
+    final uri = Uri.parse('$baseUrl/api/patient-ai/session-key');
+    try {
+      final res = await _authenticatedPost(uri, body: <String, dynamic>{})
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode < 200 || res.statusCode >= 300) return null;
+      final data = _responseData(res.body);
+      if (data == null) return null;
+      final has = data['hasKey'] == true || data['HasKey'] == true;
+      final apiKey = (data['apiKey'] ?? data['ApiKey'] ?? '').toString().trim();
+      if (!has || apiKey.isEmpty) return null;
+      final model = (data['model'] ?? data['Model'] ?? '').toString().trim();
+      return (apiKey: apiKey, model: model);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _responseData(String body) {
+    final decoded = json.decode(body);
+    if (decoded is! Map) return null;
+    final map = Map<String, dynamic>.from(decoded);
+    final inner = map['data'] ?? map['Data'];
+    if (inner is Map) return Map<String, dynamic>.from(inner);
+    return map;
+  }
+
   /// Short-lived Gemini Live token. HMIS keeps the API key.
   Future<({String token, String model})?> fetchPatientLiveToken() async {
     final uri = Uri.parse('$baseUrl/api/patient-ai/live-token');

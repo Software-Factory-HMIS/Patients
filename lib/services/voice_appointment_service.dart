@@ -90,6 +90,10 @@ class VoiceAppointmentService extends ChangeNotifier {
   DateTime _micOpenAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _turnEnded = false;
 
+  static String _hideKey(String raw) {
+    return raw.replaceAll(RegExp(r'(?i)([?&]key=)[^&\s]+'), r'$1***');
+  }
+
   bool get isLive => _live?.isOpen == true;
   bool get isSpeaking => _speaking;
   bool get isListening =>
@@ -113,26 +117,26 @@ class VoiceAppointmentService extends ChangeNotifier {
     status = 'جڑ رہا ہے…';
     notifyListeners();
 
-    final settings = await PatientAiSettings.load();
-    var apiKey = settings.apiKey.trim();
-    String? accessToken;
-    var model = settings.model;
+    final remote = await _api.fetchPatientSessionKey();
+    final fromServer = remote != null && remote.apiKey.isNotEmpty;
+    late final String apiKey;
+    late final String model;
+    if (remote != null && remote.apiKey.isNotEmpty) {
+      apiKey = remote.apiKey;
+      model = remote.model.isNotEmpty ? remote.model : PatientAiSettings.defaultModel;
+    } else {
+      final settings = await PatientAiSettings.load();
+      apiKey = settings.apiKey.trim();
+      model = settings.model;
+    }
 
     if (apiKey.isEmpty) {
-      status = 'جڑ رہا ہے…';
+      step = VoiceBookStep.failed;
+      missingVoiceKey = true;
+      error = 'ترتیبات میں Gemini کلید لکھیں، یا منتظم سے آواز والی بکنگ آن کروانے کو کہیں۔';
+      status = error!;
       notifyListeners();
-      final tok = await _api.fetchPatientLiveToken();
-      if (tok == null) {
-        step = VoiceBookStep.failed;
-        missingVoiceKey = true;
-        error =
-            'ترتیبات میں Gemini کلید لکھیں، یا منتظم سے ہسپتال کی Gemini کلید محفوظ کروانے کو کہیں۔';
-        status = error!;
-        notifyListeners();
-        return;
-      }
-      accessToken = tok.token;
-      if (tok.model.isNotEmpty) model = tok.model;
+      return;
     }
 
     if (!await _pcm.hasPermission()) {
@@ -156,8 +160,7 @@ class VoiceAppointmentService extends ChangeNotifier {
       apiKey: apiKey.isEmpty ? null : apiKey,
     );
     final live = GeminiLiveBookingSession(
-      apiKey: apiKey.isEmpty ? null : apiKey,
-      accessToken: accessToken,
+      apiKey: apiKey,
       model: model,
       instruction: GeminiLiveBookingSession.buildInstruction(
         hospitalList: _hospitalToolList(),
@@ -182,8 +185,9 @@ class VoiceAppointmentService extends ChangeNotifier {
     };
     live.onError = (e) {
       if (_disposed) return;
-      error = e;
-      status = e;
+      final safe = _hideKey(e);
+      error = safe;
+      status = safe;
       notifyListeners();
     };
     final ok = await live.connect();
@@ -193,8 +197,10 @@ class VoiceAppointmentService extends ChangeNotifier {
     }
     if (!ok) {
       step = VoiceBookStep.failed;
-      missingVoiceKey = true;
-      error = 'آواز والا معاون شروع نہیں ہوا۔ ترتیبات میں کلید اور ماڈل چیک کریں۔';
+      missingVoiceKey = !fromServer;
+      error = fromServer
+          ? 'آواز والا معاون شروع نہیں ہوا۔'
+          : 'آواز والا معاون شروع نہیں ہوا۔ ترتیبات میں کلید اور ماڈل چیک کریں۔';
       status = error!;
       notifyListeners();
       return;
@@ -881,6 +887,7 @@ class VoiceAppointmentService extends ChangeNotifier {
     } catch (_) {}
     await _live?.close();
     _live = null;
+    _script = null;
     _quietTimer?.cancel();
     _quietTimer = null;
     _queue.clear();

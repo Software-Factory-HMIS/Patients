@@ -1,6 +1,7 @@
 import '../../utils/app_secure_storage.dart';
 
-/// Device settings for patient voice booking. Later these come from HMIS like hospital AI keys.
+/// Phone backup for voice booking. Used only when [AI].[PatientAppApiKey] has no active key.
+/// A key fetched from the server is never written here.
 class PatientAiSettings {
   static const _storage = appSecureStorage;
   static const _kProvider = 'patient_ai_provider';
