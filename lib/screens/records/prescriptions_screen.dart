@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import '../../models/portal_models.dart';
+import '../../services/medicine_reminder_service.dart';
 import '../../services/patient_portal_service.dart';
+import '../../utils/app_snackbar.dart';
 import '../../widgets/empty_state_widget.dart';
 import '../../utils/app_localizations_ext.dart';
 import '../../widgets/punjab_ui.dart';
@@ -256,6 +258,10 @@ class _PrescriptionHistoryCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (showActiveBadge) ...[
+                  const Gap(8),
+                  _RemindButton(medicine: rx.medication),
+                ],
               ],
             ),
           ),
@@ -280,6 +286,101 @@ class _Meta extends StatelessWidget {
         Icon(icon, size: 13, color: scheme.onSurfaceVariant),
         const Gap(4),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+class _RemindButton extends StatefulWidget {
+  final String medicine;
+
+  const _RemindButton({required this.medicine});
+
+  @override
+  State<_RemindButton> createState() => _RemindButtonState();
+}
+
+class _RemindButtonState extends State<_RemindButton> {
+  List<String> _times = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final times = await MedicineReminderService.timesFor(widget.medicine);
+    if (!mounted) return;
+    setState(() => _times = times);
+  }
+
+  Future<void> _add() async {
+    final l = context.l10n;
+    if (!MedicineReminderService.supported) {
+      AppSnackBar.showInfo(context, l.remindersPhoneOnly);
+      return;
+    }
+    final stillLate = await MedicineReminderService.askExactAlarmOnce();
+    if (!mounted) return;
+    if (stillLate) {
+      AppSnackBar.showInfo(context, l.reminderMayBeLate);
+    }
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked == null || !mounted) return;
+    try {
+      await MedicineReminderService.addTime(
+        widget.medicine,
+        picked.hour,
+        picked.minute,
+        body: l.reminderNotification(widget.medicine),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppSnackBar.showError(context, l.reminderNotSaved);
+      return;
+    }
+    if (!mounted) return;
+    AppSnackBar.showSuccess(context, l.reminderSaved);
+    await _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton.icon(
+          onPressed: () {
+            _add();
+          },
+          icon: const Icon(Icons.alarm_add_rounded, size: 18),
+          label: Text(l.remindMe),
+        ),
+        if (_times.isNotEmpty)
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final time in _times)
+                Chip(
+                  label: Text(time),
+                  onDeleted: () async {
+                    final parts = time.split(':');
+                    if (parts.length != 2) return;
+                    await MedicineReminderService.removeTime(
+                      widget.medicine,
+                      int.parse(parts[0]),
+                      int.parse(parts[1]),
+                    );
+                    await _reload();
+                  },
+                ),
+            ],
+          ),
       ],
     );
   }

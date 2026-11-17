@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 
 import '../../models/portal_models.dart';
+import '../../utils/app_localizations_ext.dart';
+import '../../utils/lab_result_flag.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/medical_report_pdf_generator.dart';
 import '../../widgets/health/health_report_ui.dart';
@@ -18,6 +20,20 @@ class LabReportDetailScreen extends StatelessWidget {
     this.patientName,
     this.patientMrn,
   });
+
+  Future<void> _share(BuildContext context) async {
+    try {
+      await shareLabReportPdf(
+        report: report,
+        patientName: patientName,
+        patientMrn: patientMrn,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackBar.showError(context, 'Could not share PDF: $e');
+      }
+    }
+  }
 
   Future<void> _download(BuildContext context) async {
     try {
@@ -69,7 +85,13 @@ class LabReportDetailScreen extends StatelessWidget {
               theme: theme,
               title: 'Result Value',
               body: report.result!,
-              highlight: report.isCritical,
+              highlight: labResultIsAbnormal(
+                result: report.result,
+                range: report.normalRange,
+                flags: report.abnormalFlags,
+                status: report.status,
+                isCritical: report.isCritical,
+              ),
             ),
           ],
           if (report.status != null) ...[
@@ -78,9 +100,13 @@ class LabReportDetailScreen extends StatelessWidget {
               theme: theme,
               title: 'Interpretation',
               body: report.status!,
-              highlight:
-                  report.isCritical ||
-                  (report.status ?? '').toLowerCase().contains('abnormal'),
+              highlight: labResultIsAbnormal(
+                result: report.result,
+                range: report.normalRange,
+                flags: report.abnormalFlags,
+                status: report.status,
+                isCritical: report.isCritical,
+              ),
             ),
           ],
           if (!report.hasResult) ...[
@@ -96,6 +122,16 @@ class LabReportDetailScreen extends StatelessWidget {
             label: 'Download PDF Report',
             icon: Icons.download_rounded,
             onPressed: report.hasResult ? () => _download(context) : null,
+          ),
+          const Gap(10),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: OutlinedButton.icon(
+              onPressed: report.hasResult ? () => _share(context) : null,
+              icon: const Icon(Icons.ios_share_rounded),
+              label: Text(context.l10n.shareReport),
+            ),
           ),
         ],
       ),

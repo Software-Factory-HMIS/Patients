@@ -569,7 +569,7 @@ abstract class AppLocalizations {
   /// No description provided for @radiology.
   ///
   /// In en, this message translates to:
-  /// **'Radiology'**
+  /// **'X-rays'**
   String get radiology;
 
   /// No description provided for @noUpcomingVisit.
@@ -1717,6 +1717,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'BSR'**
   String get vitalBsr;
+
+  /// No description provided for @visitDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit'**
+  String get visitDetails;
+
+  /// No description provided for @openVisitFromList.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this visit from My Visits.'**
+  String get openVisitFromList;
+
+  /// No description provided for @complaints.
+  ///
+  /// In en, this message translates to:
+  /// **'Complaints'**
+  String get complaints;
+
+  /// No description provided for @symptoms.
+  ///
+  /// In en, this message translates to:
+  /// **'Symptoms'**
+  String get symptoms;
+
+  /// No description provided for @diagnosis.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnosis'**
+  String get diagnosis;
+
+  /// No description provided for @medicines.
+  ///
+  /// In en, this message translates to:
+  /// **'Medicines'**
+  String get medicines;
+
+  /// No description provided for @clinicalNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Hospital note'**
+  String get clinicalNotes;
+
+  /// No description provided for @vitals.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitals'**
+  String get vitals;
+
+  /// No description provided for @nothingRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded'**
+  String get nothingRecorded;
+
+  /// No description provided for @vaccines.
+  ///
+  /// In en, this message translates to:
+  /// **'Vaccines'**
+  String get vaccines;
+
+  /// No description provided for @viewList.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get viewList;
+
+  /// No description provided for @noVaccinesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No vaccines yet'**
+  String get noVaccinesYet;
+
+  /// No description provided for @noVaccinesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Vaccines given at the hospital will show here.'**
+  String get noVaccinesMessage;
+
+  /// No description provided for @shareReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareReport;
+
+  /// No description provided for @showDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the doctor'**
+  String get showDoctor;
+
+  /// No description provided for @allergies.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergies'**
+  String get allergies;
+
+  /// No description provided for @currentMedicines.
+  ///
+  /// In en, this message translates to:
+  /// **'Current medicines'**
+  String get currentMedicines;
+
+  /// No description provided for @noneOnFile.
+  ///
+  /// In en, this message translates to:
+  /// **'None on file'**
+  String get noneOnFile;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get filterReady;
+
+  /// No description provided for @filterWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get filterWaiting;
+
+  /// No description provided for @dateFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get dateFrom;
+
+  /// No description provided for @dateTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get dateTo;
+
+  /// No description provided for @remindMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me'**
+  String get remindMe;
+
+  /// No description provided for @reminderSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder saved on this phone.'**
+  String get reminderSaved;
+
+  /// No description provided for @remindersPhoneOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders work on the phone app.'**
+  String get remindersPhoneOnly;
+
+  /// No description provided for @cancelToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel token'**
+  String get cancelToken;
+
+  /// No description provided for @cancelTokenConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this token? You can do this only while you are still waiting.'**
+  String get cancelTokenConfirm;
+
+  /// No description provided for @tokenCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Token cancelled.'**
+  String get tokenCancelled;
+
+  /// No description provided for @reminderNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Time for {medicine}'**
+  String reminderNotification(String medicine);
+
+  /// No description provided for @reminderNotSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the reminder on this phone.'**
+  String get reminderNotSaved;
+
+  /// No description provided for @recordsNotLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load. Pull down to try again.'**
+  String get recordsNotLoaded;
+
+  /// No description provided for @reminderMayBeLate.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone may ring a few minutes late.'**
+  String get reminderMayBeLate;
+
+  /// **'Date of birth'**
+  String get dateOfBirth;
+
+  /// **'Sex'**
+  String get sex;
+
+  /// **'Address'**
+  String get address;
+
+  /// **'Blood group'**
+  String get bloodGroup;
+
+  /// **'Latest out of range'**
+  String get latestOutOfRange;
+
+  /// **'Latest vitals'**
+  String get latestVitals;
 }
 
 class _AppLocalizationsDelegate

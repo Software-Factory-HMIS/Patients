@@ -1,4 +1,5 @@
 import '../utils/app_date_format.dart';
+import '../utils/lab_result_flag.dart';
 
 class HomeStats {
   final int visitCount;
@@ -59,20 +60,15 @@ class LabResultsSummary {
         pending++;
       } else if (r.isCritical) {
         critical++;
+      } else if (labResultIsAbnormal(
+        result: r.result,
+        range: r.normalRange,
+        flags: r.abnormalFlags,
+        status: r.status,
+      )) {
+        elevated++;
       } else {
-        final status = (r.status ?? '').toLowerCase();
-        final flags = (r.abnormalFlags ?? '').toLowerCase();
-        if (status.contains('abnormal') ||
-            status.contains('high') ||
-            status.contains('low') ||
-            status.contains('elevated') ||
-            flags == 'h' ||
-            flags == 'l' ||
-            flags == 'a') {
-          elevated++;
-        } else {
-          normal++;
-        }
+        normal++;
       }
       final d = r.date;
       if (d != null && d.isNotEmpty) {

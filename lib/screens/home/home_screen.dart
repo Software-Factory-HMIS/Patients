@@ -4,6 +4,8 @@ import '../../models/appointment_models.dart';
 import '../../models/portal_models.dart';
 import '../../screens/appointment_success_screen.dart';
 import '../../services/patient_portal_service.dart';
+import '../../utils/emr_api_client.dart';
+import '../../utils/patient_vital_check.dart';
 import '../../utils/app_date_format.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/patient_fields.dart';
@@ -43,6 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
   final _portal = PatientPortalService();
   HomeStats? _stats;
   Map<String, dynamic>? _upcoming;
+  List<String>? _allergies;
+  List<String>? _medicineNames;
+  LatestVitalReading? _latestVital;
+  bool _vitalLineFailed = false;
   bool _loading = true;
 
   static const _headerGreen = Color(0xFF0F3D24);
@@ -110,10 +116,47 @@ class _HomeScreenState extends State<HomeScreen> {
           patient: widget.patient,
         ),
       ]);
+      List<String>? allergies;
+      List<String>? medicineNames;
+      try {
+        allergies = await _portal.loadAllergyNames(widget.patientId);
+      } catch (_) {
+        allergies = null;
+      }
+      try {
+        final meds = await _portal.loadActivePrescriptions(widget.patientId);
+        medicineNames = meds
+            .map((m) => m.medication)
+            .where((n) => n.isNotEmpty && n != 'Medicine')
+            .toList();
+      } catch (_) {
+        medicineNames = null;
+      }
+      LatestVitalReading? latestVital;
+      var vitalLineFailed = false;
+      try {
+        final vitals = await EmrApiClient().getPatientVitals(
+          widget.patientId,
+          limit: 30,
+        );
+        if (!mounted) return;
+        latestVital = PatientVitalCheck.latestReading(
+          widget.patient,
+          vitals,
+          context.l10n,
+        );
+      } catch (_) {
+        latestVital = null;
+        vitalLineFailed = true;
+      }
       if (!mounted) return;
       setState(() {
         _stats = results[0] as HomeStats;
         _upcoming = results[1] as Map<String, dynamic>?;
+        _allergies = allergies;
+        _medicineNames = medicineNames;
+        _latestVital = latestVital;
+        _vitalLineFailed = vitalLineFailed;
         _loading = false;
       });
     } catch (_) {
@@ -131,6 +174,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _mrn() =>
       widget.patient['mrn']?.toString() ?? widget.patient['MRN']?.toString();
+
+  String? _bloodGroup() {
+    final raw = widget.patient['bloodGroup'] ??
+        widget.patient['BloodGroup'] ??
+        widget.patient['bloodType'] ??
+        widget.savedUserData?['bloodGroup'] ??
+        widget.savedUserData?['BloodGroup'];
+    final text = raw?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
+  }
 
   String? _age() {
     final raw =
@@ -384,6 +437,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           dark: dark,
                           compact: metrics.isCompact,
                           veryCompact: metrics.isVeryCompact,
+                        ),
+                        Gap(metrics.isCompact ? 18 : 24),
+                        _ShowDoctorCard(
+                          allergies: _allergies,
+                          medicines: _medicineNames,
+                          bloodGroup: _bloodGroup(),
+                          latestVital: _latestVital,
+                          vitalLineFailed: _vitalLineFailed,
+                          dark: dark,
                         ),
                         Gap(metrics.isCompact ? 18 : 24),
                         _HealthGlanceHeader(
@@ -766,6 +828,87 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ShowDoctorCard extends StatelessWidget {
+  final List<String>? allergies;
+  final List<String>? medicines;
+  final String? bloodGroup;
+  final LatestVitalReading? latestVital;
+  final bool vitalLineFailed;
+  final bool dark;
+
+  const _ShowDoctorCard({
+    required this.allergies,
+    required this.medicines,
+    required this.bloodGroup,
+    required this.latestVital,
+    required this.vitalLineFailed,
+    required this.dark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    String line(List<String>? items) {
+      if (items == null) return l.recordsNotLoaded;
+      if (items.isEmpty) return l.noneOnFile;
+      return items.join(', ');
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: dark ? scheme.surfaceContainerHighest : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l.showDoctor,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const Gap(10),
+          Text(l.bloodGroup, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(bloodGroup ?? l.noneOnFile),
+          const Gap(8),
+          Text(l.latestVitals, style: const TextStyle(fontWeight: FontWeight.w700)),
+          if (vitalLineFailed)
+            Text(l.recordsNotLoaded)
+          else if (latestVital == null)
+            Text(l.noneOnFile)
+          else ...[
+            if (latestVital!.when != null)
+              Text(AppDateFormat.formatDate(latestVital!.when)),
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              children: [
+                for (final chip in latestVital!.chips)
+                  Text(
+                    '${chip.label} ${chip.value}',
+                    style: TextStyle(
+                      color: chip.outOfRange ? scheme.error : scheme.onSurface,
+                      fontWeight:
+                          chip.outOfRange ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const Gap(8),
+          Text(l.allergies, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(line(allergies)),
+          const Gap(8),
+          Text(l.currentMedicines, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(line(medicines)),
+        ],
+      ),
     );
   }
 }

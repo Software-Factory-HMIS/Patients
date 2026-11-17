@@ -170,8 +170,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get voiceBookingSaving => 'محفوظ ہو رہا ہے…';
 
   @override
-  String get voiceBookingSaved =>
-      'اس فون پر محفوظ ہو گئی۔';
+  String get voiceBookingSaved => 'اس فون پر محفوظ ہو گئی۔';
 
   @override
   String get voiceBookingStop => 'روکیں';
@@ -247,7 +246,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get labs => 'لیب';
 
   @override
-  String get radiology => 'ریڈیالوجی';
+  String get radiology => 'ایکس رے';
 
   @override
   String get noUpcomingVisit => 'کوئی آنے والی وزٹ نہیں';
@@ -913,4 +912,124 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get vitalBsr => 'شوگر';
+
+  @override
+  String get visitDetails => 'وزٹ';
+
+  @override
+  String get openVisitFromList => 'یہ وزٹ میرے وزٹس سے کھولیں۔';
+
+  @override
+  String get complaints => 'شکایت';
+
+  @override
+  String get symptoms => 'علامات';
+
+  @override
+  String get diagnosis => 'تشخیص';
+
+  @override
+  String get medicines => 'ادویات';
+
+  @override
+  String get clinicalNotes => 'ہسپتال نوٹ';
+
+  @override
+  String get vitals => 'وائٹلز';
+
+  @override
+  String get nothingRecorded => 'کچھ درج نہیں';
+
+  @override
+  String get vaccines => 'ویکسین';
+
+  @override
+  String get viewList => 'دیکھیں';
+
+  @override
+  String get noVaccinesYet => 'ابھی کوئی ویکسین نہیں';
+
+  @override
+  String get noVaccinesMessage => 'ہسپتال میں لگی ویکسین یہاں نظر آئے گی۔';
+
+  @override
+  String get shareReport => 'شیئر';
+
+  @override
+  String get showDoctor => 'ڈاکٹر کو دکھائیں';
+
+  @override
+  String get allergies => 'الرجی';
+
+  @override
+  String get currentMedicines => 'موجودہ ادویات';
+
+  @override
+  String get noneOnFile => 'ریکارڈ میں نہیں';
+
+  @override
+  String get filterAll => 'سب';
+
+  @override
+  String get filterReady => 'تیار';
+
+  @override
+  String get filterWaiting => 'انتظار';
+
+  @override
+  String get dateFrom => 'سے';
+
+  @override
+  String get dateTo => 'تک';
+
+  @override
+  String get remindMe => 'یاد دلائیں';
+
+  @override
+  String get reminderSaved => 'یاددہانی اس فون پر محفوظ ہو گئی۔';
+
+  @override
+  String get remindersPhoneOnly => 'یاددہانی فون ایپ پر کام کرتی ہے۔';
+
+  @override
+  String get cancelToken => 'ٹوکن منسوخ';
+
+  @override
+  String get cancelTokenConfirm =>
+      'یہ ٹوکن منسوخ کریں؟ یہ صرف اس وقت ہو سکتا ہے جب آپ ابھی انتظار میں ہوں۔';
+
+  @override
+  String get tokenCancelled => 'ٹوکن منسوخ ہو گیا۔';
+
+  @override
+  String reminderNotification(String medicine) {
+    return '$medicine کا وقت';
+  }
+
+  @override
+  String get reminderNotSaved => 'اس فون پر یاددہانی محفوظ نہیں ہو سکی۔';
+
+  @override
+  String get recordsNotLoaded => 'لوڈ نہیں ہو سکا۔ نیچے کھینچ کر دوبارہ کوشش کریں۔';
+
+  @override
+  String get reminderMayBeLate => 'یہ فون چند منٹ دیر سے بج سکتا ہے۔';
+
+  @override
+  String get dateOfBirth => 'تاریخ پیدائش';
+
+  @override
+  String get sex => 'جنس';
+
+  @override
+  String get address => 'پتہ';
+
+  @override
+  String get bloodGroup => 'بلڈ گروپ';
+
+  @override
+  String get latestOutOfRange => 'تازہ حد سے باہر';
+
+  @override
+  String get latestVitals => 'تازہ وائٹلز';
 }

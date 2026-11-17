@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 
 import '../../models/portal_models.dart';
+import '../../utils/app_localizations_ext.dart';
 import '../../utils/app_snackbar.dart';
 import '../../utils/medical_report_pdf_generator.dart';
 import '../../widgets/health/health_report_ui.dart';
@@ -18,6 +19,20 @@ class RadiologyReportDetailScreen extends StatelessWidget {
     this.patientName,
     this.patientMrn,
   });
+
+  Future<void> _share(BuildContext context) async {
+    try {
+      await shareRadiologyReportPdf(
+        report: report,
+        patientName: patientName,
+        patientMrn: patientMrn,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackBar.showError(context, 'Could not share PDF: $e');
+      }
+    }
+  }
 
   Future<void> _download(BuildContext context) async {
     try {
@@ -101,6 +116,16 @@ class RadiologyReportDetailScreen extends StatelessWidget {
             label: 'Download PDF Report',
             icon: Icons.download_rounded,
             onPressed: isFinal ? () => _download(context) : null,
+          ),
+          const Gap(10),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: OutlinedButton.icon(
+              onPressed: isFinal ? () => _share(context) : null,
+              icon: const Icon(Icons.ios_share_rounded),
+              label: Text(context.l10n.shareReport),
+            ),
           ),
         ],
       ),

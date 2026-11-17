@@ -9,6 +9,9 @@ import '../services/pregnancy_service.dart';
 import '../services/pharmacy_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../utils/app_date_format.dart';
+import '../utils/app_localizations_ext.dart';
+import '../utils/lab_result_flag.dart';
+import '../utils/patient_vital_check.dart';
 import '../utils/app_snackbar.dart';
 import '../utils/clinical_history_assembler.dart';
 import '../utils/lab_order_presenter.dart';
@@ -602,6 +605,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     return SingleChildScrollView(
       child: Column(
         children: [
+          _buildDateRangeBar(),
           _buildPatientHeader(),
           const Gap(20),
           _buildMedicalRecordCards(),
@@ -618,6 +622,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     return SingleChildScrollView(
       child: Column(
         children: [
+          _buildDateRangeBar(),
           _buildPatientHeader(isCompact: isLandscape),
           Gap(gap),
           _buildPregnancyStatusAlert(),
@@ -625,6 +630,52 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
           _buildMedicalRecordCards(),
           Gap(gap),
           _buildDetailedTabSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeBar() {
+    Future<void> pick(bool start) async {
+      final initial = start ? _fromDate : _toDate;
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: initial,
+        firstDate: DateTime(2000),
+        lastDate: DateTime.now(),
+      );
+      if (picked == null || !mounted) return;
+      setState(() {
+        if (start) {
+          _fromDate = DateTime(picked.year, picked.month, picked.day);
+          if (_fromDate.isAfter(_toDate)) {
+            _toDate = DateTime(_fromDate.year, _fromDate.month, _fromDate.day, 23, 59, 59);
+          }
+        } else {
+          _toDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+          if (_toDate.isBefore(_fromDate)) _fromDate = DateTime(picked.year, picked.month, picked.day);
+        }
+      });
+      await _loadPatientHistory();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => pick(true),
+              child: Text('${context.l10n.dateFrom} ${AppDateFormat.formatDate(_fromDate)}'),
+            ),
+          ),
+          const Gap(8),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => pick(false),
+              child: Text('${context.l10n.dateTo} ${AppDateFormat.formatDate(_toDate)}'),
+            ),
+          ),
         ],
       ),
     );
@@ -1804,6 +1855,10 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
         DataColumn(label: Text('Blood Pressure', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
         DataColumn(label: Text('Heart Rate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
         DataColumn(label: Text('Temperature', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Breathing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Oxygen', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('Sugar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+        DataColumn(label: Text('BMI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
         DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
       ],
       data: _allVitals,
@@ -2091,7 +2146,15 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
       final index = entry.key;
       final item = entry.value;
       List<String> rowData = _getRowDataForTab(item, title);
-      final isLabResultOutOfRange = title == 'Lab Results' && rowData.length >= 5 && _isResultOutOfReferenceRange(rowData[3], rowData[4]);
+      final isLabResultOutOfRange = title == 'Lab Results' &&
+          rowData.length >= 5 &&
+          labResultIsAbnormal(
+            result: rowData[3],
+            range: rowData[4],
+            flags: (item['abnormalFlags'] ?? item['AbnormalFlags'])?.toString(),
+            status: (item['status'] ?? item['resultStatus'])?.toString(),
+            isCritical: item['isCritical'] == true,
+          );
       return DataRow(
         color: MaterialStateProperty.all(
           index.isEven ? Colors.white : const Color(0xFFFAFBFC),
@@ -2099,7 +2162,7 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
         cells: rowData.asMap().entries.map((entry) {
           int index = entry.key;
           String cell = entry.value;
-          Color cellColor = _getCellColor(cell, title, index);
+          Color cellColor = _getCellColor(cell, title, index, item);
           final isResultCell = title == 'Lab Results' && index == 3;
           final outOfRange = isResultCell && isLabResultOutOfRange;
           return DataCell(
@@ -2123,19 +2186,6 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
         }).toList(),
       );
     }).toList();
-  }
-
-  /// True if result value is outside the reference range (e.g. "4.5-11" or "12-16").
-  bool _isResultOutOfReferenceRange(String resultStr, String refRangeStr) {
-    if (resultStr.isEmpty || resultStr == '-' || refRangeStr.isEmpty || refRangeStr == '-') return false;
-    final resultNum = double.tryParse(resultStr.trim().replaceAll(RegExp(r'[^\d.]'), ''));
-    if (resultNum == null) return false;
-    final rangeMatch = RegExp(r'([\d.]+)\s*-\s*([\d.]+)').firstMatch(refRangeStr);
-    if (rangeMatch == null) return false;
-    final low = double.tryParse(rangeMatch.group(1) ?? '');
-    final high = double.tryParse(rangeMatch.group(2) ?? '');
-    if (low == null || high == null) return false;
-    return resultNum < low || resultNum > high;
   }
 
   List<String> _getRowDataForTab(dynamic item, String? title) {
@@ -2166,12 +2216,30 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
         final tempC = item['temperature'] != null
             ? (item['temperature'] is num ? item['temperature'].toDouble() : double.tryParse(item['temperature'].toString()))
             : null;
-        final tempF = tempC != null ? ((tempC * 9 / 5) + 32).toStringAsFixed(1) : null;
-        final tempStr = tempF != null ? '${tempF}°F' : '-';
+        final tempStr = tempC != null
+            ? PatientVitalCheck.formatTemperature(tempC.toString())
+            : '-';
         
         final location = (item['position'] ?? item['location'] ?? '').toString();
-        
-        return [dateTimeStr, bpStr, pulseStr, tempStr, location];
+        final rr = item['respiratoryRate'] ?? item['RespiratoryRate'];
+        final spo2 = item['oxygenSaturation'] ?? item['OxygenSaturation'] ?? item['spo2'];
+        final sugar = item['bsr'] ?? item['BSR'] ?? item['bloodSugar'];
+        String shown(dynamic value) {
+          final text = value?.toString().trim() ?? '';
+          return text.isEmpty || text == 'null' ? '-' : text;
+        }
+
+        return [
+          dateTimeStr,
+          bpStr,
+          pulseStr,
+          tempStr,
+          shown(rr),
+          shown(spo2),
+          shown(sugar),
+          item is Map ? PatientVitalCheck.bmiText(item) : '-',
+          location,
+        ];
       case 'OPD Visits':
       case 'IPD Admissions':
         return _encounterRowData(Map<String, dynamic>.from(item as Map));
@@ -2262,55 +2330,29 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
     }).toList();
   }
 
-  Color _getCellColor(String cell, String? title, int index) {
+  Color _getCellColor(String cell, String? title, int index, [dynamic item]) {
     if (cell.isEmpty || cell == '-') {
       return Colors.grey.shade400;
     }
     
     // Color coding for vitals
-    if (title == 'Vitals') {
-      switch (index) {
-        case 1: // Blood Pressure
-          return Colors.grey.shade700;
-        case 2: // Heart Rate
-          return _getVitalColor(cell, 60, 100);
-        case 3: // Temperature
-          return _getVitalColor(cell, 97.0, 99.0);
-        case 4: // Respiratory Rate
-          return _getVitalColor(cell, 12, 20);
-        case 5: // SpO2
-          return _getVitalColor(cell, 95, 100);
-        case 6: // Weight
-          return Colors.green.shade600;
-        case 7: // BMI
-          return _getVitalColor(cell, 18.5, 25.0);
-        default:
-          return Colors.grey.shade700;
-      }
+    if (title == 'Vital Signs' &&
+        PatientVitalCheck.cellOutOfRange(
+          patient: widget.patient,
+          column: index,
+          cell: cell,
+          row: item is Map ? item : null,
+        )) {
+      return Colors.red.shade700;
     }
     
     return Colors.grey.shade700;
   }
   
-  Color _getVitalColor(String value, double min, double max) {
-    try {
-      double numValue = double.parse(value.replaceAll(RegExp(r'[^\d.]'), ''));
-      if (numValue >= min && numValue <= max) {
-        return Colors.green.shade600; // Normal range
-      } else if (numValue < min * 0.9 || numValue > max * 1.1) {
-        return Colors.red.shade600; // Critical
-      } else {
-        return Colors.orange.shade600; // Warning
-      }
-    } catch (e) {
-      return Colors.grey.shade700; // Default
-    }
-  }
-
   int _getColumnCountForTab(String? title) {
     switch (title) {
       case 'Vital Signs':
-        return 5;
+        return 9;
       case 'OPD Visits':
       case 'IPD Admissions':
         return 7; // Date, Complaint, Symptoms, Diagnosis, Medicines, Lab/Radiology, Clinical Notes
@@ -2634,6 +2676,10 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
               DataColumn(label: Text('Blood Pressure', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
               DataColumn(label: Text('Heart Rate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
               DataColumn(label: Text('Temperature', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Breathing', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Oxygen', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('Sugar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              DataColumn(label: Text('BMI', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
               DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
             ],
             rows: _allVitals.asMap().entries.map((entry) {
@@ -2642,18 +2688,32 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
               final cells = _getRowDataForTab(v, 'Vital Signs');
               return DataRow(
                 color: MaterialStateProperty.all(idx.isEven ? Colors.white : const Color(0xFFFAFBFC)),
-                cells: cells.map((cell) => DataCell(
+                cells: cells.asMap().entries.map((cellEntry) {
+                  final cell = cellEntry.value;
+                  final out = PatientVitalCheck.cellOutOfRange(
+                    patient: widget.patient,
+                    column: cellEntry.key,
+                    cell: cell,
+                    row: v is Map ? v : null,
+                  );
+                  return DataCell(
                   Container(
                     constraints: const BoxConstraints(minWidth: 100, maxWidth: 200),
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     child: Text(
                       cell.isEmpty ? '-' : cell,
-                      style: TextStyle(fontSize: 13, height: 1.25, color: Colors.grey.shade800),
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.25,
+                        color: out ? Colors.red.shade700 : Colors.grey.shade800,
+                        fontWeight: out ? FontWeight.w800 : FontWeight.w500,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                )).toList(),
+                );
+                }).toList(),
               );
             }).toList(),
           ),
@@ -2689,7 +2749,14 @@ class _PatientHistoryDashboardScreenState extends State<PatientHistoryDashboardS
             ],
             rows: _aggregatedLabOrders.map((lab) {
               final cells = _getRowDataForTab(lab, 'Lab Results');
-              final outOfRange = cells.length >= 5 && _isResultOutOfReferenceRange(cells[3], cells[4]);
+              final outOfRange = cells.length >= 5 &&
+                  labResultIsAbnormal(
+                    result: cells[3],
+                    range: cells[4],
+                    flags: (lab['abnormalFlags'] ?? lab['AbnormalFlags'])?.toString(),
+                    status: (lab['status'] ?? lab['resultStatus'])?.toString(),
+                    isCritical: lab['isCritical'] == true,
+                  );
               return DataRow(
                 cells: cells.asMap().entries.map((entry) {
                   final i = entry.key;

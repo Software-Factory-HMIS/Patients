@@ -8,6 +8,7 @@ import '../../widgets/punjab_ui.dart';
 import '../records/lab_reports_screen.dart';
 import '../records/prescriptions_screen.dart';
 import '../records/radiology_reports_screen.dart';
+import '../records/vaccines_screen.dart';
 
 class HealthHubScreen extends StatefulWidget {
   final int patientId;
@@ -180,6 +181,21 @@ class _HealthHubScreenState extends State<HealthHubScreen> {
                 ),
               ),
             ],
+          ),
+          const Gap(12),
+          _HubSummaryTile(
+            background: const Color(0xFFFEF3C7),
+            accent: const Color(0xFFB45309),
+            icon: Icons.vaccines_rounded,
+            label: l.vaccines,
+            value: l.viewList,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => VaccinesScreen(patientId: widget.patientId),
+                ),
+              );
+            },
           ),
           const Gap(22),
           _SectionHeader(

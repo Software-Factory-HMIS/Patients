@@ -6,6 +6,7 @@ import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/inactivity_service.dart';
 import 'services/locale_service.dart';
+import 'services/medicine_reminder_service.dart';
 import 'services/theme_service.dart';
 import 'utils/api_config.dart';
 
@@ -22,6 +23,7 @@ void main() async {
   await AuthService.instance.init();
   await ThemeService.instance.init();
   await LocaleService.instance.init();
+  await MedicineReminderService.init();
 
   runApp(const MyApp());
 }

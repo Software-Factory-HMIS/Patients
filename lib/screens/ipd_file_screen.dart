@@ -14,6 +14,9 @@ import '../utils/clinical_history_assembler.dart';
 import '../utils/lab_order_presenter.dart';
 import '../widgets/punjab_ui.dart';
 import '../services/surgery_service.dart';
+import '../utils/lab_result_flag.dart';
+import '../utils/patient_vital_check.dart';
+import '../utils/visit_detail.dart';
 import 'checkUp_screen.dart';
 import 'patient_file_print_helper.dart';
 
@@ -974,11 +977,8 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => CheckUpScreen(
-              patient: {
-                ...widget.patient,
-                'encounterId': encounterId,
-                'EncounterID': encounterId,
-              },
+              patient: widget.patient,
+              visit: VisitDetail.fromBundle(data),
             ),
           ),
         );
@@ -1644,10 +1644,6 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
       return 'NORMAL';
     }
     
-    bool _shouldHighlightResult(String status, bool isCritical) {
-      return isCritical || status == 'HIGH' || status == 'LOW' || status == 'CRITICAL' || status == 'ABNORMAL';
-    }
-    
     final resultsSection = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -1742,33 +1738,24 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
               final resultStatus = (lab['resultStatus'] ?? '').toString();
               final resultInterpretation = (lab['resultInterpretation'] ?? '').toString();
               
-              final status = _determineStatus(abnormalFlags, resultStatus, isCritical);
-              final shouldHighlight = _shouldHighlightResult(status, isCritical);
-              
-              // Background color matching PDF format
-              Color? rowBgColor;
-              if (isCritical) {
-                rowBgColor = Colors.red[50];
-              } else if (status == 'HIGH' || status == 'LOW') {
-                rowBgColor = Colors.orange[50];
-              }
-              
-              // Status badge colors matching PDF format
-              Color statusBgColor;
-              Color statusTextColor;
-              if (status == 'NORMAL') {
-                statusBgColor = Colors.green[100]!;
-                statusTextColor = Colors.green[800]!;
-              } else if (status == 'HIGH' || status == 'LOW') {
-                statusBgColor = Colors.orange[100]!;
-                statusTextColor = Colors.orange[800]!;
-              } else if (status == 'CRITICAL') {
-                statusBgColor = Colors.red[100]!;
-                statusTextColor = Colors.red[800]!;
-              } else {
-                statusBgColor = Colors.grey[200]!;
-                statusTextColor = Colors.grey[800]!;
-              }
+              var status = _determineStatus(abnormalFlags, resultStatus, isCritical);
+              final shouldHighlight = labResultIsAbnormal(
+                result: resultValue,
+                range: referenceRange,
+                flags: abnormalFlags,
+                status: resultStatus,
+                isCritical: isCritical,
+              );
+              if (shouldHighlight && status == 'NORMAL') status = 'ABNORMAL';
+
+              final Color? rowBgColor =
+                  shouldHighlight ? Colors.red[50] : null;
+              final Color statusBgColor = shouldHighlight
+                  ? Colors.red[100]!
+                  : Colors.green[100]!;
+              final Color statusTextColor = shouldHighlight
+                  ? Colors.red[800]!
+                  : Colors.green[800]!;
               
               return Container(
                 decoration: BoxDecoration(
@@ -2192,66 +2179,6 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
     return weight / (heightInMeters * heightInMeters);
   }
 
-  // Normal range checks matching nurse_vital.dart
-  bool _isSystolicNormal(double systolic) {
-    return systolic >= 90 && systolic <= 140;
-  }
-
-  bool _isDiastolicNormal(double diastolic) {
-    return diastolic >= 60 && diastolic <= 90;
-  }
-
-  bool _isTemperatureNormal(double tempC) {
-    // Convert Celsius to Fahrenheit for comparison (nurse_vital uses 97.0-99.5Â°F)
-    final tempF = (tempC * 9 / 5) + 32;
-    return tempF >= 97.0 && tempF <= 99.5;
-  }
-
-  bool _isPulseNormal(double pulse) {
-    return pulse >= 60 && pulse <= 100;
-  }
-
-  bool _isRespiratoryRateNormal(double rr) {
-    return rr >= 12 && rr <= 20;
-  }
-
-  bool _isO2SaturationNormal(double o2) {
-    return o2 >= 95 && o2 <= 100;
-  }
-
-  bool _isBSRNormal(double bsr) {
-    return bsr >= 70 && bsr <= 100;
-  }
-
-  bool _isBMINormal(double bmi) {
-    return bmi >= 18.5 && bmi <= 24.9;
-  }
-
-  bool _isVitalOutOfRange(String vitalType, String? valueStr) {
-    if (valueStr == null || valueStr.toString().trim().isEmpty) return false;
-    final value = double.tryParse(valueStr.toString());
-    if (value == null) return false;
-
-    switch (vitalType) {
-      case 'bpSystolic':
-        return !_isSystolicNormal(value);
-      case 'bpDiastolic':
-        return !_isDiastolicNormal(value);
-      case 'hr':
-        return !_isPulseNormal(value);
-      case 'temp':
-        return !_isTemperatureNormal(value);
-      case 'spo2':
-        return !_isO2SaturationNormal(value);
-      case 'bmi':
-        return !_isBMINormal(value);
-      case 'bsr':
-        return !_isBSRNormal(value);
-      default:
-        return false;
-    }
-  }
-
   Widget _buildCompactVitalsBlock(
     Map<dynamic, dynamic> v, {
     DateTime? recordedDate,
@@ -2443,47 +2370,37 @@ class _IpdFileScreenState extends State<IpdFileScreen> {
     String height,
     String bsr,
   ) {
-    // Parse BP for out-of-range check
-    double? bpSystolic, bpDiastolic;
-    if (bp.contains('/')) {
-      final parts = bp.split('/');
-      if (parts.length == 2) {
-        bpSystolic = double.tryParse(parts[0].trim());
-        bpDiastolic = double.tryParse(parts[1].trim());
-      }
-    }
-
-    // Calculate BMI
     final bmi = _calculateBMI(weight, height);
     final bmiStr = bmi != null ? bmi.toStringAsFixed(1) : '';
-
-    // Check which vitals are out of range
-    final bpSystolicOutOfRange = bpSystolic != null && !_isSystolicNormal(bpSystolic);
-    final bpDiastolicOutOfRange = bpDiastolic != null && !_isDiastolicNormal(bpDiastolic);
-    final bpOutOfRange = bpSystolicOutOfRange || bpDiastolicOutOfRange;
-    
-    final hrValue = double.tryParse(hr);
-    final hrOutOfRange = hrValue != null && !_isPulseNormal(hrValue);
-    
-    final tempValue = double.tryParse(temp);
-    final tempOutOfRange = tempValue != null && !_isTemperatureNormal(tempValue);
-    
-    final spo2Value = double.tryParse(spo2);
-    final spo2OutOfRange = spo2Value != null && !_isO2SaturationNormal(spo2Value);
-    
-    final rrValue = double.tryParse(rr);
-    final rrOutOfRange = rrValue != null && !_isRespiratoryRateNormal(rrValue);
-    
-    final bmiOutOfRange = bmi != null && !_isBMINormal(bmi);
-    
-    final bsrValue = double.tryParse(bsr);
-    final bsrOutOfRange = bsrValue != null && !_isBSRNormal(bsrValue);
+    final mark = PatientVitalCheck.marks(
+      patient: widget.patient,
+      bp: bp,
+      pulse: hr,
+      temperatureC: temp,
+      oxygen: spo2,
+      breathing: rr,
+      weight: weight,
+      height: height,
+      sugar: bsr,
+    );
+    final bpOutOfRange = mark.bp;
+    final hrOutOfRange = mark.pulse;
+    final tempOutOfRange = mark.temperature;
+    final spo2OutOfRange = mark.oxygen;
+    final rrOutOfRange = mark.breathing;
+    final bmiOutOfRange = mark.bmi;
+    final bsrOutOfRange = mark.sugar;
 
     final l = context.l10n;
     final tiles = <Widget>[
       if (bp.isNotEmpty) _buildVitalChip(l.vitalBp, bp, bpOutOfRange),
       if (hr.isNotEmpty) _buildVitalChip(l.vitalHr, hr, hrOutOfRange),
-      if (temp.isNotEmpty) _buildVitalChip(l.vitalTemp, temp, tempOutOfRange),
+      if (temp.isNotEmpty)
+        _buildVitalChip(
+          l.vitalTemp,
+          PatientVitalCheck.formatTemperature(temp),
+          tempOutOfRange,
+        ),
       if (spo2.isNotEmpty) _buildVitalChip(l.vitalSpo2, spo2, spo2OutOfRange),
       if (rr.isNotEmpty) _buildVitalChip(l.vitalRr, rr, rrOutOfRange),
       if (weight.isNotEmpty) _buildVitalChip(l.vitalWt, weight, false),

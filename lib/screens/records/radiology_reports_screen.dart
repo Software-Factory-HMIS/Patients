@@ -4,6 +4,7 @@ import '../../models/portal_models.dart';
 import '../../services/patient_portal_service.dart';
 import '../../widgets/empty_state_widget.dart';
 import '../../widgets/health/health_report_ui.dart';
+import '../../utils/app_localizations_ext.dart';
 import '../../widgets/punjab_ui.dart';
 import '../health/radiology_report_detail_screen.dart';
 
@@ -29,6 +30,17 @@ class _RadiologyReportsScreenState extends State<RadiologyReportsScreen> {
   RadiologySummary _summary = const RadiologySummary();
   bool _loading = true;
   String? _error;
+  String _filter = 'All';
+
+  List<RadiologyReport> get _visible {
+    if (_filter == 'Ready') {
+      return _reports.where((r) => r.hasReportText).toList();
+    }
+    if (_filter == 'Waiting') {
+      return _reports.where((r) => !r.hasReportText).toList();
+    }
+    return _reports;
+  }
 
   @override
   void initState() {
@@ -102,7 +114,7 @@ class _RadiologyReportsScreenState extends State<RadiologyReportsScreen> {
           : RefreshIndicator(
               color: PunjabColors.primary,
               onRefresh: _load,
-              child: _reports.isEmpty
+              child: _visible.isEmpty && _reports.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: const [
@@ -146,7 +158,34 @@ class _RadiologyReportsScreenState extends State<RadiologyReportsScreen> {
                           ],
                         ),
                         const Gap(14),
-                        ..._reports.map((report) {
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: ['All', 'Ready', 'Waiting'].map((filter) {
+                              final selected = _filter == filter;
+                              final label = filter == 'All'
+                                  ? context.l10n.filterAll
+                                  : filter == 'Ready'
+                                      ? context.l10n.filterReady
+                                      : context.l10n.filterWaiting;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(label),
+                                  selected: selected,
+                                  onSelected: (_) => setState(() => _filter = filter),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const Gap(14),
+                        if (_reports.isNotEmpty && _visible.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(context.l10n.nothingRecorded),
+                          ),
+                        ..._visible.map((report) {
                           final hasReport = report.hasReportText;
                           final preview = report.impression ?? report.findings;
                           return HealthReportListCard(

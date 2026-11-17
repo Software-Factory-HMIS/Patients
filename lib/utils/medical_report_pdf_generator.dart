@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/portal_models.dart';
 
@@ -22,6 +23,40 @@ Future<void> downloadLabReportPdf({
   );
 }
 
+Future<void> shareLabReportPdf({
+  required LabReport report,
+  String? patientName,
+  String? patientMrn,
+}) async {
+  final bytes = await _buildLabPdf(
+    report,
+    patientName: patientName,
+    patientMrn: patientMrn,
+  );
+  final name = '${_safeFileName('Lab-${report.test}')}.pdf';
+  await Share.shareXFiles(
+    [XFile.fromData(bytes, mimeType: 'application/pdf', name: name)],
+    fileNameOverrides: [name],
+  );
+}
+
+Future<void> shareRadiologyReportPdf({
+  required RadiologyReport report,
+  String? patientName,
+  String? patientMrn,
+}) async {
+  final bytes = await _buildRadiologyPdf(
+    report,
+    patientName: patientName,
+    patientMrn: patientMrn,
+  );
+  final name = '${_safeFileName('Radiology-${report.testName}')}.pdf';
+  await Share.shareXFiles(
+    [XFile.fromData(bytes, mimeType: 'application/pdf', name: name)],
+    fileNameOverrides: [name],
+  );
+}
+
 Future<void> downloadRadiologyReportPdf({
   required RadiologyReport report,
   String? patientName,
@@ -36,6 +71,13 @@ Future<void> downloadRadiologyReportPdf({
     onLayout: (_) async => bytes,
     name: _safeFileName('Radiology-${report.testName}'),
   );
+}
+
+String _resultWithFlag(String result, String? flags) {
+  final flag = (flags ?? '').trim().toUpperCase();
+  const shown = {'H', 'L', 'HH', 'LL', 'A', 'AA'};
+  if (!shown.contains(flag)) return result;
+  return '$result $flag';
 }
 
 String _safeFileName(String raw) {
@@ -59,12 +101,11 @@ Future<Uint8List> _buildLabPdf(
         pw.SizedBox(height: 20),
         _row('Test', report.test),
         if (report.date != null) _row('Date', report.date!),
-        if (report.result != null) _row('Result', report.result!),
+        if (report.result != null)
+          _row('Result', _resultWithFlag(report.result!, report.abnormalFlags)),
         if (report.normalRange != null)
           _row('Normal Range', report.normalRange!),
         if (report.status != null) _row('Status', report.status!),
-        if (report.abnormalFlags != null && report.abnormalFlags!.isNotEmpty)
-          _row('Flags', report.abnormalFlags!),
         if (report.orderedBy != null) _row('Ordered By', report.orderedBy!),
         if (report.sampleId != null)
           _row('Sample ID', report.sampleId.toString()),

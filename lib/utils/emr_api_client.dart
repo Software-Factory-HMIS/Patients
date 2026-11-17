@@ -349,10 +349,12 @@ class EmrApiClient {
     int patientId, {
     DateTime? fromDate,
     DateTime? toDate,
+    int? limit,
   }) async {
     final queryParams = <String, String>{};
     if (fromDate != null) queryParams['fromDate'] = fromDate.toIso8601String();
     if (toDate != null) queryParams['toDate'] = toDate.toIso8601String();
+    if (limit != null) queryParams['limit'] = limit.toString();
     final uri = Uri.parse(
       '$baseUrl/api/patient-queue/patient-vitals/$patientId',
     ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
@@ -420,7 +422,9 @@ class EmrApiClient {
     final uri = Uri.parse('$baseUrl/api/encounters/patient/$patientId/safe-extras')
         .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
     final res = await _authenticatedGet(uri);
-    if (res.statusCode != 200) return {};
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load patient extras (${res.statusCode})');
+    }
     if (res.body.trim().isEmpty) return {};
     final data = json.decode(res.body);
     return data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data as Map);

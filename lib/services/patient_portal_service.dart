@@ -100,6 +100,14 @@ class PatientPortalService {
         .toList();
   }
 
+  Future<List<String>> loadAllergyNames(int patientId) async {
+    final rows = await _api.getPatientAllergies(patientId);
+    return rows
+        .map((a) => (a['allergyName'] ?? a['AllergyName'] ?? '').toString().trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+  }
+
   Future<List<PrescriptionItem>> loadPrescriptionHistory(int patientId) async {
     final rows = await _api.getActivePatientMedicines(
       patientId: patientId,
@@ -167,9 +175,24 @@ class PatientPortalService {
     };
 
     final byQueueId = <int, Map<String, dynamic>>{};
+    final closedTokens = <String>{};
 
     void absorbRow(Map<String, dynamic> row) {
       if (!_rowBelongsToPatient(row, patientId)) return;
+      final mappedPeek = _mapQueueRow(row);
+      final tokenPeek = mappedPeek['tokenNumber']?.toString().trim() ?? '';
+      final hospitalPeek = _asInt(mappedPeek['hospitalId']);
+      final tokenKey = '$hospitalPeek|$tokenPeek';
+      if (tokenPeek.isNotEmpty && !_isActiveQueueRow(row)) {
+        closedTokens.add(tokenKey);
+        byQueueId.removeWhere(
+          (_, value) =>
+              value['tokenNumber']?.toString().trim() == tokenPeek &&
+              _asInt(value['hospitalId']) == hospitalPeek,
+        );
+        return;
+      }
+      if (tokenPeek.isNotEmpty && closedTokens.contains(tokenKey)) return;
       if (!_isActiveQueueRow(row)) return;
 
       final mapped = _mapQueueRow(row);
@@ -177,12 +200,28 @@ class PatientPortalService {
       if (token == null || token.isEmpty) return;
 
       final queueId = _asInt(mapped['queueId']);
-      if (queueId > 0) {
-        byQueueId[queueId] = mapped;
+      final hospitalId = _asInt(mapped['hospitalId']);
+      int? sameTokenKey;
+      for (final entry in byQueueId.entries) {
+        final sameToken =
+            entry.value['tokenNumber']?.toString().trim() == token;
+        final sameHospital = _asInt(entry.value['hospitalId']) == hospitalId;
+        if (sameToken && sameHospital) {
+          sameTokenKey = entry.key;
+          break;
+        }
+      }
+
+      if (sameTokenKey != null) {
+        final existingId = _asInt(byQueueId[sameTokenKey]!['queueId']);
+        if (queueId <= 0 && existingId > 0) return;
+        final keepKey = queueId > 0 ? queueId : sameTokenKey;
+        if (keepKey != sameTokenKey) byQueueId.remove(sameTokenKey);
+        byQueueId[keepKey] = _preferQueueRow(byQueueId[keepKey], mapped);
         return;
       }
 
-      byQueueId[byQueueId.length + 1] = mapped;
+      byQueueId[queueId > 0 ? queueId : byQueueId.length + 1] = mapped;
     }
 
     for (final hospitalId in hospitalIds) {
@@ -254,6 +293,24 @@ class PatientPortalService {
     } catch (_) {}
 
     return ids;
+  }
+
+  Map<String, dynamic> _preferQueueRow(
+    Map<String, dynamic>? current,
+    Map<String, dynamic> incoming,
+  ) {
+    if (current == null) return incoming;
+    final merged = Map<String, dynamic>.from(current);
+    incoming.forEach((key, value) {
+      if (value == null) return;
+      final text = value.toString().trim();
+      if (text.isEmpty) return;
+      final existing = merged[key]?.toString().trim() ?? '';
+      if (existing.isEmpty || key == 'queueId' || key == 'queueStatus') {
+        merged[key] = value;
+      }
+    });
+    return merged;
   }
 
   bool _rowBelongsToPatient(Map<String, dynamic> row, int patientId) {
@@ -420,6 +477,11 @@ class PatientPortalService {
         'queueToken',
       ]),
       'queueId': _pickValueInsensitive(row, const ['queueId', 'queueID']),
+      'queueStatus': _pickValueInsensitive(row, const [
+        'queueStatus',
+        'status',
+        'Status',
+      ]),
       'room': _pickValueInsensitive(row, const ['room', 'roomNumber']),
       'hospitalId': _pickValueInsensitive(row, const [
         'hospitalId',

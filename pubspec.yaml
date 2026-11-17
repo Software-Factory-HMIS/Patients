@@ -54,6 +54,8 @@ dependencies:
   path_provider: ^2.1.5
   geolocator: ^13.0.4
   share_plus: ^10.1.4
+  flutter_local_notifications: ^19.4.2
+  timezone: ^0.10.1
   record: ^6.2.1
   flutter_pcm_sound: ^3.3.2
   web_socket_channel: ^3.0.2

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import '../../services/auth_service.dart';
 import '../../services/patient_photo_service.dart';
+import '../../utils/app_date_format.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/patient_fields.dart';
 import '../../widgets/patient_avatar.dart';
@@ -68,6 +69,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return null;
   }
 
+  String _line(String label, String? value) {
+    final text = value?.trim() ?? '';
+    return '$label: ${text.isEmpty ? context.l10n.noneOnFile : text}';
+  }
+
   Future<void> _pickPhoto() async {
     if (_photoBusy) return;
     setState(() => _photoBusy = true);
@@ -99,6 +105,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final cnic = _field('cnic', 'CNIC');
     final phone = _field('phone', 'ContactNumber');
     final email = _field('email', 'Email');
+    final dob = AppDateFormat.formatDateOrNull(
+      _field('dateOfBirth', 'DateOfBirth'),
+    );
+    final sex = _field('gender', 'Gender') ?? _field('sex', 'Sex');
+    final address = _field('address', 'Address');
+    final bloodGroup =
+        _field('bloodGroup', 'BloodGroup') ?? _field('bloodType', 'BloodType');
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -185,6 +198,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ],
               ),
+            ],
+          ),
+        ),
+        const Gap(16),
+        PunjabCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InfoRow(Icons.cake_outlined, _line(l.dateOfBirth, dob)),
+              _InfoRow(Icons.wc_outlined, _line(l.sex, sex)),
+              _InfoRow(Icons.home_outlined, _line(l.address, address)),
+              _InfoRow(Icons.bloodtype_outlined, _line(l.bloodGroup, bloodGroup)),
             ],
           ),
         ),

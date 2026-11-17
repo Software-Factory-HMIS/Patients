@@ -170,8 +170,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceBookingSaving => 'Saving…';
 
   @override
-  String get voiceBookingSaved =>
-      'Saved on this phone.';
+  String get voiceBookingSaved => 'Saved on this phone.';
 
   @override
   String get voiceBookingStop => 'Stop';
@@ -248,7 +247,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labs => 'Labs';
 
   @override
-  String get radiology => 'Radiology';
+  String get radiology => 'X-rays';
 
   @override
   String get noUpcomingVisit => 'No upcoming visit';
@@ -911,4 +910,125 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vitalBsr => 'BSR';
+
+  @override
+  String get visitDetails => 'Visit';
+
+  @override
+  String get openVisitFromList => 'Open this visit from My Visits.';
+
+  @override
+  String get complaints => 'Complaints';
+
+  @override
+  String get symptoms => 'Symptoms';
+
+  @override
+  String get diagnosis => 'Diagnosis';
+
+  @override
+  String get medicines => 'Medicines';
+
+  @override
+  String get clinicalNotes => 'Hospital note';
+
+  @override
+  String get vitals => 'Vitals';
+
+  @override
+  String get nothingRecorded => 'Nothing recorded';
+
+  @override
+  String get vaccines => 'Vaccines';
+
+  @override
+  String get viewList => 'View';
+
+  @override
+  String get noVaccinesYet => 'No vaccines yet';
+
+  @override
+  String get noVaccinesMessage =>
+      'Vaccines given at the hospital will show here.';
+
+  @override
+  String get shareReport => 'Share';
+
+  @override
+  String get showDoctor => 'Show the doctor';
+
+  @override
+  String get allergies => 'Allergies';
+
+  @override
+  String get currentMedicines => 'Current medicines';
+
+  @override
+  String get noneOnFile => 'None on file';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterReady => 'Ready';
+
+  @override
+  String get filterWaiting => 'Waiting';
+
+  @override
+  String get dateFrom => 'From';
+
+  @override
+  String get dateTo => 'To';
+
+  @override
+  String get remindMe => 'Remind me';
+
+  @override
+  String get reminderSaved => 'Reminder saved on this phone.';
+
+  @override
+  String get remindersPhoneOnly => 'Reminders work on the phone app.';
+
+  @override
+  String get cancelToken => 'Cancel token';
+
+  @override
+  String get cancelTokenConfirm =>
+      'Cancel this token? You can do this only while you are still waiting.';
+
+  @override
+  String get tokenCancelled => 'Token cancelled.';
+
+  @override
+  String reminderNotification(String medicine) {
+    return 'Time for $medicine';
+  }
+
+  @override
+  String get reminderNotSaved => 'Could not save the reminder on this phone.';
+
+  @override
+  String get recordsNotLoaded => 'Could not load. Pull down to try again.';
+
+  @override
+  String get reminderMayBeLate => 'This phone may ring a few minutes late.';
+
+  @override
+  String get dateOfBirth => 'Date of birth';
+
+  @override
+  String get sex => 'Sex';
+
+  @override
+  String get address => 'Address';
+
+  @override
+  String get bloodGroup => 'Blood group';
+
+  @override
+  String get latestOutOfRange => 'Latest out of range';
+
+  @override
+  String get latestVitals => 'Latest vitals';
 }

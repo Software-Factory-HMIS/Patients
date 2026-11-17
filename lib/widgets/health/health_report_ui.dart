@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 
 import '../../models/portal_models.dart';
+import '../../utils/lab_result_flag.dart';
 import '../../utils/app_date_format.dart';
 import '../punjab_ui.dart';
 
@@ -654,15 +655,18 @@ class _OutlineBadge extends StatelessWidget {
 }
 
 Color labStatusColor(LabReport report) {
-  if (report.isCritical) return PunjabColors.danger;
-  final status = (report.status ?? '').toLowerCase();
-  if (status.contains('abnormal') ||
-      status.contains('high') ||
-      status.contains('low') ||
-      status.contains('elevated')) {
-    return PunjabColors.warning;
+  if (labResultIsAbnormal(
+    result: report.result,
+    range: report.normalRange,
+    flags: report.abnormalFlags,
+    status: report.status,
+    isCritical: report.isCritical,
+  )) {
+    return PunjabColors.danger;
   }
-  if (status.contains('normal')) return PunjabColors.success;
+  if ((report.status ?? '').toLowerCase().contains('normal')) {
+    return PunjabColors.success;
+  }
   if (!report.hasResult) return PunjabColors.textSecondary;
   return PunjabColors.labBlue;
 }
