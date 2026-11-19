@@ -89,7 +89,10 @@ class ApiConfig {
   );
 
   static final unlockedNotifier = ValueNotifier<bool>(false);
-  static final selectedIdNotifier = ValueNotifier<String>(prod.id);
+  /// Debug defaults to Local; release always resolves to Production.
+  static final selectedIdNotifier = ValueNotifier<String>(
+    kReleaseMode ? prod.id : local.id,
+  );
 
   static String _customEmr = '';
   static String _customAuth = '';
@@ -142,12 +145,20 @@ class ApiConfig {
       _customEmr = normalizeBaseUrl(prefs.getString(_prefsCustomEmr) ?? '');
       _customAuth = normalizeBaseUrl(prefs.getString(_prefsCustomAuth) ?? '');
       final saved = prefs.getString(_prefsId);
-      if (saved != null && servers.any((s) => s.id == saved)) {
-        selectedIdNotifier.value = saved;
-      } else if (useLocalApi) {
+      // Debug defaults to Local. USE_LOCAL_API or a prior Production pick
+      // both land on Local; Beta/Custom selections are kept.
+      if (useLocalApi ||
+          saved == null ||
+          saved == prod.id ||
+          !servers.any((s) => s.id == saved)) {
         selectedIdNotifier.value = local.id;
+        await prefs.setString(_prefsId, local.id);
+      } else {
+        selectedIdNotifier.value = saved;
       }
-    } catch (_) {}
+    } catch (_) {
+      selectedIdNotifier.value = local.id;
+    }
   }
 
   static Future<void> select(String id) async {
@@ -188,8 +199,8 @@ String resolveEmrBaseUrl() {
   }
   if (defined.isNotEmpty) return normalizeBaseUrl(defined);
   if (!kDebugMode) return productionEmrBaseUrl;
-  if (useLocalApi) return localEmrBaseUrl();
-  return productionEmrBaseUrl;
+  // Debug (before prefs load, or with USE_LOCAL_API): local HMIS.
+  return localEmrBaseUrl();
 }
 
 String resolveAuthServerBaseUrl() {
@@ -205,8 +216,7 @@ String resolveAuthServerBaseUrl() {
   }
   if (defined.isNotEmpty) return normalizeBaseUrl(defined);
   if (!kDebugMode) return productionAuthServerBaseUrl;
-  if (useLocalApi) return localAuthServerBaseUrl();
-  return productionAuthServerBaseUrl;
+  return localAuthServerBaseUrl();
 }
 
 void logResolvedApiEndpoints() {

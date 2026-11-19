@@ -37,16 +37,18 @@ flutter devices
 flutter run
 ```
 
-By default the app talks to **production**:
+**Debug** defaults to **local** backends. **Release** always uses **production** unless you pass explicit host dart-defines.
 
-| Service | URL |
-|---------|-----|
-| EMR (HMIS_Prod) | `https://hmis-api.pshealthpunjab.gov.pk` |
-| Auth (OTP / lookup) | `https://hmis-authapi.pshealthpunjab.gov.pk` |
+| Mode | EMR | Auth |
+|------|-----|------|
+| Debug (default) | `https://localhost:7287` (Android emu: `10.0.2.2`) | `http://localhost:5045` |
+| Release / Production | `https://hmis-api.pshealthpunjab.gov.pk` | `https://hmis-authapi.pshealthpunjab.gov.pk` |
 
 ### Local backends
 
 ```bash
+flutter run
+# or force local even if Settings previously saved Production:
 flutter run --dart-define=USE_LOCAL_API=true
 ```
 

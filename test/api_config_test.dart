@@ -11,10 +11,12 @@ void main() {
     expect(productionAuthServerBaseUrl.endsWith('/'), isFalse);
   });
 
-  test('debug without USE_LOCAL_API resolves to production', () {
+  test('debug without prefs defaults to local EMR/auth ports', () {
     expect(useLocalApi, isFalse);
-    expect(resolveEmrBaseUrl(), productionEmrBaseUrl);
-    expect(resolveAuthServerBaseUrl(), productionAuthServerBaseUrl);
+    expect(resolveEmrBaseUrl(), localEmrBaseUrl());
+    expect(resolveAuthServerBaseUrl(), localAuthServerBaseUrl());
+    expect(resolveEmrBaseUrl(), contains(':7287'));
+    expect(resolveAuthServerBaseUrl(), contains(':5045'));
   });
 
   test('release cannot switch off production backends', () {
